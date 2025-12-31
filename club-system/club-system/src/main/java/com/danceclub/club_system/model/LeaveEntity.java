@@ -1,7 +1,7 @@
 package com.example.demo.entity;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime; // 必須 Import 這個，因為你用了 LocalDateTime
+import java.time.LocalDateTime;
 import java.sql.Timestamp;
 
 @Entity
@@ -17,7 +17,7 @@ public class LeaveEntity {
     @JoinColumn(name = "member_id")
     private MemberEntity member;
 
-    // 2. 關聯的活動 (建議變數名改叫 activity，比較不會跟 ID 混淆)
+    // 2. 關聯的活動
     @ManyToOne
     @JoinColumn(name = "activity_id")
     private ActivityEntity activity; 
