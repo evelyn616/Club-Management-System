@@ -1,38 +1,50 @@
-package com.example.demo.entity;
+package com.danceclub.club_system.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
-import java.sql.Timestamp;
 
+/**
+ * 請假申請實體
+ */
 @Entity
 @Table(name = "leave_request")
+@Data // 自動產生 Getter, Setter, toString, equals, hashCode
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class LeaveEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 1. 提交請假的人
-    @ManyToOne
-    @JoinColumn(name = "member_id")
-    private MemberEntity member;
+    // 1. 提交請假的人 - 對應User 實體
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id", referencedColumnName = "\"Mid\"")
+    private User member;
 
-    // 2. 關聯的活動
-    @ManyToOne
-    @JoinColumn(name = "activity_id")
-    private ActivityEntity activity; 
+    // 2. 關聯的活動 - 對應 Activity 實體
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "activity_id", nullable = false)
+    private Activity activity; 
 
+    @Column(nullable = false)
     private String reason;
 
-    @Column(name = "leave_type")
+    @Column(name = "leave_type", nullable = false)
     private String leaveType;
 
-    private String status;
+    @Column(nullable = false, length = 20)
+    private String status = "PENDING"; // 預設為待審核
 
-    // 3. 審核人
-    @ManyToOne
+    // 3. 審核人 - 同樣對應對方的 User 實體
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewed_by")
-    private MemberEntity reviewedBy;
+    private User reviewedBy;
 
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
@@ -40,47 +52,26 @@ public class LeaveEntity {
     @Column(name = "review_note")
     private String reviewNote;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    // --- Getter & Setter 修正區 ---
+    // ========== 生命週期回調 ==========
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+        if (this.status == null) {
+            this.status = "PENDING";
+        }
+    }
 
-
-    public MemberEntity getMember() { return member; }
-    public void setMember(MemberEntity member) { this.member = member; }
-
-
-    public ActivityEntity getActivity() { return activity; }
-    public void setActivity(ActivityEntity activity) { this.activity = activity; }
-
-    public String getReason() { return reason; }
-    public void setReason(String reason) { this.reason = reason; }
-
-    public String getLeaveType() { return leaveType; }
-    public void setLeaveType(String leaveType) { this.leaveType = leaveType; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-
-
-    public MemberEntity getReviewedBy() { return reviewedBy; }
-    public void setReviewedBy(MemberEntity reviewedBy) { this.reviewedBy = reviewedBy; }
-
-    public LocalDateTime getReviewedAt() { return reviewedAt; }
-    public void setReviewedAt(LocalDateTime reviewedAt) { this.reviewedAt = reviewedAt; }
-
-    public String getReviewNote() { return reviewNote; }
-    public void setReviewNote(String reviewNote) { this.reviewNote = reviewNote; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 }

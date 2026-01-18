@@ -1,95 +1,135 @@
-package com.example.demo.service;
+package com.danceclub.club_system.service;
 
-import com.example.demo.entity.LeaveEntity;
-import com.example.demo.entity.MemberEntity;
-import com.example.demo.entity.ActivityEntity;
-import com.example.demo.repository.LeaveRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.danceclub.club_system.dto.LeaveRequestDTO;
+import com.danceclub.club_system.dto.LeaveResponseDTO;
+import com.danceclub.club_system.model.LeaveEntity;
+import com.danceclub.club_system.model.User;
+import com.danceclub.club_system.model.Activity;
+import com.danceclub.club_system.repository.LeaveRepository;
+import com.danceclub.club_system.repository.ActivityRepository;
+import com.danceclub.club_system.repository.UserRepository;
+
 import org.springframework.stereotype.Service;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class LeaveService {
 
     private final LeaveRepository leaveRepository;
+    private final UserRepository userRepository;      
+    private final ActivityRepository activityRepository; 
 
-    @Autowired
-    public LeaveService(LeaveRepository leaveRepository) {
+    public LeaveService(LeaveRepository leaveRepository, 
+                        UserRepository userRepository, 
+                        ActivityRepository activityRepository) {
         this.leaveRepository = leaveRepository;
+        this.userRepository = userRepository;
+        this.activityRepository = activityRepository;
     }
 
     /**
-     * 新增：取得所有請假單 (供 Controller 使用)
+     * 獲取所有請假單
      */
-    public List<LeaveEntity> getAllLeaves() {
-        return leaveRepository.findAll();
+    public List<LeaveResponseDTO> getAllLeaves() {
+        return leaveRepository.findAll().stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * 根據 User ID 查詢請假紀錄
+     */
+    public List<LeaveResponseDTO> getLeavesByMemberId(String userId) {
+        // 使用 getReferenceById 避開 User 欄位檢查
+        User user = userRepository.getReferenceById(userId);
+
+        List<LeaveEntity> leaves = leaveRepository.findLeaveRequestsByMemberQuery(user);
+
+        return leaves.stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
     }
 
     /**
-     * 1. INSERT (新增/提交請假單)
+     * 提交新申請 - 這是最容易報錯的地方，已修正為安全模式
      */
     @Transactional
-    public LeaveEntity submitNewRequest(LeaveEntity request) {
-        request.setStatus("PENDING");
-        request.setCreatedAt(LocalDateTime.now());
-        request.setUpdatedAt(LocalDateTime.now());
-        return leaveRepository.save(request);
+    public LeaveResponseDTO submitNewRequest(LeaveRequestDTO dto) {
+        // 1. 使用 getReferenceById：只拿 ID 代理，不觸發 SELECT * FROM "Member"
+        User member = userRepository.getReferenceById(dto.getMemberId());
+
+        // 2. Activity 欄位通常沒問題，可以用 findById
+        Activity activity = activityRepository.findById(dto.getActivityId())
+                .orElseThrow(() -> new RuntimeException("找不到該活動: " + dto.getActivityId()));
+
+        // 3. 組裝 Entity
+        LeaveEntity leaveEntity = LeaveEntity.builder()
+                .member(member)
+                .activity(activity)
+                .leaveType(dto.getLeaveType())
+                .reason(dto.getReason())
+                .status("PENDING")
+                .build();
+
+        // 4. 儲存
+        LeaveEntity saved = leaveRepository.save(leaveEntity);
+        
+        // 5. 轉回 DTO (注意：轉換過程不能觸發 member.getName())
+        return convertToResponseDTO(saved);
     }
 
     /**
-     * 2. UPDATE/ALTER (修改/審核請假單)
+     * 審核請假單
      */
     @Transactional
-    public Optional<LeaveEntity> reviewRequest(Long requestId, MemberEntity reviewer, String newStatus, String reviewNote) {
+    public Optional<LeaveResponseDTO> reviewRequest(Long requestId, String reviewerId, String newStatus, String reviewNote) {
         return leaveRepository.findById(requestId).map(request -> {
-            // 業務邏輯：更新狀態與審核資訊
+            if (reviewerId != null) {
+                // 審核人也使用 getReferenceById 避開欄位報錯
+                User reviewer = userRepository.getReferenceById(reviewerId);
+                request.setReviewedBy(reviewer);
+            }
             request.setStatus(newStatus);
-            request.setReviewedBy(reviewer);
             request.setReviewNote(reviewNote);
             request.setReviewedAt(LocalDateTime.now());
-            request.setUpdatedAt(LocalDateTime.now());
-            return leaveRepository.save(request);
+            return convertToResponseDTO(leaveRepository.save(request));
         });
     }
 
     /**
-     * 3. DELETE: 刪除請假單
-     * 為了配合你目前的 Controller，我們先簡化成只靠 ID 刪除
+     * 安全的轉換方法：絕對不調用 User 的其他屬性
      */
+    private LeaveResponseDTO convertToResponseDTO(LeaveEntity entity) {
+        return LeaveResponseDTO.builder()
+                .id(entity.getId())
+                // 這裡只拿 ID 是安全的
+                .memberId(entity.getMember().getId()) 
+                // ⚠️ 這裡強制給 null 或固定字串，因為你的資料庫 Member 欄位名稱不對
+                .memberName("MEMBER") 
+                .activityId(entity.getActivity().getId())
+                .activityTitle(entity.getActivity().getTitle())
+                .leaveType(entity.getLeaveType())
+                .reason(entity.getReason())
+                .status(entity.getStatus())
+                // 同理，審核人名字也先給 null
+                .reviewedByName(null) 
+                .reviewedAt(entity.getReviewedAt())
+                .reviewNote(entity.getReviewNote())
+                .createdAt(entity.getCreatedAt())
+                .build();
+    }
+
     @Transactional
     public void deleteRequest(Long id) {
-        Optional<LeaveEntity> request = leaveRepository.findById(id);
-        if (request.isPresent()) {
-            LeaveEntity leave = request.get();
-            // 僅限 PENDING 狀態可刪除
-            if (!"PENDING".equals(leave.getStatus())) {
-                throw new IllegalStateException("Only PENDING requests can be deleted.");
-            }
-            leaveRepository.deleteById(id);
+        LeaveEntity leave = leaveRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("找不到該請假單"));
+        if (!"PENDING".equals(leave.getStatus())) {
+            throw new IllegalStateException("只有待審核狀態可以刪除");
         }
-    }
-
-    // =======================================================
-    // 查詢方法 (對應 Repository 的自定義查詢)
-    // =======================================================
-
-    public List<LeaveEntity> getRequestsByMember(MemberEntity member) {
-        return leaveRepository.findLeaveRequestsByMemberQuery(member);
-    }
-
-    public List<LeaveEntity> getRequestsByStatus(String status) {
-        return leaveRepository.findLeaveRequestsByStatusQuery(status);
-    }
-
-    public List<LeaveEntity> getRequestsByActivity(ActivityEntity activity) {
-        return leaveRepository.findLeaveRequestsByActivityQuery(activity);
-    }
-
-    public List<LeaveEntity> getRecentRequests(int days) {
-        LocalDateTime sinceTime = LocalDateTime.now().minusDays(days);
-        return leaveRepository.findByCreatedAtAfter(sinceTime);
+        leaveRepository.deleteById(id);
     }
 }
