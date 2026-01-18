@@ -4,13 +4,11 @@ package com.danceclub.club_system.model.enums;
  * 活動類型列舉
  */
 public enum ActivityType {
-    ALL("全部"),
-    WHATS_ON("What's On"),
-    NEW_ONSALES("New Onsales"),
+
     REGULAR("例行社課"),
-    OUTDOOR("外出活動"),
-    TRAINING("幹部訓練"),
-    ORIENTATION("迎新活動"),
+    SPECIAL("特別活動"),
+    TRAINING("團練"),
+    PERFORMANCE("演出"),
     COMPETITION("競賽活動");
 
     private final String displayName;

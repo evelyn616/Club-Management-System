@@ -1,5 +1,7 @@
 package com.danceclub.club_system.controller;
 
+import com.danceclub.club_system.dto.ActivityResponse;
+import com.danceclub.club_system.dto.SchedulePublishRequest;
 import com.danceclub.club_system.model.Activity;
 import com.danceclub.club_system.model.enums.ActivityType;
 import com.danceclub.club_system.repository.ActivityRepository;
@@ -97,8 +99,30 @@ public class ActivityController {
     // TODO 11: 發布活動
     // PUT /api/activities/{id}/publish
     @PutMapping("/{id}/publish")
-    public Activity publishActivity(@PathVariable Long id) {
-        return activityService.publishActivity(id);
+    public ResponseEntity<ActivityResponse> publishActivity(
+            @PathVariable Long id){
+        Activity activity = activityService.publishActivity(id);
+        return ResponseEntity.ok(ActivityResponse.from(activity));
+    }
+
+
+    //預約發布活動
+    @PutMapping("/{id}/schedule-publish")
+    public ResponseEntity<ActivityResponse> schedulePublishActivity(
+            @PathVariable Long id,
+            @Valid @RequestBody SchedulePublishRequest request) {
+
+        Activity activity =activityService.schedulePublishActivity(id, request.getPublishAt());
+        return ResponseEntity.ok(ActivityResponse.from(activity));
+    }
+
+    //取消預約
+    @PutMapping("/{id}/cancel-schedule")
+    public ResponseEntity<ActivityResponse> cancelSchedulePublish(
+            @PathVariable Long id
+    ){
+        Activity activity=activityService.cancelSchedulePublish(id);
+        return ResponseEntity.ok(ActivityResponse.from(activity));
     }
 
     // TODO 12: 取消活動

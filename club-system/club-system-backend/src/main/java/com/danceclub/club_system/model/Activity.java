@@ -86,6 +86,11 @@ public class Activity {
     @Column(nullable = false, length = 20)
     private ActivityStatus status = ActivityStatus.DRAFT;
 
+    // ========== 發布時間 ==========
+
+    @Column(name = "published_at", nullable = true, updatable = false)
+    private LocalDateTime publishedAt;
+
     // ========== 參加對象 ==========
     @NotNull(message = "參加對象不得為空")
     @Enumerated(EnumType.STRING)
@@ -97,6 +102,10 @@ public class Activity {
     @NotNull(message = "建立者不得為空")
     @Column(name = "created_by", nullable = false, length = 255)
     private String createdBy;
+
+
+    @Column(name = "updated_by", length = 255)
+    private String updatedBy;
 
     // ========== 時間戳記 ==========
 

@@ -56,6 +56,12 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
             @Param("sevenDaysLater") LocalDateTime sevenDaysLater
     );
 
+    //查詢發布時間到的活動
+    List<Activity> findByStatusAndPublishedAtBefore(
+            ActivityStatus status,
+            LocalDateTime dateTime
+    );
+
     // 查詢某個使用者建立的所有活動，按建立時間降序排列
     List<Activity> findByCreatedByOrderByCreatedAtDesc(String createdBy);
 }

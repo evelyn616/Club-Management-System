@@ -5,6 +5,7 @@ import com.danceclub.club_system.model.enums.ActivityStatus;
 import com.danceclub.club_system.model.enums.ActivityType;
 import com.danceclub.club_system.repository.ActivityRepository;
 import com.danceclub.club_system.repository.RegistrationRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -150,10 +151,11 @@ public class ActivityService {
 
 
     /**
-     * 發布活動
+     * 立即發布活動
      * @param id 活動 ID
      * @return 已發布的活動
      */
+    @Transactional
     public Activity publishActivity(Long id) {
         // TODO 1: 查詢活動
         Activity activity = getActivityById(id);
@@ -172,6 +174,58 @@ public class ActivityService {
 
         // TODO 4: 更新狀態並儲存
         activity.setStatus(ActivityStatus.PUBLISHED);
+        activity.setPublishedAt(LocalDateTime.now());
+        return activityRepository.save(activity);
+    }
+
+    /**
+     * 預約發布活動
+     * @param id 活動 ID
+     * @return 已發布的活動
+     */
+    @Transactional
+    public Activity schedulePublishActivity(Long id, LocalDateTime pulishedAt) {
+        // TODO 1: 查詢活動
+        Activity activity = getActivityById(id);
+
+        // TODO 2: 檢查當前狀態
+        if (activity.getStatus() != ActivityStatus.DRAFT) {
+            throw new IllegalStateException("只有草稿狀態的活動可以發布");
+        }
+
+        //檢查時間
+        if (pulishedAt.isBefore(LocalDateTime.now())){
+            throw new IllegalArgumentException("發布時間必須晚於現在");
+        }
+
+        // TODO 3: 設定預約發布
+        // 例如：標題、時間是否已填寫？
+        activity.setStatus(ActivityStatus.SCHEDULE);
+        activity.setPublishedAt(pulishedAt);
+        activity.setUpdatedAt(LocalDateTime.now());
+
+
+        return activityRepository.save(activity);
+    }
+
+    /**
+     * 取消預約發布
+     */
+    @Transactional
+    public Activity cancelSchedulePublish(Long id){
+        Activity activity = getActivityById(id);
+
+        //查看狀態
+        if (activity.getStatus() != ActivityStatus.SCHEDULE){
+            throw new IllegalStateException("活動不是預約發布狀態");
+
+        }
+
+        //改回草稿
+        activity.setStatus(ActivityStatus.DRAFT);
+        activity.setUpdatedAt(LocalDateTime.now());
+        activity.setPublishedAt(null);
+
         return activityRepository.save(activity);
     }
 

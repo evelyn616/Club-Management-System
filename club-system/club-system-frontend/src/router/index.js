@@ -20,17 +20,43 @@ const router = createRouter({
     {
       path: '/my-registrations',
       name: 'my-registrations',
-      component: () =>import('../views/MyRegistrations.vue'),
+      component: () =>import('../views/member/MyRegistrations.vue'),
     },
     {
       path: '/pending-payments',
       name: 'pending-payments',
-      component: () =>import('../views/PendingPayments.vue'),
+      component: () =>import('../views/member/PendingPayments.vue'),
+    },
+    
+    {
+      path: '/admin/create-activity-container',
+      name: 'create-activity-container',
+      component: () =>import('../views/admin/CreateActivity.vue'),
     },
     {
-      path: '/registrable-activities',
-      name: 'registrable-activities',
-      component: () =>import('../views/RegistrableActivities.vue'),
+      path: '/admin/update-activity-container/:id',
+      name: 'update-activity-container',
+      component: () =>import('../views/admin/UpdateActivity.vue'),
+    },
+    {
+      path: '/admin/activity-list-container',
+      name: 'activity-list-container',
+      component: () =>import('../views/admin/ActivityList.vue'),
+    },
+    {
+      path: '/admin/activity-management-container',
+      name: 'activity-management-container',
+      component: () =>import('../views/admin/ActivityManagement.vue'),
+    },
+    {
+      path: '/activity-registration-list-container',
+      name: 'activity-registration-list-container',
+      component: () =>import('../views/member/ActivityRegistrationList.vue'),
+    },
+    {
+      path: '/admin/publish-activity/:id',
+      name: 'publish-activity',
+      component: () =>import('../views/admin/PublishActivity.vue'),
     },
   ],
 })

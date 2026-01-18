@@ -5,6 +5,7 @@ package com.danceclub.club_system.model.enums;
  */
 public enum ActivityStatus {
     DRAFT("草稿"),
+    SCHEDULE("預約發布"),
     PUBLISHED("已發布"),
     CANCELLED("已取消"),
     COMPLETED("已完成");
