@@ -37,7 +37,7 @@
           <thead>
             <tr>
               <th>單號</th>
-              <th>員工編號</th>
+              <th>會員編號</th>
               <th>類型</th>
               <th>原因</th>
               <th>狀態</th>
