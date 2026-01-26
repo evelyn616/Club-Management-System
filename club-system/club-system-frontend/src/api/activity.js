@@ -9,42 +9,46 @@ export const activityApi = {
     getAllActivities: () => {
         return apiClient.get(`/activities`);},
     // 取得單一活動詳細資訊
-    getActivityDetails: (id) => {
-        return apiClient.get(`/activities/${id}`);
+    getActivityDetails: (activityId) => {
+        return apiClient.get(`/activities/${activityId}`);
     },
     // 建立新活動
     createActivity: (activityData) => {
         return apiClient.post(`/activities`, activityData);
     },
     // 更新活動資訊
-    updateActivity: (id, activityData) => {
-        return apiClient.put(`/activities/${id}`, activityData);
+    updateActivity: (activityId, activityData) => {
+        return apiClient.put(`/activities/${activityId}`, activityData);
     },
     // 刪除活動
-    deleteActivity: (id) => {
-        return apiClient.delete(`/activities/${id}`);
+    deleteDraftActivity: (activityId) => {
+        return apiClient.delete(`/activities/${activityId}`);
     },
     // 發布活動
-    publishActivity: (id) => {
-        return apiClient.put(`/activities/${id}/publish`);
+    publishActivity: (activityId) => {
+        return apiClient.put(`/activities/${activityId}/publish`);
     },
     //預約發布活動
-    schedulePublishActivity: (id, scheduleData) => {
-        return apiClient.put(`/activities/${id}/schedule-publish`, scheduleData);
+    schedulePublishActivity: (activityId, scheduleData) => {
+        return apiClient.put(`/activities/${activityId}/schedule-publish`, scheduleData);
     },
 
     // 取消發布活動
-    cancelScheduledPublish: (id) => {
-        return apiClient.put(`/activities/${id}/cancel-schedule`);
+    cancelScheduledPublish: (activityId) => {
+        return apiClient.put(`/activities/${activityId}/cancel-schedule`);
     },
 
     //完成活動
-    completeActivity: (id) => {
-        return apiClient.put(`/activities/${id}/complete`);
+    completeActivity: (activityId) => {
+        return apiClient.put(`/activities/${activityId}/complete`);
     },
 
     // 取消活動
-    cancelActivity: (id) => {
-        return apiClient.put(`/activities/${id}/cancel`);
+    cancelActivity: (activityId) => {
+        return apiClient.put(`/activities/${activityId}/cancel`);
+    },
+
+    getDraftActivities: () => {
+        return apiClient.get(`/activities/drafts`);
     },
 };

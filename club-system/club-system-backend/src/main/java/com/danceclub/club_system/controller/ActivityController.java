@@ -38,7 +38,7 @@ public class ActivityController {
         // TODO 3: 判斷 type 是否有值
         if (type == null) {
             // 回傳所有已發布活動
-            return activityService.getAllPublishedActivities();
+            return activityService.getAllActivities();
         } else {
             // 回傳特定類別的活動
             return activityService.getPublishedActivitiesByType(type);
@@ -138,4 +138,8 @@ public class ActivityController {
     public Activity completeActivity(@PathVariable Long id) {
         return activityService.completeActivity(id);
     }
+
+    //查詢草稿活動
+    @GetMapping("/drafts")
+    public List<Activity> getDraftActivities(){return activityService.getDraftActivities();}
 }

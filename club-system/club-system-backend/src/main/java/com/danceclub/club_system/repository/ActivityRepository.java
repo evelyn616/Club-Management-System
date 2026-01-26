@@ -3,7 +3,9 @@ package com.danceclub.club_system.repository;
 import com.danceclub.club_system.model.Activity;
 import com.danceclub.club_system.model.enums.ActivityStatus;
 import com.danceclub.club_system.model.enums.ActivityType;
+import org.springframework.cglib.core.Local;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -56,6 +58,20 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
             @Param("sevenDaysLater") LocalDateTime sevenDaysLater
     );
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Activity a
+            SET a.status = :newStatus
+            WHERE a.status = :currentStatus
+            AND a.endTime < :now
+            """)
+    int updateStatus(
+            @Param("currentStatus") ActivityStatus currentStatus,
+            @Param("newStatus") ActivityStatus newStatus,
+            @Param("now") LocalDateTime now
+
+    );
+
     //查詢發布時間到的活動
     List<Activity> findByStatusAndPublishedAtBefore(
             ActivityStatus status,
@@ -64,4 +80,9 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
 
     // 查詢某個使用者建立的所有活動，按建立時間降序排列
     List<Activity> findByCreatedByOrderByCreatedAtDesc(String createdBy);
+
+    List<Activity> findByStatusOrderByCreatedAtDesc(ActivityStatus status);
+
+
+
 }

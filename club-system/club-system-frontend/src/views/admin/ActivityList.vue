@@ -42,9 +42,10 @@
         </div>
         <p v-if="loading">載入中...</p>
         <!-- 顯示活動列表 -->
-         <p v-else>目前有{{ activities.length }}個活動<router-link to="/views/admin/CreateActivity.vue" class="btn-create">
-                ➕ 建立活動
-            </router-link></p>
+         <p v-else>目前有{{ activities.length }}個活動</p>
+         <button @click="router.push({ name: 'create-activity-container' })" class="btn-create">
+        建立活動
+      </button>
 
          
 

@@ -34,7 +34,7 @@ const router = createRouter({
       component: () =>import('../views/admin/CreateActivity.vue'),
     },
     {
-      path: '/admin/update-activity-container/:id',
+      path: '/admin/update-activity-container/:activityId',
       name: 'update-activity-container',
       component: () =>import('../views/admin/UpdateActivity.vue'),
     },
@@ -54,9 +54,14 @@ const router = createRouter({
       component: () =>import('../views/member/ActivityRegistrationList.vue'),
     },
     {
-      path: '/admin/publish-activity/:id',
-      name: 'publish-activity',
+      path: '/admin/publish-activity-container/:activityId?',
+      name: 'publish-activity-container',
       component: () =>import('../views/admin/PublishActivity.vue'),
+    },
+    {
+      path: '/admin/draft-box-container',
+      name: 'draft-box-container',
+      component: () => import('@/views/admin/DraftBox.vue')
     },
   ],
 })

@@ -6,6 +6,7 @@ import com.danceclub.club_system.model.enums.ActivityType;
 import com.danceclub.club_system.repository.ActivityRepository;
 import com.danceclub.club_system.repository.RegistrationRepository;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+
 public class ActivityService {
 
 
@@ -24,6 +26,10 @@ public class ActivityService {
     public ActivityService(ActivityRepository activityRepository, RegistrationRepository registrationRepository){
         this.activityRepository = activityRepository;
         this.registrationRepository = registrationRepository;
+    }
+
+    public List<Activity>getAllActivities(){
+        return activityRepository.findAll();
     }
 
     // TODO: 寫方法 - 取得所有已發布的活動
@@ -343,5 +349,27 @@ public class ActivityService {
         }
     }
 
+    /**
+     * 自動完成已過期活動
+     */
+    @Transactional
+    public void completeExpiredActivities(){
+        LocalDateTime now = LocalDateTime.now();
+
+        int updatedCount = activityRepository.updateStatus(
+                ActivityStatus.PUBLISHED,
+                ActivityStatus.COMPLETED,
+                now
+        );
+
+    }
+
+
+    /**
+     * 查詢草稿活動
+     */
+    public List<Activity> getDraftActivities(){
+        return activityRepository.findByStatusOrderByCreatedAtDesc(ActivityStatus.DRAFT);
+    }
 
 }
