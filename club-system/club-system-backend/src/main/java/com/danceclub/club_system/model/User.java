@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  * 用於存儲所有用戶（社員和管理員）的基本信息
  */
 @Entity
-@Table(name = "user")
+@Table(name = "\"user\"")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
