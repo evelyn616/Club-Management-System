@@ -1,4 +1,4 @@
-package com.club.management.dto;
+package com.danceclub.club_system.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

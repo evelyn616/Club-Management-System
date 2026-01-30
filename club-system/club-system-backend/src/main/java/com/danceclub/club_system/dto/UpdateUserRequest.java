@@ -1,4 +1,4 @@
-package com.club.management.dto;
+package com.danceclub.club_system.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -34,4 +34,9 @@ public class UpdateUserRequest {
      * 生日
      */
     private LocalDate birthday;
+    
+    /**
+     * 學校
+     */
+    private String school;
 }

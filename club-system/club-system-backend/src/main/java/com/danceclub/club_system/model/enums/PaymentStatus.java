@@ -1,24 +1,29 @@
 package com.danceclub.club_system.model.enums;
-/*繳費狀態列舉
 
+/**
+ * 繳費狀態列舉
+ * NOT_REQUIRED - 無須繳費（用於免費活動）
+ * PENDING - 待繳費
+ * PAID - 已繳費
+ * CANCELLED - 已取消
+ * REFUNDED - 已退款
+ * PARTIAL_REFUNDED - 部分退款
  */
 public enum PaymentStatus {
     NOT_REQUIRED("無須繳費"),
     PENDING("待繳費"),
-    PAID("已繳費");
+    PAID("已繳費"),
+    CANCELLED("已取消"),
+    REFUNDED("已退款"),
+    PARTIAL_REFUNDED("部分退款");
 
-    /*暫存中文顯示
-    */
-    private final String displayname;
+    private final String displayName;
 
-    /*建構子
-     */
-    PaymentStatus(String displayname){
-        this.displayname = displayname;
+    PaymentStatus(String displayName) {
+        this.displayName = displayName;
     }
 
-    /*顯示中文方法
-    */
-    public String getDisplayname(){return displayname;}
-
+    public String getDisplayName() {
+        return displayName;
+    }
 }

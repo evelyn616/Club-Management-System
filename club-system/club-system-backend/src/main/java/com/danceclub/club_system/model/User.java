@@ -1,4 +1,4 @@
-package com.club.management.entity;
+package com.danceclub.club_system.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -33,28 +33,34 @@ public class User {
     private String name;
 
     /**
-     * 電子郵件（唯一）
-     */
-    @Column(name = "email", length = 255, nullable = false, unique = true)
-    private String email;
-
-    /**
      * 密碼雜湊值（使用 bcrypt）
      */
-    @Column(name = "password_hash", length = 255, nullable = false)
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
-
-    /**
-     * 電話號碼
-     */
-    @Column(name = "phone", length = 20)
-    private String phone;
 
     /**
      * 生日
      */
     @Column(name = "birthday")
     private LocalDate birthday;
+
+    /**
+     * 學校
+     */
+    @Column(name = "school", columnDefinition = "TEXT")
+    private String school;
+
+    /**
+     * 電話號碼
+     */
+    @Column(name = "phone", columnDefinition = "TEXT")
+    private String phone;
+
+    /**
+     * 電子郵件（唯一）
+     */
+    @Column(name = "email", columnDefinition = "TEXT", nullable = false, unique = true)
+    private String email;
 
     /**
      * 角色（'member' 或 'admin'）

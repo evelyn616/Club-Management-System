@@ -1,4 +1,4 @@
-package com.club.management.dto;
+package com.danceclub.club_system.dto;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -14,6 +14,7 @@ public class UserResponse {
     private String email;
     private String phone;
     private LocalDate birthday;
+    private String school;
     private String role;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -23,13 +24,14 @@ public class UserResponse {
     
     // Constructor with all fields
     public UserResponse(String id, String name, String email, String phone, 
-                       LocalDate birthday, String role, LocalDateTime createdAt, 
-                       LocalDateTime updatedAt) {
+                       LocalDate birthday, String school, String role, 
+                       LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.name = name;
         this.email = email;
         this.phone = phone;
         this.birthday = birthday;
+        this.school = school;
         this.role = role;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -74,6 +76,14 @@ public class UserResponse {
     
     public void setBirthday(LocalDate birthday) {
         this.birthday = birthday;
+    }
+    
+    public String getSchool() {
+        return school;
+    }
+    
+    public void setSchool(String school) {
+        this.school = school;
     }
     
     public String getRole() {

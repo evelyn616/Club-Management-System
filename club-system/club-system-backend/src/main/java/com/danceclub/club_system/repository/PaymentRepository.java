@@ -1,31 +1,42 @@
-package com.club.management.repository;
+package com.danceclub.club_system.repository;
 
-import com.club.management.entity.Payment;
+import com.danceclub.club_system.model.Payment;
+import com.danceclub.club_system.model.enums.PaymentMethod;
+import com.danceclub.club_system.model.enums.PaymentStatus;
+import com.danceclub.club_system.model.enums.PaymentType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface PaymentRepository extends JpaRepository<Payment, String> {
+public interface PaymentRepository extends JpaRepository<Payment, Long> {
     
     /**
      * Find payments by status
      * @param status the payment status
      * @return list of payments with the given status
      */
-    List<Payment> findByStatus(String status);
+    List<Payment> findByStatus(PaymentStatus status);
     
     /**
      * Find payments by payment method
-     * @param method the payment method (cash or online)
+     * @param method the payment method
      * @return list of payments with the given method
      */
-    List<Payment> findByMethod(String method);
+    List<Payment> findByMethod(PaymentMethod method);
+    
+    /**
+     * Find payments by payment type
+     * @param paymentType the payment type
+     * @return list of payments with the given type
+     */
+    List<Payment> findByPaymentType(PaymentType paymentType);
     
     /**
      * Find payments by status and method
@@ -33,28 +44,28 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
      * @param method the payment method
      * @return list of payments matching the criteria
      */
-    List<Payment> findByStatusAndMethod(String status, String method);
+    List<Payment> findByStatusAndMethod(PaymentStatus status, PaymentMethod method);
     
     /**
-     * Find payment by registration ID
-     * @param registrationId the registration ID
+     * Find payment by registration
+     * @param registration the registration entity
      * @return Optional containing the payment if found
      */
-    Optional<Payment> findByRegistrationId(String registrationId);
+    Optional<Payment> findByRegistration(com.danceclub.club_system.model.Registration registration);
     
     /**
-     * Find all payments by registration ID
-     * @param registrationId the registration ID
+     * Find all payments by registration
+     * @param registration the registration entity
      * @return list of payments for the registration
      */
-    List<Payment> findAllByRegistrationId(String registrationId);
+    List<Payment> findAllByRegistration(com.danceclub.club_system.model.Registration registration);
     
     /**
      * Find payments by status ordered by creation time
      * @param status the payment status
      * @return list of payments ordered by creation time
      */
-    List<Payment> findByStatusOrderByCreatedAtAsc(String status);
+    List<Payment> findByStatusOrderByCreatedAtAsc(PaymentStatus status);
     
     /**
      * Find payments reviewed by a specific admin
@@ -64,25 +75,25 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
     List<Payment> findByReviewedBy(String reviewedBy);
     
     /**
-     * Find pending cash payments (status = pending, method = cash)
+     * Find pending cash payments
      * @return list of pending cash payments
      */
-    @Query("SELECT p FROM Payment p WHERE p.status = 'pending' AND p.method = 'cash' ORDER BY p.createdAt ASC")
+    @Query("SELECT p FROM Payment p WHERE p.status = 'PENDING' AND p.method = 'CASH' ORDER BY p.createdAt ASC")
     List<Payment> findPendingCashPayments();
     
     /**
-     * Find pending refund requests (status = refund_pending)
+     * Find pending refund requests
      * @return list of pending refund requests
      */
-    @Query("SELECT p FROM Payment p WHERE p.status = 'refund_pending' ORDER BY p.createdAt ASC")
-    List<Payment> findPendingRefunds();
+    @Query("SELECT p FROM Payment p WHERE p.status = 'REFUNDED' OR p.status = 'PARTIAL_REFUNDED' ORDER BY p.createdAt ASC")
+    List<Payment> findRefundedPayments();
     
     /**
      * Find payments by user (through registration)
      * @param userId the user ID
      * @return list of payments for the user
      */
-    @Query("SELECT p FROM Payment p JOIN ActivityRegistration r ON p.registrationId = r.id WHERE r.userId = :userId")
+    @Query("SELECT p FROM Payment p JOIN p.registration r WHERE r.userId = :userId")
     List<Payment> findByUserId(@Param("userId") String userId);
     
     /**
@@ -91,8 +102,8 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
      * @param status the payment status
      * @return list of payments matching the criteria
      */
-    @Query("SELECT p FROM Payment p JOIN ActivityRegistration r ON p.registrationId = r.id WHERE r.userId = :userId AND p.status = :status")
-    List<Payment> findByUserIdAndStatus(@Param("userId") String userId, @Param("status") String status);
+    @Query("SELECT p FROM Payment p JOIN p.registration r WHERE r.userId = :userId AND p.status = :status")
+    List<Payment> findByUserIdAndStatus(@Param("userId") String userId, @Param("status") PaymentStatus status);
     
     /**
      * Find payments paid between two dates
@@ -107,7 +118,7 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
      * @param status the payment status
      * @return the count of payments
      */
-    long countByStatus(String status);
+    long countByStatus(PaymentStatus status);
     
     /**
      * Calculate total amount by status
@@ -115,20 +126,20 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
      * @return the total amount
      */
     @Query("SELECT SUM(p.amount) FROM Payment p WHERE p.status = :status")
-    Long sumAmountByStatus(@Param("status") String status);
+    BigDecimal sumAmountByStatus(@Param("status") PaymentStatus status);
     
     /**
      * Find overdue payments (pending for more than specified days)
      * @param daysAgo the date threshold
      * @return list of overdue payments
      */
-    @Query("SELECT p FROM Payment p WHERE p.status = 'pending' AND p.createdAt < :daysAgo")
+    @Query("SELECT p FROM Payment p WHERE p.status = 'PENDING' AND p.createdAt < :daysAgo")
     List<Payment> findOverduePayments(@Param("daysAgo") LocalDateTime daysAgo);
     
     /**
-     * Find the maximum payment ID for ID generation
-     * @return the maximum payment ID or null if no payments exist
+     * Find payments by bank account proof
+     * @param bankAccountProof the last 5 digits of bank account
+     * @return list of payments with the given bank account proof
      */
-    @Query("SELECT p.id FROM Payment p ORDER BY p.id DESC LIMIT 1")
-    String findMaxId();
+    List<Payment> findByBankAccountProof(Long bankAccountProof);
 }

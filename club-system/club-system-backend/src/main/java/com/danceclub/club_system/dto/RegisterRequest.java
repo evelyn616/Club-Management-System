@@ -1,4 +1,4 @@
-package com.club.management.dto;
+package com.danceclub.club_system.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -27,22 +27,25 @@ public class RegisterRequest {
     private String password;
     
     @NotBlank(message = "電話號碼不能為空")
-    @Size(max = 20, message = "電話號碼長度不能超過20個字符")
     private String phone;
     
     @NotNull(message = "生日不能為空")
     private LocalDate birthday;
     
+    private String school;
+    
     // Default constructor
     public RegisterRequest() {}
     
     // Constructor with all fields
-    public RegisterRequest(String name, String email, String password, String phone, LocalDate birthday) {
+    public RegisterRequest(String name, String email, String password, String phone, 
+                          LocalDate birthday, String school) {
         this.name = name;
         this.email = email;
         this.password = password;
         this.phone = phone;
         this.birthday = birthday;
+        this.school = school;
     }
     
     // Getters and Setters
@@ -84,5 +87,13 @@ public class RegisterRequest {
     
     public void setBirthday(LocalDate birthday) {
         this.birthday = birthday;
+    }
+    
+    public String getSchool() {
+        return school;
+    }
+    
+    public void setSchool(String school) {
+        this.school = school;
     }
 }

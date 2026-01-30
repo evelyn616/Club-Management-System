@@ -1,4 +1,4 @@
-package com.club.management.dto;
+package com.danceclub.club_system.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

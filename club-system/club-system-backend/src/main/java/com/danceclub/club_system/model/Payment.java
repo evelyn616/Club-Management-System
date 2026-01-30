@@ -1,10 +1,14 @@
-package com.club.management.entity;
+package com.danceclub.club_system.model;
 
+import com.danceclub.club_system.model.enums.PaymentMethod;
+import com.danceclub.club_system.model.enums.PaymentStatus;
+import com.danceclub.club_system.model.enums.PaymentType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -19,55 +23,100 @@ import java.time.LocalDateTime;
 public class Payment {
 
     /**
-     * 繳費 ID（主鍵），格式：P0001, P0002, P0003...
+     * 繳費 ID（主鍵）
      */
     @Id
-    @Column(name = "id", length = 10, nullable = false)
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
 
     /**
      * 報名 ID
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "registration_id", nullable = false)
-    private ActivityRegistration registration;
+    private Registration registration;
 
     /**
-     * 付款金額
+     * 費用類型（ACTIVITY_FEE/MEMBERSHIP_FEE/MATERIAL_FEE/ANNUAL_FEE/OTHER）
      */
-    @Column(name = "amount", nullable = false)
-    private Integer amount;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_type", nullable = false)
+    private PaymentType paymentType;
 
     /**
-     * 付款方式（'cash', 'online'）
+     * 原價（從 activity.fee_amount 複製）
      */
-    @Column(name = "method", length = 20, nullable = false)
-    private String method;
+    @Column(name = "original_amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal originalAmount;
 
     /**
-     * 繳費狀態（'pending', 'paid', 'approved', 'refund_pending', 'refunded'）
+     * 實際應繳金額 (original_amount - discount_amount)
      */
-    @Column(name = "status", length = 20, nullable = false)
-    private String status = "pending";
+    @Column(name = "amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal amount;
 
     /**
-     * 付款時間（可為 NULL）
+     * 折扣金額
+     */
+    @Column(name = "discount_amount", precision = 10, scale = 2)
+    private BigDecimal discountAmount;
+
+    /**
+     * 折扣原因
+     */
+    @Column(name = "discount_reason")
+    private String discountReason;
+
+    /**
+     * 繳費狀態（PENDING/PAID/CANCELLED/REFUNDED/PARTIAL_REFUNDED）
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private PaymentStatus status = PaymentStatus.PENDING;
+
+    /**
+     * 付款方式（CASH/BANK_TRANSFER/CREDIT_CARD/LINE_PAY/OTHER）
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "method")
+    private PaymentMethod method;
+
+    /**
+     * 實際付款時間
      */
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
     /**
-     * 審核管理員 ID（可為 NULL）
+     * 審核管理員 ID
      */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reviewed_by")
-    private User reviewedBy;
+    @Column(name = "reviewed_by")
+    private String reviewedBy;
 
     /**
-     * 審核時間（可為 NULL）
+     * 審核時間
      */
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
+
+    /**
+     * 審核備註
+     */
+    @Column(name = "review_note", columnDefinition = "TEXT")
+    private String reviewNote;
+
+    /**
+     * 備註
+     */
+    @Column(name = "note", columnDefinition = "TEXT")
+    private String note;
+
+    /**
+     * 轉帳後五碼
+     */
+    @Column(name = "bankaccount_proof")
+    private Long bankAccountProof;
 
     /**
      * 創建時間
@@ -89,6 +138,14 @@ public class Payment {
         LocalDateTime now = LocalDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
+        
+        // 設定預設值
+        if (this.status == null) {
+            this.status = PaymentStatus.PENDING;
+        }
+        if (this.discountAmount == null) {
+            this.discountAmount = BigDecimal.ZERO;
+        }
     }
 
     /**
