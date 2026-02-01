@@ -1,6 +1,7 @@
 package com.danceclub.club_system.controller;
 
 import com.danceclub.club_system.dto.ActivityResponse;
+import com.danceclub.club_system.dto.CancelActivityRequest;
 import com.danceclub.club_system.dto.SchedulePublishRequest;
 import com.danceclub.club_system.model.Activity;
 import com.danceclub.club_system.model.enums.ActivityType;
@@ -128,8 +129,12 @@ public class ActivityController {
     // TODO 12: 取消活動
     // PUT /api/activities/{id}/cancel
     @PutMapping("/{id}/cancel")
-    public Activity cancelActivity(@PathVariable Long id) {
-        return activityService.cancelActivity(id);
+    public Activity cancelActivity(@PathVariable Long id, @RequestBody(required = false) CancelActivityRequest request) {
+        String reason = (request != null && request.getReason() != null)
+                ? request.getReason()
+                : "管理員取消活動";
+
+        return activityService.cancelActivity(id, reason);
     }
 
     // TODO 13: 完成活動

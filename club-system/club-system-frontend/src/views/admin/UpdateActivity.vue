@@ -161,7 +161,7 @@
             alert('活動更新成功' + (hasImportantChanges ? ',已通知所有報名者。' : ''));
             
             // 跳轉回活動列表
-            router.push({ name: 'ActivityList' });
+            router.push({ name: 'activity-list-container'});
         } catch (error) {
             console.error('更新活動失敗:', error);
             
@@ -179,7 +179,7 @@
 
     const handleCancel = () => {
         if (confirm('確定要取消編輯嗎?未保存的更改將丟失。')) {
-            router.push({ name: 'ActivityList' });
+            router.push('/admin/activity-list-container');
         }
     };
     
@@ -250,100 +250,166 @@
 
 <style scoped>
 .update-activity-container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
+  width: 200%;
+  margin: 40px auto;
+  padding: 0 20px;
 }
 
+.update-activity-container h2 {
+  font-size: 26px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #2c2c2c;
+  letter-spacing: 0.5px;
+}
+
+/* ⚠️ 已有報名警告 */
 .warning-message {
-    background-color: #fff3cd;
-    border: 1px solid #ffc107;
-    color: #856404;
-    padding: 12px;
-    border-radius: 4px;
-    margin-bottom: 20px;
+  background: linear-gradient(135deg, #fff8e1, #fff3cd);
+  border-left: 6px solid #ffc107;
+  color: #7a5d00;
+  padding: 14px 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-size: 14px;
 }
 
+/* Loading */
 .loading {
-    text-align: center;
-    padding: 40px;
-    font-size: 18px;
-    color: #666;
+  text-align: center;
+  padding: 60px 0;
+  font-size: 16px;
+  color: #888;
 }
 
+/* 表單卡片 */
 .activity-form {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background: #ffffff;
+  padding: 28px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
 }
 
+/* 表單欄位 */
 .form-group {
-    margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 
 .form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #333;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
 }
 
+/* 已修改提示 */
 .changed-badge {
-    color: #ff6b6b;
-    font-size: 12px;
-    font-weight: normal;
+  background: #ffecec;
+  color: #d93025;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-weight: 500;
 }
 
+/* Input / Select / Textarea */
 .form-group input,
 .form-group textarea,
 .form-group select {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  background: #fafafa;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #aaa;
 }
 
 .form-group textarea {
-    resize: vertical;
+  resize: vertical;
+  min-height: 100px;
 }
 
+/* Focus 狀態 */
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #4caf50;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.15);
+}
+
+/* Actions */
 .form-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 30px;
 }
 
+/* Buttons */
 button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
 }
 
+/* Submit */
 .submit-button {
-    background-color: #4CAF50;
-    color: white;
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  color: white;
+  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.3);
 }
 
 .submit-button:hover {
-    background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.35);
 }
 
 .submit-button:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
+  background: #cfcfcf;
+  box-shadow: none;
+  cursor: not-allowed;
 }
 
+/* Cancel */
 .cancel-button {
-    background-color: #f0f0f0;
-    color: #333;
+  background: #f2f2f2;
+  color: #444;
 }
 
 .cancel-button:hover {
-    background-color: #e0e0e0;
+  background: #e6e6e6;
 }
+
+/* RWD */
+@media (max-width: 600px) {
+  .activity-form {
+    padding: 20px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  button {
+    width: 100%;
+  }
+}
+
+
+
 </style>

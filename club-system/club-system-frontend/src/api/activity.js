@@ -44,8 +44,8 @@ export const activityApi = {
     },
 
     // 取消活動
-    cancelActivity: (activityId) => {
-        return apiClient.put(`/activities/${activityId}/cancel`);
+    cancelActivity: (activityId, data) => {
+        return apiClient.put(`/activities/${activityId}/cancel`,data);
     },
 
     getDraftActivities: () => {

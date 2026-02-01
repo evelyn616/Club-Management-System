@@ -88,7 +88,7 @@ public class Activity {
 
     // ========== 發布時間 ==========
 
-    @Column(name = "published_at", nullable = true, updatable = false)
+    @Column(name = "published_at", nullable = true)
     private LocalDateTime publishedAt;
 
     // ========== 參加對象 ==========
@@ -115,6 +115,8 @@ public class Activity {
     @Column(name = "updated_at",nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "cancel_reason",nullable = true)
+    private String cancelReason;
     // ========== JPA 生命週期回調(Entity不同狀態) ==========
 
     @PrePersist

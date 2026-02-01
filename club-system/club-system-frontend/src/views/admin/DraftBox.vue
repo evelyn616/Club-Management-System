@@ -79,27 +79,17 @@
             <td class="col-actions">
               <div class="action-buttons">
                 <button 
-                  @click="updateActivity(draft.id)" 
-                  class="btn-action btn-edit"
-                  title="編輯草稿"
-                >
+                  @click="updateActivity(draft.id)" class="btn-action btn-edit"title="編輯草稿">
                   <span class="icon">✏️</span>
                   <span>編輯</span>
                 </button>
                 
-                <button 
-                  @click="goToPublish(draft.id)" 
-                  class="btn-action btn-publish"
-                  title="發布活動"
-                >
+                <button @click="goToPublish(draft.id)"class="btn-action btn-publish"title="發布活動">
                   <span class="icon">🚀</span>
                   <span>發布</span>
                 </button>
                 
-                <button 
-                  @click="deleteDraft(draft.id, draft.title)" 
-                  class="btn-action btn-delete"
-                  title="刪除草稿"
+                <button @click="deleteDraft(draft.id, draft.title)" class="btn-action btn-delete"title="刪除草稿"
                 >
                   <span class="icon">🗑️</span>
                   <span>刪除</span>

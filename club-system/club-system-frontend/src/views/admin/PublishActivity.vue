@@ -678,7 +678,7 @@ const pageSubtitle = computed(() => {
           else{
             const activityId = Array.from(selectedActivityId.value)[0];
             await activityApi.schedulePublishActivity(activityId, {
-                publishAt: scheduleDateTime.toISOString()
+                publishedAt: scheduleDateTime.toISOString()
             });
             alert(`活動-${currentActivity.value.title}-已成功預約發布於${displayTime}`);
           }
@@ -735,7 +735,7 @@ const pageSubtitle = computed(() => {
       for(const activityId of selectedActivityId.value){
         try{
           await activityApi.schedulePublishActivity(activityId, {
-            publishAt: scheduleDateTime.toISOString()
+            publishedAt: scheduleDateTime.toISOString()
           });
           batchResult.value.success++;
         }
@@ -771,7 +771,7 @@ const pageSubtitle = computed(() => {
         
         alert(`活動-${currentActivity.value.title}-已保存為草稿`);
         if(fromRoute.value){
-                router.push('admin/activity-list-container');
+                router.push( {name: 'activity-list-container'});
         }
         else{
             clearSelection();
@@ -781,7 +781,7 @@ const pageSubtitle = computed(() => {
     //返回編輯
     const goBack = () => {
     const activityId = Array.from(selectedActivityId.value)[0];
-    router.push(`/admin/update-activity-container/${activityId.value}`)
+    router.push(`/admin/update-activity-container/${activityId}`)
     }
     //格式化活動狀態
     const getStatusLabel = (status) => {
@@ -941,6 +941,54 @@ const pageSubtitle = computed(() => {
 .btn-text:hover {
   text-decoration: underline;
 }
+.batch-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f5f7fa;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.batch-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f5f7fa;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.option-card {
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option-card:hover {
+  border-color: #4CAF50;
+  background: #f8fff9;
+}
+
+.option-card.active {
+  border-color: #4CAF50;
+  background: #e8f5e9;
+}
+.progress-bar {
+  height: 10px;
+  background: #eee;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #81C784);
+  transition: width 0.3s ease;
+}
+
 
 /* 其他樣式保持不變 ... */
 </style>

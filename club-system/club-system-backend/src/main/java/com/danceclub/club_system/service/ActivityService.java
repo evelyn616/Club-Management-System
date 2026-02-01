@@ -240,7 +240,7 @@ public class ActivityService {
      * @param id 活動 ID
      * @return 已取消的活動
      */
-    public Activity cancelActivity(Long id) {
+    public Activity cancelActivity(Long id, String reason) {
         // TODO: 實作取消邏輯
         // 1. 查詢活動
         Activity activity = getActivityById(id);
@@ -248,8 +248,10 @@ public class ActivityService {
         if (activity.getStatus() != ActivityStatus.PUBLISHED){
             throw new IllegalArgumentException("只有發布後的活動才能取消");
         }
+
         // 3. 更新狀態為 CANCELLED
         activity.setStatus(ActivityStatus.CANCELLED);
+        activity.setCancelReason(reason != null ? reason : "管理員取消活動");
         return activityRepository.save(activity);
     }
 
@@ -363,6 +365,8 @@ public class ActivityService {
         );
 
     }
+
+
 
 
     /**
