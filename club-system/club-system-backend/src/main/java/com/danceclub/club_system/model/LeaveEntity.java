@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "leave_request")
-@Data // 自動產生 Getter, Setter, toString, equals, hashCode
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -22,12 +22,16 @@ public class LeaveEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 1. 提交請假的人 - 對應User 實體
+    /**
+     * 1. 提交請假的人 - 改為 user 並對齊對方的 id
+     */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", referencedColumnName = "\"Mid\"")
-    private User member;
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    private User user;
 
-    // 2. 關聯的活動 - 對應 Activity 實體
+    /**
+     * 2. 關聯的活動
+     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "activity_id", nullable = false)
     private Activity activity; 
@@ -38,10 +42,17 @@ public class LeaveEntity {
     @Column(name = "leave_type", nullable = false)
     private String leaveType;
 
+    /**
+     * 預設狀態為 PENDING
+     * 加上 @Builder.Default 以確保 Lombok Builder 模式下預設值生效
+     */
+    @Builder.Default
     @Column(nullable = false, length = 20)
-    private String status = "PENDING"; // 預設為待審核
+    private String status = "PENDING";
 
-    // 3. 審核人 - 同樣對應對方的 User 實體
+    /**
+     * 3. 審核人 - 保持與 User 實體一致
+     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewed_by")
     private User reviewedBy;

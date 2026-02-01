@@ -31,66 +31,46 @@ public class LeaveService {
         this.activityRepository = activityRepository;
     }
 
-    /**
-     * 獲取所有請假單
-     */
     public List<LeaveResponseDTO> getAllLeaves() {
         return leaveRepository.findAll().stream()
                 .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
     }
     
-    /**
-     * 根據 User ID 查詢請假紀錄
-     */
-    public List<LeaveResponseDTO> getLeavesByMemberId(String userId) {
-        // 使用 getReferenceById 避開 User 欄位檢查
-        User user = userRepository.getReferenceById(userId);
-
-        List<LeaveEntity> leaves = leaveRepository.findLeaveRequestsByMemberQuery(user);
-
-        return leaves.stream()
+    public List<LeaveResponseDTO> getLeavesByUserId(String userId) {
+        // 先找出 User，再找請假紀錄
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("找不到該用戶: " + userId));
+        return leaveRepository.findLeaveRequestsByUserQuery(user).stream()
                 .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 提交新申請 - 這是最容易報錯的地方，已修正為安全模式
-     */
     @Transactional
     public LeaveResponseDTO submitNewRequest(LeaveRequestDTO dto) {
-        // 1. 使用 getReferenceById：只拿 ID 代理，不觸發 SELECT * FROM "Member"
-        User member = userRepository.getReferenceById(dto.getMemberId());
+        User user = userRepository.findById(dto.getUserId())
+                .orElseThrow(() -> new RuntimeException("找不到該用戶: " + dto.getUserId()));
 
-        // 2. Activity 欄位通常沒問題，可以用 findById
         Activity activity = activityRepository.findById(dto.getActivityId())
                 .orElseThrow(() -> new RuntimeException("找不到該活動: " + dto.getActivityId()));
 
-        // 3. 組裝 Entity
         LeaveEntity leaveEntity = LeaveEntity.builder()
-                .member(member)
+                .user(user) // 這裡用了改名後的 .user()
                 .activity(activity)
                 .leaveType(dto.getLeaveType())
                 .reason(dto.getReason())
                 .status("PENDING")
                 .build();
 
-        // 4. 儲存
-        LeaveEntity saved = leaveRepository.save(leaveEntity);
-        
-        // 5. 轉回 DTO (注意：轉換過程不能觸發 member.getName())
-        return convertToResponseDTO(saved);
+        return convertToResponseDTO(leaveRepository.save(leaveEntity));
     }
 
-    /**
-     * 審核請假單
-     */
     @Transactional
     public Optional<LeaveResponseDTO> reviewRequest(Long requestId, String reviewerId, String newStatus, String reviewNote) {
         return leaveRepository.findById(requestId).map(request -> {
             if (reviewerId != null) {
-                // 審核人也使用 getReferenceById 避開欄位報錯
-                User reviewer = userRepository.getReferenceById(reviewerId);
+                User reviewer = userRepository.findById(reviewerId)
+                        .orElseThrow(() -> new RuntimeException("找不到審核人"));
                 request.setReviewedBy(reviewer);
             }
             request.setStatus(newStatus);
@@ -100,23 +80,17 @@ public class LeaveService {
         });
     }
 
-    /**
-     * 安全的轉換方法：絕對不調用 User 的其他屬性
-     */
     private LeaveResponseDTO convertToResponseDTO(LeaveEntity entity) {
         return LeaveResponseDTO.builder()
                 .id(entity.getId())
-                // 這裡只拿 ID 是安全的
-                .memberId(entity.getMember().getId()) 
-                // ⚠️ 這裡強制給 null 或固定字串，因為你的資料庫 Member 欄位名稱不對
-                .memberName("MEMBER") 
+                .userId(entity.getUser().getId()) // 安全調用
+                .userName(entity.getUser().getName()) // 讀取對方的 User.name
                 .activityId(entity.getActivity().getId())
                 .activityTitle(entity.getActivity().getTitle())
                 .leaveType(entity.getLeaveType())
                 .reason(entity.getReason())
                 .status(entity.getStatus())
-                // 同理，審核人名字也先給 null
-                .reviewedByName(null) 
+                .reviewedByName(entity.getReviewedBy() != null ? entity.getReviewedBy().getName() : null)
                 .reviewedAt(entity.getReviewedAt())
                 .reviewNote(entity.getReviewNote())
                 .createdAt(entity.getCreatedAt())

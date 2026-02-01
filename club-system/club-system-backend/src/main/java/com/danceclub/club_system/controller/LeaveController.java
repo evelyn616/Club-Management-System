@@ -56,11 +56,9 @@ public class LeaveController {
     }
 
     // --- 4. GET: 查詢特定使用者的請假紀錄 ---
-    @GetMapping("/member/{memberId}")
-    public ResponseEntity<List<LeaveResponseDTO>> getLeavesByMember(@PathVariable String memberId) {
-        // 注意：這裡 Service 回傳的是 List<LeaveResponseDTO>
-        List<LeaveResponseDTO> leaves = leaveService.getLeavesByMemberId(memberId);
-        return ResponseEntity.ok(leaves);
+    @GetMapping("/user/{userId}") // 這裡也改成 /user/
+    public ResponseEntity<List<LeaveResponseDTO>> getLeavesByUser(@PathVariable String userId) {
+        return ResponseEntity.ok(leaveService.getLeavesByUserId(userId));
     }
 
     // --- 5. DELETE: 刪除請假單 ---

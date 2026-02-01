@@ -10,8 +10,8 @@ public class LeaveResponseDTO {
     private Long id;
     
     // 申請人資訊
-    private String memberId;
-    private String memberName;
+    private String userId;
+    private String userName;
     
     // 活動資訊
     private Long activityId;
