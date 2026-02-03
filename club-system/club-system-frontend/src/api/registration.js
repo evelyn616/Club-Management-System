@@ -6,6 +6,14 @@ export const registrationApi = {
         return apiClient.get(`/registrations/my`,{ 
             params: { userId } });
     },
+    //取得所有報名紀錄
+    getAllRegistrations: () =>{
+        return apiClient.get(`/registrations/all`)
+    },
+    //取得單一活動的報名紀錄
+    getActivityRegistrations: () =>{
+        return apiClient.get(`registrations/activity/${activityId}`)
+    },
     //取消報名紀錄
     cancel: (registrationId) => {
         return apiClient.delete(`/registrations/${registrationId}`);
@@ -26,4 +34,5 @@ export const registrationApi = {
         data: registrationData
         
     },
+
 };

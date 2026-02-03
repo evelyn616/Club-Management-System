@@ -255,6 +255,15 @@ public class RegistrationService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     *查詢所有有效報名紀錄
+     */
+    public List<Registration> getAllRegistration(){
+         return registrationRepository.findByStatusNot(RegistrationStatus.CANCELLED);
+        //有效報名名單
+
+    }
+
     //====統計某活動報名人數====//
     //1.檢查活動id是否為空
     //2.使用registrationRepository.countByActivityId

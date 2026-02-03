@@ -130,6 +130,17 @@ public class RegistrationController {
         return ResponseEntity.ok(registrations);
     }
 
+    /**
+     * 查詢所有活動的報名名單
+     * @return 200 OK+所有報名名單
+     */
+
+    @GetMapping("/all")
+    public ResponseEntity<List<Registration>> getAllRegistrations(){
+        List<Registration> registrations = registrationService.getAllRegistration();
+        return ResponseEntity.ok(registrations);
+    }
+
     //====統計報名人數====//
     //GET /api/registrations/activity/{activityId}/count
     /**

@@ -32,6 +32,9 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
             Long activityId
     );
 
+    //查詢所有有效報名紀錄
+    List<Registration> findByStatusNot(RegistrationStatus status);
+
     //====狀態查詢====//
 
     //4.查詢某個會員的特定狀態報名紀錄
