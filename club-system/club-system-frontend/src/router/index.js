@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import { useUserStore } from '@/stores/user'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -21,32 +22,38 @@ const router = createRouter({
       path: '/my-registrations',
       name: 'my-registrations',
       component: () =>import('../views/member/MyRegistrations.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/pending-payments',
       name: 'pending-payments',
       component: () =>import('../views/member/PendingPayments.vue'),
+      meta: { requiresAuth: true },
     },
     
     {
       path: '/admin/create-activity-container',
       name: 'create-activity-container',
       component: () =>import('../views/admin/CreateActivity.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/admin/update-activity-container/:activityId',
       name: 'update-activity-container',
       component: () =>import('../views/admin/UpdateActivity.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/admin/activity-list-container',
       name: 'activity-list-container',
       component: () =>import('../views/admin/ActivityList.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/admin/activity-management-container',
       name: 'activity-management-container',
       component: () =>import('../views/admin/ActivityManagement.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/activity-registration-list-container',
@@ -57,13 +64,33 @@ const router = createRouter({
       path: '/admin/publish-activity-container/:activityId?',
       name: 'publish-activity-container',
       component: () =>import('../views/admin/PublishActivity.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/admin/draft-box-container',
       name: 'draft-box-container',
-      component: () => import('@/views/admin/DraftBox.vue')
+      component: () => import('@/views/admin/DraftBox.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/draft-box-container',
+      name: 'draft-box-container',
+      component: () => import('@/views/admin/DraftBox.vue'),
+      meta: { requiresAuth: true },
     },
   ],
+})
+
+router.beforeEach((to) =>{
+  const userStore = useUserStore();
+
+  //頁面需要登入，但沒有登入的情況
+  if(to.meta.requiresAuth && !userStore.isLoggedIn){
+    //跳轉到登入頁面
+    alert('請先登入');
+    return({name: 'home'})
+  }
+  
 })
 
 export default router

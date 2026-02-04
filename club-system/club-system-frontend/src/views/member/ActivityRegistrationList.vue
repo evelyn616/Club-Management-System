@@ -247,6 +247,10 @@ const filteredActivities = computed(() => {
 
 //打開報名模態框
 const openRegisterModal = (activity) => {
+    // 沒有 token 的話，跳到登入頁
+    if (!userStore.token) {
+        return null;
+    }
     selectedActivity.value = activity;
     showRegisterModal.value = true;
     console.log('打開報名視窗:', activity);
