@@ -78,6 +78,18 @@ const router = createRouter({
       component: () => import('@/views/admin/DraftBox.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/admin/registrations-overview-container',
+      name: 'registrations-overview-container',
+      component: () => import('@/views/admin/RegistrationsOverview.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/registration-detail-container/:activityId',
+      name: 'registration-detail-container',
+      component: () => import('@/views/admin/RegistrationDetail.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

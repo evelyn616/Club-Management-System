@@ -6,6 +6,7 @@ import com.danceclub.club_system.model.Registration;
 import com.danceclub.club_system.model.enums.PaymentStatus;
 import com.danceclub.club_system.model.enums.RegistrationStatus;
 import com.danceclub.club_system.repository.RegistrationRepository;
+import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 import java.util.stream.Collectors;
 
@@ -72,6 +73,15 @@ public class RegistrationService {
 
     public Registration createRegistration(Long activityId, String userId) {
         Activity existingActivity = activityService.getActivityById(activityId);
+
+        //檢查是否已到人數上限
+        if(existingActivity.getMaxParticipants() != null){
+            //如果有設上限
+            Long currentCount = registrationRepository.countValidRegistrations(activityId);
+            if (currentCount >= existingActivity.getMaxParticipants()){
+                throw new IllegalStateException("活動已額滿!");
+            }
+        }
 
 
         activityService.validateCanRegister(activityId);

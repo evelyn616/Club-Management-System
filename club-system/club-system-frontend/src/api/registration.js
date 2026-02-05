@@ -11,8 +11,8 @@ export const registrationApi = {
         return apiClient.get(`/registrations/all`)
     },
     //取得單一活動的報名紀錄
-    getActivityRegistrations: () =>{
-        return apiClient.get(`registrations/activity/${activityId}`)
+    getActivityRegistrations: (activityId) =>{
+        return apiClient.get(`/registrations/activity/${activityId}`)
     },
     //取消報名紀錄
     cancel: (registrationId) => {
@@ -31,8 +31,11 @@ export const registrationApi = {
     //新增報名紀錄
     createRegistration(registrationData){
         return apiClient.post(`/registrations`, registrationData);
-        data: registrationData
+        
         
     },
+    getActivityRegistrationCount: (activityId) => {
+        return apiClient.get(`/registrations/activity/${activityId}/count`);
+    }
 
 };

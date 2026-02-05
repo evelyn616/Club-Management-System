@@ -75,9 +75,11 @@
                     <td>{{ activity.location }}</td>
                     <td>{{ getActivityTypeLabel(activity.activityType) }}</td>
                     <td>{{ activity.feeAmount }}</td>
-                    <td><button v-if="!isRegistered(activity.id)" class="register-btn" @click="openRegisterModal(activity)">報名</button>
+                    <td><button v-if="!isRegistered(activity.id)&& !isActivityFull(activity)" class="register-btn" @click="openRegisterModal(activity)">報名</button>
+                    <span v-else-if="isActivityFull(activity)" class="full-badge">已額滿</span>
                     <span v-else class="registered-badge">✓ 已報名</span>
                     </td>
+                    
                     
                 </tr>
             </tbody>
@@ -149,6 +151,16 @@ const loadActivities = async () => {
     try {
         const response = await activityApi.getRegistrableActivities()
         activities.value = response.data
+
+        // 批量載入每個活動的報名人數
+        for (let activity of activities.value) {
+            try {
+                const countResponse = await registrationApi.getActivityRegistrationCount(activity.id)
+                activity.registrationCount = countResponse.data
+            } catch (error) {
+                console.error(`載入活動 ${activity.id} 報名數失敗:`, error)
+                activity.registrationCount = 0
+            }}
         console.log('可報名活動列表:', activities.value);
     } catch (error) {
         console.error('載入活動資料失敗:', error)
@@ -308,6 +320,12 @@ const loadRegistrations = async () => {
         console.error('載入報名紀錄失敗:', error);
     }
 }
+//檢查是否已額滿
+const isActivityFull = (activity) => {
+    if(!activity.maxParticipants) return false;
+
+    return (activity.registrationCount || 0) >= activity.maxParticipants;
+}
 //檢查是否已報名
 const isRegistered = (activityId) => {
     return registrations.value.includes(activityId);
@@ -376,8 +394,183 @@ onMounted(() => {
 
 
 <style scoped>
-.activity-list-page {
-    padding: 20px;
+/* ===== 整體容器 ===== */
+.activity-registration-list-container {
+    min-height: 100vh;
+    min-width: 1200px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 40px 60px;
+}
+
+/* ===== 標題區 ===== */
+h1 {
+    color: white;
+    font-size: 42px;
+    font-weight: 800;
+    margin: 0 0 40px 0;
+    text-align: center;
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
+    letter-spacing: 2px;
+}
+
+/* ===== 搜尋與篩選區 ===== */
+.search-filter {
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+}
+
+/* 基本搜尋 */
+.basic-search {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    max-width: 600px;
+}
+
+.search-input {
+    flex: 1;
+    padding: 14px 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 16px;
+    transition: all 0.3s;
+    outline: none;
+}
+
+.search-input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.search-btn {
+    padding: 14px 28px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.search-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* Tab 篩選按鈕 */
+.tab-filters {
+    display: flex;
+    gap: 0;
+    border: 2px solid #667eea;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    width: fit-content;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.tab-filters .quick-btn {
+    padding: 14px 40px;
+    background: white;
+    color: #667eea;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    border-right: 2px solid #667eea;
+    position: relative;
+}
+
+.tab-filters .quick-btn:last-child {
+    border-right: none;
+}
+
+.tab-filters .quick-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.tab-filters .quick-btn:hover:not(.active) {
+    background: #f0f4ff;
+}
+
+/* 進階篩選 */
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: flex-end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.filter-group select {
+    padding: 12px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 15px;
+    min-width: 180px;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: white;
+    outline: none;
+}
+
+.filter-group select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.clear-btn {
+    padding: 12px 24px;
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s;
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+}
+
+.clear-btn:hover {
+    background: #ee5a52;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+}
+
+/* ===== 狀態訊息 ===== */
+.activity-registration-list-container > p {
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
+    margin: 20px 0;
+    text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== 表格容器 ===== */
+.table-container {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 /* 表格樣式 */
@@ -385,104 +578,109 @@ onMounted(() => {
     width: 100%;
     border-collapse: collapse;
     background: white;
-    margin-top: 20px;
 }
 
 /* 表頭 */
 .activities-table th {
-    background: #f5f5f5;
-    padding: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 18px 16px;
     text-align: left;
-    font-weight: 600;
-    border-bottom: 2px solid #ddd;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    border: none;
 }
 
 /* 表格內容 */
 .activities-table td {
-    padding: 12px;
-    border-bottom: 1px solid #e0e0e0;
+    padding: 16px;
+    border-bottom: 1px solid #f0f0f0;
+    color: #333;
+    font-size: 14px;
 }
 
 /* 滑鼠移到列上時變色 */
+.activities-table tbody tr {
+    transition: all 0.3s;
+}
+
 .activities-table tbody tr:hover {
-    background: #f9f9f9;
+    background: #f8f9ff;
+    transform: scale(1.01);
 }
 
 /* 報名按鈕樣式 */
-.register-btn{
-    padding: 8px 16px;
-    background-color: #4CAF50;
+.register-btn {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
-    
-}
-.register-btn:hover {
-    background-color: #8ea18f;
-    transition: all 0.2s ease-in-out;
-    color: rgb(0, 0, 0);
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.3s;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
 }
 
-/*刷新*/
+.register-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+}
+
+/* 已報名標記 */
+.registered-badge {
+    color: #4CAF50;
+    font-weight: 700;
+    padding: 6px 16px;
+    background: #e8f5e9;
+    border-radius: 12px;
+    font-size: 13px;
+    display: inline-block;
+}
+
+/* 已額滿標記 */
+.full-badge {
+    color: #f44336;
+    font-weight: 700;
+    padding: 6px 16px;
+    background: #ffebee;
+    border-radius: 12px;
+    font-size: 13px;
+    display: inline-block;
+}
+
+/* 空狀態 */
+.empty-state {
+    text-align: center;
+    color: #888;
+    padding: 60px 20px;
+    font-size: 20px;
+    animation: flashWhite 1.5s ease-in;
+}
+
+/* ===== 動畫效果 ===== */
+/* 刷新動畫 */
 .table-refresh {
     animation: flashWhite 0.8s ease-in !important;
 }
 
-.empty-state {
-    text-align: center;
-    color: #888;
-    margin-top: 40px;
-    font-size: 18px;
-    animation: flashWhite 1.5s ease-in;
-}
-
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-    backdrop-filter: blur(2px);
-    transition: all 0.1s ease-in;
-}
-
-.modal-content {
-    background: white;
-    padding: 20px;
-    border-radius: 16px;
-    width: 90%;
-    max-width: 520px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    animation: popUp 0.3s ease-in-out;
-    overflow: hidden;
-    border: 2px solid #000000;
-}
-
-/* 👇 閃爍動畫 - 白色閃爍效果 */
 @keyframes flashWhite {
     0% {
         opacity: 0;
-        background-color: #ffffff;
-        
+        transform: translateY(10px);
     }
     50% {
         opacity: 0.6;
     }
-    
     100% {
         opacity: 1;
-        background-color: white;
-        
-        
+        transform: translateY(0);
     }
 }
-/* 👇 彈出動畫 - 從縮小到正常大小 + 從下往上 */
+
+/* 彈出動畫 */
 @keyframes popUp {
     0% {
         transform: scale(0.7) translateY(100px);
@@ -497,22 +695,49 @@ onMounted(() => {
     }
 }
 
+/* ===== 模態框樣式 ===== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+    transition: all 0.3s ease-in;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 560px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: popUp 0.3s ease-in-out;
+    overflow: hidden;
+    border: 3px solid #667eea;
+}
 
 /* 彈窗標題區 */
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 24px 28px;
-    border-bottom: 2px solid #e0e0e0;
+    padding: 28px 32px;
+    border-bottom: none;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .modal-header h2 {
     margin: 0;
-    font-size: 22px;
+    font-size: 24px;
     color: white;
-    font-weight: 700;
+    font-weight: 800;
+    letter-spacing: 1px;
 }
 
 /* 關閉按鈕 */
@@ -523,8 +748,8 @@ onMounted(() => {
     color: white;
     cursor: pointer;
     padding: 0;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     transition: all 0.3s;
     display: flex;
@@ -534,99 +759,98 @@ onMounted(() => {
 }
 
 .close-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.35);
     transform: rotate(90deg);
 }
 
 /* 彈窗內容區 */
 .modal-body {
-    padding: 28px;
+    padding: 32px;
     background: #fafafa;
 }
 
 /* 活動資訊卡片 */
 .activity-info {
     background: white;
-    padding: 20px;
-    border-radius: 12px;
+    padding: 24px;
+    border-radius: 16px;
     margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    border-left: 4px solid #2196F3;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-left: 5px solid #667eea;
 }
 
 .activity-info h3 {
-    margin: 0 0 16px 0;
-    color: #2196F3;
-    font-size: 20px;
-    font-weight: 700;
+    margin: 0 0 20px 0;
+    color: #667eea;
+    font-size: 22px;
+    font-weight: 800;
 }
 
 .activity-info p {
-    margin: 10px 0;
+    margin: 12px 0;
     color: #555;
-    font-size: 15px;
-    line-height: 1.6;
+    font-size: 16px;
+    line-height: 1.8;
 }
 
 .activity-info p strong {
     color: #333;
-    font-weight: 600;
-    min-width: 80px;
+    font-weight: 700;
+    min-width: 90px;
     display: inline-block;
 }
 
 /* 使用者資訊卡片 */
 .user-info {
-    background: #2196F3;
-    padding: 16px 20px;
-    border-radius: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 18px 24px;
+    border-radius: 16px;
     margin-bottom: 24px;
-    border-left: 4px solid #2196F3;
-    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.2);
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
 }
 
 .user-info p {
     margin: 0;
     color: #ffffff;
-    font-size: 15px;
-    font-weight: 500;
+    font-size: 16px;
+    font-weight: 600;
 }
 
 .user-info p strong {
     color: #ffffff;
-    font-weight: 700;
+    font-weight: 800;
 }
 
 /* 確認文字 */
 .confirm-text {
     text-align: center;
-    font-size: 17px;
+    font-size: 18px;
     color: #333;
-    margin: 24px 0 0 0;
-    font-weight: 600;
+    margin: 28px 0 0 0;
+    font-weight: 700;
 }
 
 /* 彈窗底部按鈕區 */
 .modal-footer {
-    padding: 20px 28px;
-    border-top: 2px solid #e0e0e0;
+    padding: 24px 32px;
+    border-top: 2px solid #f0f0f0;
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
+    gap: 16px;
     background: white;
 }
 
 /* 按鈕基礎樣式 */
 .cancel-btn,
 .confirm-btn {
-    padding: 12px 28px;
+    padding: 14px 32px;
     border: none;
-    border-radius: 8px;
-    font-size: 15px;
-    font-weight: 600;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.3s;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 /* 取消按鈕 */
@@ -638,18 +862,18 @@ onMounted(() => {
 .cancel-btn:hover {
     background: #e0e0e0;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 /* 確定按鈕 */
 .confirm-btn {
-    background: #764ba2;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
 }
 
 .confirm-btn:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(135, 76, 175, 0.4);
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
 }
 
 .confirm-btn:active:not(:disabled) {
@@ -661,34 +885,36 @@ onMounted(() => {
     cursor: not-allowed;
     box-shadow: none;
 }
-/* Tab按鈕樣式 */
-.tab-filters {
-    display: flex;
-    gap: 0;
-    border: 1px solid #2196F3;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 20px;
-    width: fit-content;
+
+/* ===== 響應式設計 ===== */
+@media (max-width: 768px) {
+    .activity-registration-list-container {
+        padding: 20px;
+    }
+    
+    h1 {
+        font-size: 32px;
+    }
+    
+    .search-filter {
+        padding: 20px;
+    }
+    
+    .filters {
+        flex-direction: column;
+    }
+    
+    .filter-group select {
+        width: 100%;
+    }
+    
+    .activities-table {
+        font-size: 12px;
+    }
+    
+    .activities-table th,
+    .activities-table td {
+        padding: 10px 8px;
+    }
 }
-.tab-filters .quick-btn {
-    padding: 12px 32px;
-    background: white;
-    color: #2196F3;
-    border: none;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.1s ease;
-    border-right: 1px solid #2196F3;
-}
-.tab-filters .quick-btn:last-child {
-    border-right: none;
-}
-.tab-filters .quick-btn.active{
-    background: #2196F3;
-    color: white;
-}
-.tab-filters .quick-btn:hover {
-    background: #e3f2fd;
-}
-    </style>
+</style>
