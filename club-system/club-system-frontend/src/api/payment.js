@@ -1,0 +1,89 @@
+import apiClient from './axios'
+
+/**
+ * 繳費相關 API
+ */
+
+/**
+ * 取得我的所有繳費記錄
+ */
+export const getMyPayments = async () => {
+  const response = await apiClient.get('/payments/my')
+  return response.data
+}
+
+/**
+ * 取得我的待繳費記錄
+ */
+export const getMyPendingPayments = async () => {
+  const response = await apiClient.get('/payments/my/pending')
+  return response.data
+}
+
+/**
+ * 取得繳費記錄詳情
+ */
+export const getPaymentById = async (paymentId) => {
+  const response = await apiClient.get(`/payments/${paymentId}`)
+  return response.data
+}
+
+/**
+ * 創建繳費記錄
+ */
+export const createPayment = async (paymentData) => {
+  const response = await apiClient.post('/payments', paymentData)
+  return response.data
+}
+
+/**
+ * 更新轉帳後五碼
+ */
+export const updateBankProof = async (paymentId, bankAccountProof) => {
+  const response = await apiClient.put(`/payments/${paymentId}/bank-proof`, {
+    bankAccountProof
+  })
+  return response.data
+}
+
+/**
+ * 取消繳費
+ */
+export const cancelPayment = async (paymentId, reason) => {
+  const response = await apiClient.put(`/payments/${paymentId}/cancel`, {
+    reason
+  })
+  return response.data
+}
+
+/**
+ * 創建綠界結帳訂單
+ */
+export const createEcpayCheckout = async (checkoutData) => {
+  const response = await apiClient.post('/payments/ecpay/checkout', checkoutData)
+  return response.data
+}
+
+/**
+ * 審核繳費（管理員）
+ */
+export const approvePayment = async (paymentId, approveData) => {
+  const response = await apiClient.put(`/payments/${paymentId}/approve`, approveData)
+  return response.data
+}
+
+/**
+ * 取得待審核的現金繳費（管理員）
+ */
+export const getPendingCashPayments = async () => {
+  const response = await apiClient.get('/payments/admin/pending-cash')
+  return response.data
+}
+
+/**
+ * 取得繳費統計（管理員）
+ */
+export const getPaymentStatistics = async () => {
+  const response = await apiClient.get('/payments/admin/statistics')
+  return response.data
+}

@@ -51,6 +51,12 @@ const router = createRouter({
       component: () =>import('../views/member/PendingPayments.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/payment-history',
+      name: 'payment-history',
+      component: () =>import('../views/member/PaymentHistory.vue'),
+      meta: { requiresAuth: true },
+    },
     
     {
       path: '/admin/create-activity-container',

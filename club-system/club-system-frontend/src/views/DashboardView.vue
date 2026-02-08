@@ -36,6 +36,11 @@
               <p>查看待繳費項目</p>
             </router-link>
 
+            <router-link to="/payment-history" class="action-card">
+              <h3>繳費歷史</h3>
+              <p>查看所有繳費記錄</p>
+            </router-link>
+
             <router-link to="/profile" class="action-card">
               <h3>個人資料</h3>
               <p>管理您的個人資訊</p>

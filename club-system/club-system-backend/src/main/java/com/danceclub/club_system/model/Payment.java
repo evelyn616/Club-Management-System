@@ -34,7 +34,7 @@ public class Payment {
      * 報名 ID
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "registration_id", nullable = false)
+    @JoinColumn(name = "registration_id")
     private Registration registration;
 
     /**
@@ -47,7 +47,7 @@ public class Payment {
     /**
      * 原價（從 activity.fee_amount 複製）
      */
-    @Column(name = "original_amount", nullable = false, precision = 10, scale = 2)
+    @Column(name = "original_amount", precision = 10, scale = 2)
     private BigDecimal originalAmount;
 
     /**
@@ -72,7 +72,7 @@ public class Payment {
      * 繳費狀態（PENDING/PAID/CANCELLED/REFUNDED/PARTIAL_REFUNDED）
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "status")
     private PaymentStatus status = PaymentStatus.PENDING;
 
     /**
@@ -119,15 +119,69 @@ public class Payment {
     private Long bankAccountProof;
 
     /**
+     * 商店訂單編號（綠界）
+     */
+    @Column(name = "merchant_trade_no", length = 50)
+    private String merchantTradeNo;
+
+    /**
+     * 綠界交易編號
+     */
+    @Column(name = "ecpay_trade_no", length = 50)
+    private String ecpayTradeNo;
+
+    /**
+     * 付款期限（ATM/超商繳費）
+     */
+    @Column(name = "payment_deadline")
+    private LocalDateTime paymentDeadline;
+
+    /**
+     * ATM 虛擬帳號
+     */
+    @Column(name = "atm_account", length = 50)
+    private String atmAccount;
+
+    /**
+     * ATM 銀行代碼
+     */
+    @Column(name = "atm_bank_code", length = 10)
+    private String atmBankCode;
+
+    /**
+     * 超商繳費代碼
+     */
+    @Column(name = "cvs_payment_code", length = 50)
+    private String cvsPaymentCode;
+
+    /**
+     * 超商類型（7-11/FamilyMart/OK/HiLife）
+     */
+    @Column(name = "cvs_type", length = 20)
+    private String cvsType;
+
+    /**
+     * 失敗原因
+     */
+    @Column(name = "failure_reason", columnDefinition = "TEXT")
+    private String failureReason;
+
+    /**
+     * 綠界完整回應（JSON 格式）
+     */
+    @Column(name = "ecpay_response", columnDefinition = "TEXT")
+    private String ecpayResponse;
+
+    /**
      * 創建時間
      */
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     /**
      * 更新時間
      */
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     /**

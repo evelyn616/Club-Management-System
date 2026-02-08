@@ -142,4 +142,32 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
      * @return list of payments with the given bank account proof
      */
     List<Payment> findByBankAccountProof(Long bankAccountProof);
+    
+    /**
+     * Find payment by merchant trade number
+     * @param merchantTradeNo the merchant trade number
+     * @return Optional containing the payment if found
+     */
+    Optional<Payment> findByMerchantTradeNo(String merchantTradeNo);
+    
+    /**
+     * Find payment by ECPay trade number
+     * @param ecpayTradeNo the ECPay trade number
+     * @return Optional containing the payment if found
+     */
+    Optional<Payment> findByEcpayTradeNo(String ecpayTradeNo);
+    
+    /**
+     * Find payments with deadline before specified time
+     * @param deadline the deadline time
+     * @return list of payments with deadline before the specified time
+     */
+    List<Payment> findByPaymentDeadlineBefore(LocalDateTime deadline);
+    
+    /**
+     * Find pending payments with expired deadline
+     * @return list of pending payments with expired deadline
+     */
+    @Query("SELECT p FROM Payment p WHERE p.status = 'PENDING' AND p.paymentDeadline IS NOT NULL AND p.paymentDeadline < CURRENT_TIMESTAMP")
+    List<Payment> findExpiredPendingPayments();
 }
