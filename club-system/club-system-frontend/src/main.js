@@ -12,9 +12,8 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 
+// 在 mount 之前還原用戶狀態
+const userStore = useUserStore()
+await userStore.restoreFromStorage()
 
-
-app.mount('#app')
-
-const userStore = useUserStore()                
-await userStore.restoreFromStorage() 
+app.mount('#app') 

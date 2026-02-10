@@ -1,11 +1,15 @@
 package com.danceclub.club_system.controller;
 
+import com.danceclub.club_system.dto.ChangePasswordRequest;
 import com.danceclub.club_system.dto.UpdateUserRequest;
 import com.danceclub.club_system.dto.UpdateUserRoleRequest;
 import com.danceclub.club_system.dto.UserResponse;
 import com.danceclub.club_system.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Controller for user management operations
@@ -15,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api")
+@CrossOrigin(origins = "*", maxAge = 3600)
 public class UserController {
     
     private final UserService userService;
@@ -77,6 +82,31 @@ public class UserController {
             return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    /**
+     * Change user password
+     * PUT /api/users/:id/password
+     * 需求：1.11
+     */
+    @PutMapping("/users/{id}/password")
+    public ResponseEntity<Map<String, String>> changePassword(
+            @PathVariable String id,
+            @RequestBody ChangePasswordRequest request) {
+        try {
+            userService.changePassword(id, request);
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "密碼修改成功");
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "密碼修改失敗");
+            return ResponseEntity.badRequest().body(error);
         }
     }
 }

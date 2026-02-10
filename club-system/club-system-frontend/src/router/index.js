@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
 import { useUserStore } from '@/stores/user'
 
 const router = createRouter({
@@ -7,8 +6,30 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: HomeView,
+      name: 'landing',
+      component: () => import('../views/LandingView.vue'),
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('../views/LoginView.vue'),
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: () => import('../views/RegisterView.vue'),
+    },
+    {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: () => import('../views/DashboardView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: () => import('../views/ProfileView.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/about',
@@ -28,6 +49,12 @@ const router = createRouter({
       path: '/pending-payments',
       name: 'pending-payments',
       component: () =>import('../views/member/PendingPayments.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/payment-history',
+      name: 'payment-history',
+      component: () =>import('../views/member/PaymentHistory.vue'),
       meta: { requiresAuth: true },
     },
     
@@ -93,16 +120,18 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) =>{
-  const userStore = useUserStore();
+router.beforeEach((to) => {
+  const userStore = useUserStore()
 
-  //頁面需要登入，但沒有登入的情況
-  if(to.meta.requiresAuth && !userStore.isLoggedIn){
-    //跳轉到登入頁面
-    alert('請先登入');
-    return({name: 'home'})
+  // 如果已登入且要去登入/註冊頁，重定向到 dashboard
+  if (userStore.isLoggedIn && (to.name === 'login' || to.name === 'register')) {
+    return { name: 'dashboard' }
   }
-  
+
+  // 頁面需要登入，但沒有登入的情況
+  if (to.meta.requiresAuth && !userStore.isLoggedIn) {
+    return { name: 'login' }
+  }
 })
 
 export default router

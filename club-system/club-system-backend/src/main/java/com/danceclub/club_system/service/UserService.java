@@ -1,10 +1,12 @@
 package com.danceclub.club_system.service;
 
+import com.danceclub.club_system.dto.ChangePasswordRequest;
 import com.danceclub.club_system.dto.UpdateUserRequest;
 import com.danceclub.club_system.dto.UpdateUserRoleRequest;
 import com.danceclub.club_system.dto.UserResponse;
 import com.danceclub.club_system.model.User;
 import com.danceclub.club_system.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,14 +22,16 @@ import java.util.regex.Pattern;
 public class UserService {
     
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
     
     // Email validation pattern
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
         "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
     );
     
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
     
     /**
@@ -126,6 +130,46 @@ public class UserService {
         User updatedUser = userRepository.save(targetUser);
         
         return convertToUserResponse(updatedUser);
+    }
+    
+    /**
+     * Change user password
+     * 需求：1.11
+     * 
+     * TODO: Add authentication check when Spring Security is configured
+     */
+    @Transactional
+    public void changePassword(String userId, ChangePasswordRequest request) {
+        // Find target user
+        User targetUser = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("用戶不存在"));
+        
+        // TODO: Check permissions - users can only change their own password unless they are admin
+        
+        // Verify old password
+        if (!passwordEncoder.matches(request.getOldPassword(), targetUser.getPasswordHash())) {
+            throw new IllegalArgumentException("舊密碼不正確");
+        }
+        
+        // Validate new password
+        if (request.getNewPassword() == null || request.getNewPassword().trim().isEmpty()) {
+            throw new IllegalArgumentException("新密碼不能為空");
+        }
+        
+        if (request.getNewPassword().length() < 6) {
+            throw new IllegalArgumentException("新密碼長度必須至少6個字符");
+        }
+        
+        // Check if new password is same as old password
+        if (request.getOldPassword().equals(request.getNewPassword())) {
+            throw new IllegalArgumentException("新密碼不能與舊密碼相同");
+        }
+        
+        // Update password
+        targetUser.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        
+        // Save updated user (updatedAt will be automatically set by @PreUpdate)
+        userRepository.save(targetUser);
     }
     
     /**

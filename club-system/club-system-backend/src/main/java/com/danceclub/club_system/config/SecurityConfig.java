@@ -47,6 +47,9 @@ public class SecurityConfig {
                 // Public endpoints - Activities (viewable by all) (需求：3.12, 3.13)
                 .requestMatchers("/api/activities", "/api/activities/**").permitAll()
                 
+                // Public endpoints - ECPay callbacks (綠界回調不需要認證)
+                .requestMatchers("/api/payments/ecpay/notify", "/api/payments/ecpay/return").permitAll()
+                
                 // Admin endpoints - require ADMIN role (需求：2.3, 2.4, 2.5, 2.6, 2.7, 2.8)
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 
