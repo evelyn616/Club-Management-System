@@ -1,5 +1,10 @@
 <template>
   <div class="admin-container">
+    <div class="top-bar">
+      <button @click="goBack" class="btn-back">
+        <i class="fas fa-arrow-left"></i> 返回
+      </button>
+    </div>
     <div class="header">
       <h1><i class="fas fa-user-shield"></i> 管理員審核後台</h1>
       <p class="stats-tag">總申請數：{{ mockData.length }} | 待處理：{{ pendingCount }}</p>
@@ -49,7 +54,7 @@
               <td>#{{ item.id }}</td>
               <td>
                 <div class="id-info">
-                  <span class="id-badge">👤 {{ item.memberId }}</span>
+                  <span class="id-badge">👤 {{ item.userId }}</span>
                   <span class="activity-tag">🎯 {{ item.activityId }}</span>
                 </div>
               </td>
@@ -92,6 +97,9 @@
 <script setup>
 import axios from 'axios';
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 // 設定 API 基礎路徑
 const API_BASE = 'http://localhost:8080/api/leaves';
@@ -117,7 +125,7 @@ const fetchAllLeaves = async () => {
 // --- 2. 篩選邏輯 ---
 const currentOptions = computed(() => {
   return [...new Set(mockData.value.map(item => 
-    filterType.value === 'member' ? item.memberId : item.activityId
+    filterType.value === 'member' ? item.userId : item.activityId
   ))];
 });
 
@@ -136,7 +144,7 @@ const updateStatus = async (id, newStatus) => {
     await axios.put(`${API_BASE}/review/${id}`, null, {
       params: {
         status: newStatus,
-        reviewerId: 'ADMIN_001', // 你可以根據登入狀況修改
+        reviewerId: 'm0010', // 你可以根據登入狀況修改
         note: '管理員審核通過'
       }
     });
@@ -174,6 +182,9 @@ const pendingCount = computed(() =>
 const resetFilter = () => {
   filterType.value = 'member';
   filterValue.value = 'all';
+};
+const goBack = () => {
+  router.push('/');
 };
 </script>
 

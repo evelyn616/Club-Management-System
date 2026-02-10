@@ -1,5 +1,10 @@
 <template>
   <div class="container">
+    <div class="top-bar">
+      <button @click="goBack" class="btn-back">
+        <i class="fas fa-arrow-left"></i> 返回
+      </button>
+    </div>
     <div class="header">
       <h1>請假申請紀錄</h1>
       <p>目前狀態：<span class="offline-tag">唯讀模式</span></p>
@@ -22,7 +27,7 @@
           <tbody>
             <tr v-for="item in mockData" :key="item.id">
               <td>#{{ item.id }}</td>
-              <td>{{ item.memberId }}</td>
+              <td>{{ item.userId }}</td>
               <td>{{ item.leaveType }}</td>
               <td>{{ item.reason }}</td>
               <td>
@@ -47,22 +52,36 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 // 初始資料設為空，等待後端連線
 const mockData = ref([]);
 
 // 頁面加載時自動抓取後端已提交的資料
+// onMounted(async () => {
+//   try {
+//     const response = await axios.get('http://localhost:8080/api/leaves');
+//     mockData.value = response.data;
+//   } catch (error) {
+//     console.error("無法抓取資料:", error);
+//     // 如果後端沒開，可以暫時保留一些假資料測試畫面
+//     mockData.value = [
+//       { id: 101, memberId: 'M0001', leaveType: '事假', reason: '家裡有事', status: 'PENDING' },
+//       { id: 102, memberId: 'M0005', leaveType: '病假', reason: '感冒發燒', status: 'APPROVED' }
+//     ];
+//   }
+// });
+
 onMounted(async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/leaves');
-    mockData.value = response.data;
+    // 這裡調用你 Service 裡的 getLeavesByUserId 邏輯
+    const response = await axios.get('http://localhost:8080/api/leaves/user/m0009');
+    mockData.value = response.data; // 這裡的變數名可改為 leaveList
   } catch (error) {
-    console.error("無法抓取資料:", error);
-    // 如果後端沒開，可以暫時保留一些假資料測試畫面
-    mockData.value = [
-      { id: 101, memberId: 'M0001', leaveType: '事假', reason: '家裡有事', status: 'PENDING' },
-      { id: 102, memberId: 'M0005', leaveType: '病假', reason: '感冒發燒', status: 'APPROVED' }
-    ];
+    console.error("無法抓取個人資料:", error);
+    mockData.value = []; // 清空，不顯示假資料
+    alert('讀取紀錄失敗');
   }
 });
 
@@ -76,6 +95,9 @@ const removeData = async (id) => {
       alert('刪除失敗，請檢查後端連線');
     }
   }
+};
+const goBack = () => {
+  router.push('/');
 };
 </script>
 

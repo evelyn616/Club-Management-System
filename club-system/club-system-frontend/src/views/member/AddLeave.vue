@@ -5,18 +5,27 @@
       <div v-if="targetActivityTitle" class="activity-context">
         正在申請：<strong>{{ targetActivityTitle }}</strong> (ID: {{ form.activityId }})
       </div>
+      <!-- ✅ 新增：顯示除錯資訊 -->
+      <div style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-size: 12px;">
+        <strong>除錯資訊：</strong><br>
+        接收到的 activityId: {{ route.query.activityId }}<br>
+        接收到的 userId: {{ route.query.userId }}<br>
+        表單中的 activityId: {{ form.activityId }}<br>
+        表單中的 userId: {{ form.userId }}
+      </div>
       <p class="black-text">目前狀態：<span class="offline-tag">填寫模式</span></p>
     </div>
-
+    
     <section class="form-section">
       <div class="card">
         <h3 class="black-text"><i class="fas fa-plus"></i> 填寫申請單</h3>
         <div class="form-grid">
           <div class="input-group">
             <label class="black-text">會員 ID (userId)</label>
-            <input v-model="form.userId" type="text" placeholder="例如: m0001" class="black-text">
+            <!-- ✅ 改成唯讀，顯示傳過來的值 -->
+            <input v-model="form.userId" type="text" readonly class="black-text readonly-input">
           </div>
-
+          
           <div class="input-group">
             <label class="black-text">請假類型</label>
             <select v-model="form.leaveType" class="black-text">
@@ -25,17 +34,18 @@
               <option value="公假">公假</option>
             </select>
           </div>
-
+          
           <div class="input-group full-width">
             <label class="black-text">對應活動 ID</label>
-            <input v-model="form.activityId" type="text" readonly class="black-text readonly-input">
+            <input v-model="form.activityId" type="number" readonly class="black-text readonly-input">
           </div>
-
+          
           <div class="input-group full-width">
             <label class="black-text">請假原因</label>
             <textarea v-model="form.reason" rows="4" class="black-text" placeholder="請輸入詳細原因"></textarea>
           </div>
         </div>
+        
         <button @click="handleSubmit" class="btn-primary">提交申請</button>
       </div>
     </section>
@@ -50,37 +60,72 @@ import { useRoute, useRouter } from 'vue-router';
 const route = useRoute();
 const router = useRouter();
 
-// 1. 接收從上一頁 (RegistrationList) 傳過來的標題
+// 1. 接收從上一頁傳過來的資料
 const targetActivityTitle = ref(route.query.activityTitle || '');
 
-// 2. 初始化表單資料，直接對齊後端 DTO 欄位名稱
+// 2. ✅ 修正：使用傳過來的值，而不是鎖死
 const form = ref({
-  userId: route.query.uId || '',         // 接收 uId
-  activityId: route.query.activityId || '', // 接收 activityId
+  userId: route.query.userId || 'm0009',      // 優先使用傳過來的值
+  activityId: Number(route.query.activityId) || '',   // 這個應該會正確接收
   leaveType: '事假',
   reason: ''
 });
 
+// ✅ 新增：頁面載入時檢查資料
+onMounted(() => {
+  console.log('=== AddLeave 頁面載入 ===');
+  console.log('route.query:', route.query);
+  console.log('form 初始值:', form.value);
+  console.log('activityId 型別:', typeof form.value.activityId);
+  
+  // 如果沒有 activityId，顯示警告
+  if (!form.value.activityId) {
+    console.warn('⚠️ 警告：沒有接收到 activityId！');
+    alert('錯誤：缺少活動 ID，請從報名列表重新進入');
+  }
+});
+
 // 提交邏輯
 const handleSubmit = async () => {
-  // 基本驗證
-  if (!form.value.userId || !form.value.reason || !form.value.activityId) {
-    return alert('請確認會員 ID、活動 ID 與原因均已填寫');
+  // ✅ 加強驗證
+  console.log('準備提交的資料:', JSON.stringify(form.value));
+  
+  if (!form.value.userId) {
+    return alert('缺少會員 ID');
+  }
+  
+  if (!form.value.activityId) {
+    return alert('缺少活動 ID，請從報名列表重新選擇活動');
+  }
+  
+  if (!form.value.reason || form.value.reason.trim() === '') {
+    return alert('請填寫請假原因');
   }
 
   try {
-    // 這裡送出的 JSON 格式將會是 { userId: '...', activityId: '...', leaveType: '...', reason: '...' }
+    console.log('發送 POST 請求:', form.value);
+    
     const response = await axios.post('http://localhost:8080/api/leaves', form.value);
     
     if (response.status === 201 || response.status === 200) {
       alert('請假申請已成功送出！');
-      // 成功後跳轉回紀錄頁面或上一頁
-      router.push('/leave-request-vue'); 
+      router.push('/leave-request-member'); 
     }
   } catch (error) {
     console.error("提交失敗:", error);
-    const errorMsg = error.response?.data?.message || '請檢查後端連線或資料格式';
-    alert('提交失敗：' + errorMsg);
+    console.error("錯誤詳情:", error.response);
+    
+    let errorMsg = '提交失敗';
+    if (error.response) {
+      // ✅ 後端修正後這裡能拿到具體錯誤訊息
+      errorMsg = error.response.data?.message 
+              || error.response.data 
+              || `HTTP ${error.response.status} 錯誤`;
+    } else {
+      errorMsg = '無法連線到後端伺服器';
+    }
+    
+    alert(errorMsg);
   }
 };
 </script>
