@@ -1065,7 +1065,7 @@ onMounted(() => {
 
 /* ========== 表格樣式 ========== */
 .activities-table {
-    width: 200%;
+    width: 100%;
     border-collapse: collapse;
     background: white;
     margin-top: 20px;
@@ -1511,7 +1511,7 @@ onMounted(() => {
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     margin-bottom: 20px;
-    width: 200%;
+    width: 100%;
 }
 
 .basic-search {

@@ -250,7 +250,7 @@
 
 <style scoped>
 .update-activity-container {
-  width: 200%;
+  width: 100%;
   margin: 40px auto;
   padding: 0 20px;
 }
