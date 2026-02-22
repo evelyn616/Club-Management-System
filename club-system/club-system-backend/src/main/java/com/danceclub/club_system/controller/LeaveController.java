@@ -6,6 +6,7 @@ import com.danceclub.club_system.service.LeaveService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 import java.util.List;
 
@@ -32,13 +33,14 @@ public class LeaveController {
 
     // --- 2. POST: 新增請假單 (接收 RequestDTO, 回傳 ResponseDTO) ---
     @PostMapping
-    public ResponseEntity<LeaveResponseDTO> createLeave(@RequestBody LeaveRequestDTO dto) {
+    public ResponseEntity<?> createLeave(@RequestBody LeaveRequestDTO dto) { // 注意這裡改成 <?>
         try {
             LeaveResponseDTO newLeave = leaveService.submitNewRequest(dto);
             return ResponseEntity.status(HttpStatus.CREATED).body(newLeave);
-        } catch (Exception e) {
-            // 這裡可以根據異常訊息判斷是找不到用戶還是活動
-            return ResponseEntity.badRequest().build();
+        } catch (RuntimeException e) {
+            // 這裡回傳 Map 是為了讓前端能看到 "請假失敗：您並未報名此活動"
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", e.getMessage()));
         }
     }
 

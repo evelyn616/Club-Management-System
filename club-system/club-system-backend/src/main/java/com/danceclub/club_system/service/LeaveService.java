@@ -8,6 +8,7 @@ import com.danceclub.club_system.model.Activity;
 import com.danceclub.club_system.repository.LeaveRepository;
 import com.danceclub.club_system.repository.ActivityRepository;
 import com.danceclub.club_system.repository.UserRepository;
+import com.danceclub.club_system.repository.RegistrationRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,13 +23,17 @@ public class LeaveService {
     private final LeaveRepository leaveRepository;
     private final UserRepository userRepository;      
     private final ActivityRepository activityRepository; 
+    private final RegistrationRepository registrationRepository;
 
     public LeaveService(LeaveRepository leaveRepository, 
                         UserRepository userRepository, 
-                        ActivityRepository activityRepository) {
+                        ActivityRepository activityRepository,
+                        RegistrationRepository registrationRepository
+                    ) {
         this.leaveRepository = leaveRepository;
         this.userRepository = userRepository;
         this.activityRepository = activityRepository;
+        this.registrationRepository = registrationRepository;
     }
 
     public List<LeaveResponseDTO> getAllLeaves() {
@@ -46,16 +51,42 @@ public class LeaveService {
                 .collect(Collectors.toList());
     }
 
+    // @Transactional
+    // public LeaveResponseDTO submitNewRequest(LeaveRequestDTO dto) {
+    //     User user = userRepository.findById(dto.getUserId())
+    //             .orElseThrow(() -> new RuntimeException("找不到該用戶: " + dto.getUserId()));
+
+    //     Activity activity = activityRepository.findById(dto.getActivityId())
+    //             .orElseThrow(() -> new RuntimeException("找不到該活動: " + dto.getActivityId()));
+
+    //     LeaveEntity leaveEntity = LeaveEntity.builder()
+    //             .user(user) // 這裡用了改名後的 .user()
+    //             .activity(activity)
+    //             .leaveType(dto.getLeaveType())
+    //             .reason(dto.getReason())
+    //             .status("PENDING")
+    //             .build();
+
+    //     return convertToResponseDTO(leaveRepository.save(leaveEntity));
+    // }
+
     @Transactional
     public LeaveResponseDTO submitNewRequest(LeaveRequestDTO dto) {
+        // 1. 基礎 User 與 Activity 檢查
         User user = userRepository.findById(dto.getUserId())
                 .orElseThrow(() -> new RuntimeException("找不到該用戶: " + dto.getUserId()));
 
         Activity activity = activityRepository.findById(dto.getActivityId())
                 .orElseThrow(() -> new RuntimeException("找不到該活動: " + dto.getActivityId()));
 
+        // 2. 重點：使用你抓取的那一行來「攔截」未報名者
+        // 確保他在請假前，已經出現在對方的報名表中
+        registrationRepository.findByActivityIdAndUserId(dto.getActivityId(), dto.getUserId())
+                .orElseThrow(() -> new RuntimeException("請假失敗：您並未報名此活動，無須請假"));
+
+        // 3. 建立請假單
         LeaveEntity leaveEntity = LeaveEntity.builder()
-                .user(user) // 這裡用了改名後的 .user()
+                .user(user)
                 .activity(activity)
                 .leaveType(dto.getLeaveType())
                 .reason(dto.getReason())

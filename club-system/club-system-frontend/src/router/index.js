@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
+// import HomeView from '../views/HomeView.vue'
 import { useUserStore } from '@/stores/user'
+import Leave from '../views/LeaveRequestView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -30,6 +32,8 @@ const router = createRouter({
       name: 'profile',
       component: () => import('../views/ProfileView.vue'),
       meta: { requiresAuth: true },
+      // name: 'home',
+      // component: Leave,
     },
     {
       path: '/about',
@@ -116,6 +120,31 @@ const router = createRouter({
       name: 'registration-detail-container',
       component: () => import('@/views/admin/RegistrationDetail.vue'),
       meta: { requiresAuth: true },
+    },
+    {
+      path: '/leave-request-member',
+      name: 'leave-request-member',
+      component: () => import('@/views/member/LeaveRequestMember.vue')
+    },
+    {
+      path: '/leave-request',
+      name: 'leave-request',
+      component: () => import('@/views/admin/LeaveRequest.vue')
+    },
+    {
+      path: '/leave-activity',
+      name: 'leave-activity',
+      component: () => import('@/views/member/LeaveActivity.vue')
+    },
+    {
+      path: '/leave-request-view',
+      name: 'leave-request-vue',
+      component: () => import('@/views/LeaveRequestView.vue')
+    },
+    {
+      path: '/add-leave',
+      name: 'add-leave',
+      component: () => import('@/views/member/AddLeave.vue')
     },
   ],
 })
