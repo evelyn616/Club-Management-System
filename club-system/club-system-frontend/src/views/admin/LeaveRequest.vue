@@ -1,61 +1,75 @@
 <template>
-  <div class="admin-container">
-    <div class="top-bar">
-      <button @click="goBack" class="btn-back">
-        <i class="fas fa-arrow-left"></i> 返回
-      </button>
-    </div>
-    <div class="header">
-      <h1><i class="fas fa-user-shield"></i> 管理員審核後台</h1>
-      <p class="stats-tag">總申請數：{{ mockData.length }} | 待處理：{{ pendingCount }}</p>
-    </div>
-
-    <section class="filter-section card">
-      <div class="filter-controls">
-        <div class="btn-group">
-          <button 
-            :class="['filter-btn', { active: filterType === 'member' }]"
-            @click="filterType = 'member'; filterValue = 'all'"
-          >按會員</button>
-          <button 
-            :class="['filter-btn', { active: filterType === 'activity' }]"
-            @click="filterType = 'activity'; filterValue = 'all'"
-          >按活動</button>
-        </div>
-
-        <div class="picker-wrapper">
-          <label>{{ filterType === 'member' ? '選擇會員' : '選擇活動' }}</label>
-          <select v-model="filterValue" class="picker-select">
-            <option value="all">顯示全部</option>
-            <option v-for="opt in currentOptions" :key="opt" :value="opt">
-              {{ opt }}
-            </option>
-          </select>
-        </div>
-
-        <button @click="resetFilter" class="btn-outline">重置篩選</button>
+  <div class="outer-wrapper">
+    <div class="container">
+      <div class="top-navigation">
+        <button @click="goBack" class="btn-back-minimal">
+          <i class="fas fa-arrow-left"></i> 返回
+        </button>
       </div>
-    </section>
 
-    <section class="list-section">
-      <div class="card">
-        <table class="styled-table">
+      <div class="header-section">
+        <div class="title-group">
+          <h1>管理員審核後台</h1>
+          <span class="admin-badge">系統管理員</span>
+        </div>
+        <div class="stats-minimal">
+          <div class="stat-item">
+            <span class="label">總申請</span>
+            <span class="value">{{ mockData.length }}</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item highlight">
+            <span class="label">待處理</span>
+            <span class="value">{{ pendingCount }}</span>
+          </div>
+        </div>
+      </div>
+
+      <section class="filter-panel">
+        <div class="filter-group">
+          <div class="toggle-group">
+            <button 
+              :class="['toggle-btn', { active: filterType === 'member' }]"
+              @click="filterType = 'member'; filterValue = 'all'"
+            >按會員</button>
+            <button 
+              :class="['toggle-btn', { active: filterType === 'activity' }]"
+              @click="filterType = 'activity'; filterValue = 'all'"
+            >按活動</button>
+          </div>
+
+          <div class="select-wrapper">
+            <select v-model="filterValue" class="minimal-select">
+              <option value="all">顯示全部來源</option>
+              <option v-for="opt in currentOptions" :key="opt" :value="opt">
+                {{ filterType === 'member' ? '會員' : '活動' }}: {{ opt }}
+              </option>
+            </select>
+          </div>
+
+          <button @click="resetFilter" class="btn-reset">重置</button>
+        </div>
+      </section>
+
+      <div class="table-responsive">
+        <table>
           <thead>
             <tr>
               <th>單號</th>
-              <th>會員/活動</th>
+              <th>會員 / 活動</th>
               <th>請假類型</th>
               <th>狀態</th>
-              <th>審核操作</th> <th>管理</th>
+              <th>審核操作</th>
+              <th>管理</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="item in filteredData" :key="item.id">
-              <td>#{{ item.id }}</td>
+              <td><span class="id-text">#{{ item.id }}</span></td>
               <td>
-                <div class="id-info">
-                  <span class="id-badge">👤 {{ item.userId }}</span>
-                  <span class="activity-tag">🎯 {{ item.activityId }}</span>
+                <div class="info-cell">
+                  <span class="user-id">👤 {{ item.userId }}</span>
+                  <span class="activity-id">🎯 {{ item.activityId }}</span>
                 </div>
               </td>
               <td>{{ item.leaveType }}</td>
@@ -64,33 +78,31 @@
                   {{ item.status }}
                 </span>
               </td>
-              
               <td>
                 <select 
                   :value="item.status" 
                   @change="(e) => updateStatus(item.id, e.target.value)"
-                  class="action-picker"
-                  :disabled="item.status !== 'PENDING' && item.status !== 'REJECTED'"
+                  class="action-select"
+                  :disabled="item.status === 'APPROVED'"
                 >
-                  <option value="PENDING" disabled>等待處理中</option>
-                  <option value="APPROVED">✅ 准假 (Approve)</option>
-                  <option value="REJECTED">❌ 駁回 (Reject)</option>
+                  <option value="PENDING" disabled>待處理</option>
+                  <option value="APPROVED">准假 Approve</option>
+                  <option value="REJECTED">駁回 Reject</option>
                 </select>
               </td>
-
               <td>
-                <button @click="removeData(item.id)" class="btn-delete-icon" title="刪除紀錄">
-                  <i class="fas fa-trash-alt"></i> 刪除
+                <button @click="removeData(item.id)" class="btn-delete-minimal">
+                  <i class="fas fa-trash-alt"></i>
                 </button>
               </td>
             </tr>
             <tr v-if="filteredData.length === 0">
-              <td colspan="6" class="no-data">查無相符的請假紀錄</td>
+              <td colspan="6" class="no-data-minimal">查無符合條件的請假紀錄</td>
             </tr>
           </tbody>
         </table>
       </div>
-    </section>
+    </div>
   </div>
 </template>
 
@@ -98,6 +110,7 @@
 import axios from 'axios';
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
 
@@ -107,6 +120,8 @@ const API_BASE = 'http://localhost:8080/api/leaves';
 const mockData = ref([]); // 這裡將存放從後端抓回來的 LeaveResponseDTO 列表
 const filterType = ref('member');
 const filterValue = ref('all');
+const userStore = useUserStore();
+const isLoading = ref(false);
 
 // --- 1. 初始化讀取：取得所有請假單 ---
 onMounted(async () => {
@@ -114,11 +129,15 @@ onMounted(async () => {
 });
 
 const fetchAllLeaves = async () => {
+  isLoading.value = true;
   try {
     const response = await axios.get(API_BASE);
     mockData.value = response.data;
   } catch (error) {
     console.error("獲取資料失敗", error);
+    alert("無法讀取審核資料");
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -132,7 +151,7 @@ const currentOptions = computed(() => {
 const filteredData = computed(() => {
   if (filterValue.value === 'all') return mockData.value;
   return mockData.value.filter(item => 
-    (filterType.value === 'member' ? item.memberId : item.activityId) === filterValue.value
+    (filterType.value === 'member' ? item.userId : item.activityId) === filterValue.value
   );
 });
 
@@ -145,6 +164,7 @@ const updateStatus = async (id, newStatus) => {
       params: {
         status: newStatus,
         reviewerId: 'm0010', // 你可以根據登入狀況修改
+        //reviewerId: userStore.userId || 'admin'
         note: '管理員審核通過'
       }
     });
@@ -184,65 +204,99 @@ const resetFilter = () => {
   filterValue.value = 'all';
 };
 const goBack = () => {
-  router.push('/');
+  router.push('/dashboard');
 };
 </script>
 
 <style scoped>
-.admin-container { padding: 30px; background-color: #f8fafc; min-height: 100vh; color: #000000}
-.card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
 
-/* 篩選器 */
-.filter-controls { display: flex; align-items: center; gap: 20px; }
-.btn-group { display: flex; background: #f1f5f9; padding: 4px; border-radius: 8px; }
-.filter-btn { border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; background: transparent; transition: 0.2s; }
-.filter-btn.active { background: white; color: #10b981; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-
-.picker-select, .action-picker {
-  padding: 8px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background-color: white;
-  cursor: pointer;
+.outer-wrapper {
+  font-family: 'Inter', sans-serif;
+  background-color: #ffffff;
+  min-height: 100vh;
+  padding: 40px 20px;
+  color: #1a1a1a;
+  display: flex;
+  justify-content: center;
 }
 
-/* 操作選單樣式 */
-.action-picker {
-  width: 140px;
-  border-left: 4px solid #10b981; /* 綠色左邊線提示這是操作區 */
-  font-size: 0.9em;
-}
-.action-picker:disabled {
-  background-color: #f1f5f9;
-  border-left-color: #cbd5e1;
-  cursor: not-allowed;
+.container { width: 100%; max-width: 1100px; }
+
+/* 頂部導航 */
+.btn-back-minimal {
+  background: none; border: none; color: #666; font-size: 14px;
+  cursor: pointer; display: flex; align-items: center; gap: 8px; margin-bottom: 24px;
 }
 
-/* 表格優化 */
-.styled-table { width: 100%; border-collapse: collapse; }
-.styled-table th { text-align: left; padding: 12px; border-bottom: 2px solid #f1f5f9; color: #64748b; font-size: 0.85em; }
-.styled-table td { padding: 16px 12px; border-bottom: 1px solid #f1f5f9; }
-
-.id-info { display: flex; flex-direction: column; gap: 4px; }
-.id-badge { font-family: monospace; font-weight: bold; color: #1e293b; }
-.activity-tag { font-size: 0.75em; color: #94a3b8; }
-
-.status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 700; }
-.status-badge.pending { background: #fef3c7; color: #92400e; }
-.status-badge.approved { background: #d1fae5; color: #065f46; }
-.status-badge.rejected { background: #fee2e2; color: #991b1b; }
-
-/* 刪除按鈕 */
-.btn-delete-icon {
-  background: none;
-  border: none;
-  color: #ef4444;
-  cursor: pointer;
-  font-size: 0.9em;
-  padding: 8px;
-  border-radius: 4px;
+/* 標題與統計 */
+.header-section {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 40px; border-bottom: 1px solid #eee; padding-bottom: 20px;
 }
-.btn-delete-icon:hover { background: #fef2f2; }
 
-.no-data { text-align: center; padding: 40px; color: #94a3b8; }
+h1 { font-size: 28px; font-weight: 600; margin: 0; letter-spacing: -1px; }
+
+.admin-badge {
+  font-size: 12px; background: #1a1a1a; color: white;
+  padding: 2px 8px; border-radius: 4px; margin-top: 8px; display: inline-block;
+}
+
+.stats-minimal { display: flex; gap: 24px; align-items: center; }
+.stat-item { display: flex; flex-direction: column; align-items: flex-end; }
+.stat-item .label { font-size: 12px; color: #999; text-transform: uppercase; }
+.stat-item .value { font-size: 20px; font-weight: 600; }
+.stat-item.highlight .value { color: #ff5252; }
+.stat-divider { width: 1px; height: 30px; background: #eee; }
+
+/* 篩選面板 */
+.filter-panel { margin-bottom: 32px; }
+.filter-group { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+.toggle-group { background: #f5f5f5; padding: 4px; border-radius: 6px; display: flex; }
+.toggle-btn {
+  border: none; background: none; padding: 6px 16px; font-size: 13px;
+  cursor: pointer; border-radius: 4px; transition: 0.2s;
+}
+.toggle-btn.active { background: white; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+.minimal-select, .action-select {
+  padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px;
+  background: white; font-size: 13px; cursor: pointer;
+}
+
+.btn-reset {
+  background: none; border: 1px solid #eee; color: #999;
+  padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px;
+}
+
+/* 表格樣式 */
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  text-align: left; padding: 12px 16px; font-size: 12px;
+  color: #999; text-transform: uppercase; border-bottom: 2px solid #1a1a1a;
+}
+tbody tr { border-bottom: 1px solid #eee; transition: 0.2s; }
+tbody tr:hover { background: #fafafa; }
+td { padding: 16px; font-size: 14px; }
+
+.info-cell { display: flex; flex-direction: column; }
+.user-id { font-weight: 600; }
+.activity-id { font-size: 12px; color: #999; }
+
+.status-badge {
+  font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 3px; text-transform: uppercase;
+}
+.status-badge.pending { background: #fff3e0; color: #ef6c00; }
+.status-badge.approved { background: #e8f5e9; color: #2e7d32; }
+.status-badge.rejected { background: #ffebee; color: #c62828; }
+
+.action-select { border-left: 3px solid #1a1a1a; width: 130px; }
+
+.btn-delete-minimal {
+  background: none; border: none; color: #ccc; cursor: pointer; transition: 0.2s;
+}
+.btn-delete-minimal:hover { color: #ff5252; }
+
+.no-data-minimal { text-align: center; padding: 60px; color: #ccc; }
 </style>

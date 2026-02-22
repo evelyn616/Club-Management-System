@@ -56,16 +56,18 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
+import { useUserStore } from '@/stores/user';
 
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
 
 // 1. 接收從上一頁傳過來的資料
 const targetActivityTitle = ref(route.query.activityTitle || '');
 
 // 2. ✅ 修正：使用傳過來的值，而不是鎖死
 const form = ref({
-  userId: route.query.userId || 'm0009',      // 優先使用傳過來的值
+  userId: userStore.userId || route.query.userId || '',      // 優先使用傳過來的值
   activityId: Number(route.query.activityId) || '',   // 這個應該會正確接收
   leaveType: '事假',
   reason: ''
@@ -77,6 +79,13 @@ onMounted(() => {
   console.log('route.query:', route.query);
   console.log('form 初始值:', form.value);
   console.log('activityId 型別:', typeof form.value.activityId);
+
+  if (!form.value.userId) {
+    console.warn('⚠️ 警告：沒有接收到 activityId！');
+    alert('請先登入後再進行請假申請');
+    router.push('/login');
+    return;
+  }
   
   // 如果沒有 activityId，顯示警告
   if (!form.value.activityId) {
@@ -109,7 +118,7 @@ const handleSubmit = async () => {
     
     if (response.status === 201 || response.status === 200) {
       alert('請假申請已成功送出！');
-      router.push('/leave-request-member'); 
+      router.push('/dashboard'); 
     }
   } catch (error) {
     console.error("提交失敗:", error);

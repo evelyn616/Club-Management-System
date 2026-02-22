@@ -1,50 +1,49 @@
 <template>
-  <div class="container">
-    <div class="top-bar">
-      <button @click="router.back()" class="btn-back">
-        <i class="fas fa-arrow-left"></i> 返回
-      </button>
-    </div>
-    <div class="header">
-      <h1><i class="fas fa-calendar-check"></i> 我的活動報名</h1>
-      <p>僅顯示已報名且可請假的活動</p>
-    </div>
+  <div class="outer-wrapper">
+    <div class="container">
+      <div class="top-navigation">
+        <button @click="router.back()" class="btn-back-minimal">
+          <i class="fas fa-arrow-left"></i> 返回
+        </button>
+      </div>
 
-    <div class="card">
-      <table class="styled-table">
-        <thead>
-          <tr>
-            <th>報名單號</th>
-            <th>活動名稱</th>
-            <th>報名時間</th>
-            <th>狀態</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="reg in registeredList" :key="reg.id">
-            <td>#{{ reg.id }}</td>
-            <td>
-              <div class="activity-info">
-                <strong>{{ reg.activityTitle || '活動 ID: ' + reg.activityId }}</strong>
-                <span class="id-tag">ID: {{ reg.activityId }}</span>
-              </div>
-            </td>
-            <td>{{ formatDate(reg.createdAt) }}</td>
-            <td>
-              <span class="status-badge registered">已報名</span>
-            </td>
-            <td>
-              <button @click="goToLeave(reg)" class="btn-leave">
-                <i class="fas fa-sign-out-alt"></i> 我要請假
-              </button>
-            </td>
-          </tr>
-          <tr v-if="registeredList.length === 0">
-            <td colspan="5" class="no-data">目前沒有已報名的活動</td>
-          </tr>
-        </tbody>
-      </table>
+      <h1>我的報名列表</h1>
+      
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>課程名稱 / 活動</th>
+              <th>報名日期</th>
+              <th>狀態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="reg in registeredList" :key="reg.id">
+              <td>
+                <div class="activity-cell">
+                  <span class="activity-name">{{ reg.activityTitle || '活動 #' + reg.activityId }}</span>
+                  <span class="reg-id">單號: #{{ reg.id }}</span>
+                </div>
+              </td>
+              <td class="date-cell">{{ formatDate(reg.createdAt) }}</td>
+              <td>
+                <span class="status-text">已報名</span>
+              </td>
+              <td>
+                <button @click="goToLeave(reg)" class="btn-leave-minimal">
+                  我要請假
+                </button>
+              </td>
+            </tr>
+            
+            <tr v-if="registeredList.length === 0">
+              <td colspan="4" class="no-data-minimal">目前沒有已報名的活動</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
@@ -53,90 +52,40 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
 const registeredList = ref([]);
+const userStore = useUserStore();
+const loading = ref(false);
 
-
-// // 🛠️ 改成模擬假資料
-// const fetchRegistrations = () => {
-//   console.log("正在加載模擬報名資料...");
-  
-//   // 模擬從資料庫抓回來的 REGISTERED 狀態資料
-//   const mockData = [
-//     { 
-//       id: 1001, 
-//       activityId: 1, 
-//       activityTitle: '熱舞社期末成果展 - 第一次團練', 
-//       createdAt: '2026-02-01T10:00:00',
-//       status: 'REGISTERED',
-//       userId: 'm0001'
-//     },
-//     { 
-//       id: 1005, 
-//       activityId: 2, 
-//       activityTitle: '基礎律動教學課程', 
-//       createdAt: '2026-02-02T14:30:00',
-//       status: 'REGISTERED',
-//       userId: 'm0001'
-//     },
-//     { 
-//       id: 1010, 
-//       activityId: 5, 
-//       activityTitle: '社團迎新晚會', 
-//       createdAt: '2026-02-05T09:00:00',
-//       status: 'REGISTERED',
-//       userId: 'm0001'
-//     }
-//   ];
-
-//   // 為了模擬 API 非同步感，可以用個 setTimeout (選用)
-//   registeredList.value = mockData;
-// };
 const fetchRegistrations = async () => {
-  console.log("正在從後端讀取 m0009 的報名資料...");
+
+  if (!userStore.userId) {
+    console.error("未找到使用者 ID");
+    // router.push('/login'); // 選用：未登入則踢回登入頁
+    return;
+  }
+  loading.value = true;
+
   try {
-    const response = await axios.get('http://localhost:8080/api/registrations/my?userId=m0009');
-    
-    // ✅ 詳細 log
-    console.log("========== 後端回傳資料檢查 ==========");
-    console.log("完整 response:", response);
-    console.log("response.data:", response.data);
-    console.log("資料筆數:", response.data.length);
-    
-    if (response.data.length > 0) {
-      console.log("---------- 第一筆資料詳細內容 ----------");
-      const first = response.data[0];
-      console.log("完整物件:", first);
-      console.log("所有 key:", Object.keys(first));
-      console.log("activityId 的值:", first.activityId);
-      console.log("activityId 的型別:", typeof first.activityId);
-      console.log("userId 的值:", first.userId);
-      
-      // 檢查所有可能的命名方式
-      console.log("first.activityId:", first.activityId);
-      console.log("first.activity_id:", first.activity_id);
-      console.log("first.ActivityId:", first.ActivityId);
-      console.log("========================================");
-    }
-    
+    const response = await axios.get(`http://localhost:8080/api/registrations/my?userId=${userStore.userId}`);
     registeredList.value = response.data; 
   } catch (error) {
     console.error("讀取報名資料失敗:", error);
     alert("無法取得報名紀錄，請檢查後端連線");
+  } finally {
+    loading.value = false;
   }
 };
 
-
 const goToLeave = (reg) => {
-  // 這裡會跳轉到 AddLeave 頁面，網址會變成 /leave-request-member?activityId=1&activityTitle=...
   router.push({
     name: 'add-leave', 
     query: { 
       activityId: reg.activityId,
       activityTitle: reg.activityTitle || ('活動 #' + reg.activityId),
-      uId: reg.userId // 順便把會員 ID 帶過去
-      // uId: 'm0009'
+      uId: reg.userId
     }
   });
 };
@@ -144,47 +93,161 @@ const goToLeave = (reg) => {
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
-  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+  // 配合簡約風，日期格式微調為 YYYY.MM.DD
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}.${m}.${d}`;
+};
+
+const goHome = () => {
+  router.push('/');
 };
 
 onMounted(fetchRegistrations);
 </script>
 
 <style scoped>
-/* 1. 確保整個容器背景是白色，並撐開高度 */
-.container { 
-  padding: 40px; 
-  max-width: 1000px; 
-  margin: 0 auto; 
-  color: #000000;
-  background-color: #ffffff; /* 設定背景為白色 */
-  min-height: 100vh;         /* 確保背景高度至少跟螢幕一樣高 */
+/* 載入 Inter 字體 */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+.outer-wrapper {
+  font-family: 'Inter', "Microsoft JhengHei", sans-serif;
+  background-color: #ffffff;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #1a1a1a;
 }
 
-/* 2. 調整卡片樣式，讓它在全白背景下依然有層次感 */
-.card { 
-  background: #ffffff; 
-  padding: 20px; 
-  border-radius: 12px; 
-  /* 稍微加深一點點陰影，在白底背景上會更好看 */
-  box-shadow: 0 4px 15px rgba(0,0,0,0.08); 
-  border: 1px solid #f0f0f0; /* 加個淡淡的邊框區隔 */
+.container {
+  width: 100%;
+  max-width: 900px;
 }
 
-.styled-table { width: 100%; border-collapse: collapse; }
-.styled-table th { text-align: left; padding: 15px; border-bottom: 2px solid #eee; }
-.styled-table td { padding: 15px; border-bottom: 1px solid #eee; }
-
-.activity-info { display: flex; flex-direction: column; }
-.id-tag { font-size: 0.8em; color: #999; }
-
-.status-badge.registered { background: #e3f2fd; color: #1976d2; padding: 4px 10px; border-radius: 20px; font-size: 0.9em; }
-
-.btn-leave { 
-  background: #ff9800; color: white; border: none; padding: 8px 16px; 
-  border-radius: 6px; cursor: pointer; transition: 0.3s; 
+.top-navigation {
+  margin-bottom: 24px;
 }
-.btn-leave:hover { background: #f57c00; transform: scale(1.05); }
 
-.no-data { text-align: center; color: #999; padding: 40px; }
+.btn-back-minimal {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s;
+}
+
+.btn-back-minimal:hover {
+  color: #1a1a1a;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 32px;
+  letter-spacing: -0.5px;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+thead th {
+  font-weight: 600;
+  font-size: 14px;
+  color: #666666;
+  text-transform: uppercase;
+  padding: 12px 16px;
+  border-bottom: 2px solid #1a1a1a;
+}
+
+tbody tr {
+  border-bottom: 1px solid #eeeeee;
+  transition: background-color 0.2s ease;
+}
+
+tbody tr:hover {
+  background-color: #fafafa;
+}
+
+td {
+  padding: 20px 16px;
+  font-size: 15px;
+  vertical-align: middle;
+}
+
+/* 活動單號微調 */
+.activity-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-name {
+  font-weight: 600;
+}
+
+.reg-id {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.date-cell {
+  color: #666;
+}
+
+.status-text {
+  font-size: 14px;
+  color: #1a1a1a;
+}
+
+.btn-leave-minimal {
+  background-color: #1a1a1a;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-leave-minimal:hover {
+  background-color: #404040;
+  transform: translateY(-1px);
+}
+
+.no-data-minimal {
+  text-align: center;
+  padding: 60px;
+  color: #999;
+}
+
+/* 響應式優化 */
+@media (max-width: 600px) {
+  td, th {
+    padding: 12px 8px;
+    font-size: 13px;
+  }
+  .btn-leave-minimal {
+    padding: 6px 10px;
+  }
+  h1 {
+    font-size: 20px;
+  }
+}
 </style>

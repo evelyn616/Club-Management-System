@@ -1,24 +1,24 @@
 <template>
-  <div class="container">
-    <div class="top-bar">
-      <button @click="goBack" class="btn-back">
-        <i class="fas fa-arrow-left"></i> 返回
-      </button>
-    </div>
-    <div class="header">
-      <h1>請假申請紀錄</h1>
-      <p>目前狀態：<span class="offline-tag">唯讀模式</span></p>
-    </div>
+  <div class="outer-wrapper">
+    <div class="container">
+      <div class="top-navigation">
+        <button @click="goBack" class="btn-back-minimal">
+          <i class="fas fa-arrow-left"></i> 返回
+        </button>
+      </div>
 
-    <section class="list-section">
-      <div class="card">
-        <h3><i class="fas fa-list"></i> 已提交的申請單</h3>
-        <table class="styled-table">
+      <div class="header-section">
+        <h1>請假申請紀錄</h1>
+        <span class="mode-tag">唯讀模式</span>
+      </div>
+      
+      <div class="table-responsive">
+        <table>
           <thead>
             <tr>
               <th>單號</th>
               <th>會員編號</th>
-              <th>類型</th>
+              <th>請假類型</th>
               <th>原因</th>
               <th>狀態</th>
               <th>操作</th>
@@ -26,26 +26,29 @@
           </thead>
           <tbody>
             <tr v-for="item in mockData" :key="item.id">
-              <td>#{{ item.id }}</td>
-              <td>{{ item.userId }}</td>
+              <td><span class="id-text">#{{ item.id }}</span></td>
+              <td class="user-id-cell">{{ item.userId }}</td>
               <td>{{ item.leaveType }}</td>
-              <td>{{ item.reason }}</td>
+              <td class="reason-cell">{{ item.reason }}</td>
               <td>
                 <span :class="['status-badge', item.status.toLowerCase()]">
                   {{ item.status }}
                 </span>
               </td>
               <td>
-                <button @click="removeData(item.id)" class="btn-text">刪除紀錄</button>
+                <button @click="removeData(item.id)" class="btn-delete-minimal">
+                  刪除
+                </button>
               </td>
             </tr>
+            
             <tr v-if="mockData.length === 0">
-              <td colspan="6" style="text-align: center; padding: 20px; color: #999;">目前沒有任何申請紀錄</td>
+              <td colspan="6" class="no-data-minimal">目前沒有任何申請紀錄</td>
             </tr>
           </tbody>
         </table>
       </div>
-    </section>
+    </div>
   </div>
 </template>
 
@@ -53,10 +56,12 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { useRouter } from 'vue-router';
+import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
 // 初始資料設為空，等待後端連線
 const mockData = ref([]);
+const userStore = useUserStore();
 
 // 頁面加載時自動抓取後端已提交的資料
 // onMounted(async () => {
@@ -74,9 +79,16 @@ const mockData = ref([]);
 // });
 
 onMounted(async () => {
+  if (!userStore.userId) {
+    console.error("未找到使用者 ID");
+    alert('請先登入以查看請假紀錄');
+    router.push('/login');
+    return;
+  }
+
   try {
     // 這裡調用你 Service 裡的 getLeavesByUserId 邏輯
-    const response = await axios.get('http://localhost:8080/api/leaves/user/m0009');
+    const response = await axios.get(`http://localhost:8080/api/leaves/user/${userStore.userId}`);
     mockData.value = response.data; // 這裡的變數名可改為 leaveList
   } catch (error) {
     console.error("無法抓取個人資料:", error);
@@ -97,25 +109,172 @@ const removeData = async (id) => {
   }
 };
 const goBack = () => {
-  router.push('/');
+  router.push('/dashboard');
 };
 </script>
 
 <style scoped>
-.container { padding: 40px; background-color: #f4f7f6; min-height: 100vh; color: #000000}
-.card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-.header { margin-bottom: 30px; }
-.offline-tag { background: #e8f0fe; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; color: #1967d2; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
 
-.styled-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-.styled-table th { text-align: left; padding: 12px; border-bottom: 2px solid #eee; color: #666; background-color: #fafafa; }
-.styled-table td { padding: 12px; border-bottom: 1px solid #eee; }
+.outer-wrapper {
+  font-family: 'Inter', "Microsoft JhengHei", sans-serif;
+  background-color: #ffffff;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #1a1a1a;
+}
 
-.status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.85em; font-weight: bold; }
-.status-badge.pending { background: #fff3e0; color: #ef6c00; }
-.status-badge.approved { background: #e8f5e9; color: #2e7d32; }
-.status-badge.rejected { background: #ffebee; color: #c62828; }
+.container {
+  width: 100%;
+  max-width: 1000px; /* 紀錄頁稍微寬一點點 */
+}
 
-.btn-text { color: #ff5252; background: none; border: none; cursor: pointer; font-weight: 500; }
-.btn-text:hover { text-decoration: underline; }
+.top-navigation {
+  margin-bottom: 24px;
+}
+
+.btn-back-minimal {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s;
+}
+
+.btn-back-minimal:hover {
+  color: #1a1a1a;
+}
+
+.header-section {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.mode-tag {
+  font-size: 12px;
+  background-color: #f0f0f0;
+  color: #666;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+thead th {
+  font-weight: 600;
+  font-size: 13px;
+  color: #999;
+  text-transform: uppercase;
+  padding: 12px 16px;
+  border-bottom: 2px solid #1a1a1a;
+}
+
+tbody tr {
+  border-bottom: 1px solid #eeeeee;
+  transition: background-color 0.2s ease;
+}
+
+tbody tr:hover {
+  background-color: #fafafa;
+}
+
+td {
+  padding: 20px 16px;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.id-text {
+  font-family: monospace;
+  color: #666;
+}
+
+.user-id-cell {
+  font-weight: 600;
+}
+
+.reason-cell {
+  max-width: 250px;
+  color: #444;
+  line-height: 1.5;
+}
+
+/* 狀態標籤優化：維持簡約但有顏色區分 */
+.status-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.status-badge.pending {
+  background-color: #fff3e0;
+  color: #ef6c00;
+}
+
+.status-badge.approved {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-badge.rejected {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.btn-delete-minimal {
+  background: none;
+  border: 1px solid #eeeeee;
+  color: #ff5252;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.btn-delete-minimal:hover {
+  background-color: #ff5252;
+  color: white;
+  border-color: #ff5252;
+}
+
+.no-data-minimal {
+  text-align: center;
+  padding: 80px;
+  color: #bbb;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .reason-cell {
+    display: none; /* 手機版隱藏原因欄位以節省空間 */
+  }
+}
 </style>
