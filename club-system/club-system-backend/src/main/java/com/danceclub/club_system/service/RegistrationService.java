@@ -1,8 +1,7 @@
 package com.danceclub.club_system.service;
 
 
-import com.danceclub.club_system.dto.RegistrationWithUserDTO;
-import com.danceclub.club_system.dto.UserResponse;
+import com.danceclub.club_system.dto.*;
 import com.danceclub.club_system.model.Activity;
 import com.danceclub.club_system.model.Payment;
 import com.danceclub.club_system.model.Registration;
@@ -14,12 +13,12 @@ import com.danceclub.club_system.repository.RegistrationRepository;
 import org.apache.coyote.BadRequestException;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+
+import java.util.*;
 import java.util.stream.Collectors;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 
 
 @Service
@@ -230,6 +229,83 @@ public class RegistrationService {
         return registrationRepository.findByUserIdAndPaymentStatus(userId,PaymentStatus.PENDING);
     }
 
+    /**
+     * 取得活動帶繳費紀錄
+     * 用於批量提醒的察看
+     */
+    public List<Registration> getActivityPendingPayments(Long activityId){
+        if (activityId == null){
+            throw new IllegalArgumentException("活動ID不得為空");
+        }
+        return registrationRepository.findByActivityIdAndPaymentStatus(activityId, PaymentStatus.PENDING);
+    }
+
+
+    /**
+     * 提醒繳費
+     */
+    public void sendPaymentReminder(Long id){
+
+        Registration registration = getRegistrationById(id);
+
+        Activity activity = activityService.getActivityById(registration.getActivityId());
+
+        Payment payment = paymentRepository.findByRegistration(registration)
+                .orElseThrow(() -> new RuntimeException("找不到繳費紀錄"));
+
+        if(payment.getStatus() == PaymentStatus.PAID){
+            throw new IllegalStateException("已完成繳費，無須提醒");
+        }
+
+        if (payment.getStatus() == PaymentStatus.CANCELLED||
+                payment.getStatus() == PaymentStatus.REFUNDED
+        ){
+            throw new IllegalStateException("此繳費已取消或已退款");
+        }
+
+        UserResponse user = userService.getUserById(registration.getUserId());
+
+        //發送郵件
+        emailService.sendPaymentReminder(
+                user.getEmail(),
+                user.getName(),
+                activity.getTitle(),
+                payment.getAmount(),
+                payment.getPaymentDeadline()
+        );
+
+    }
+    /**
+     * 批量提醒繳費發送
+     */
+    public Map<String, Object> sendBatchPaymentReminders(Long activityId){
+        List<Registration> pendingRegistrations = getActivityPendingPayments(activityId);
+
+        int successCount = 0;
+        int failCount = 0;
+        List<String> failedUsers = new ArrayList<>();
+
+        for (Registration registration : pendingRegistrations){
+            try{
+                sendPaymentReminder((registration.getId()));
+                successCount++;
+            }
+            catch (Exception e){
+                failCount++;
+                failedUsers.add(registration.getUserId());
+                System.out.println("發送失敗:registrationId = "+registration.getId()+"，原因"+e.getMessage());
+            }
+
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("successCount", successCount);
+        result.put("failCount", failCount);
+        result.put("failedUsers", failedUsers);
+        result.put("total", pendingRegistrations.size());
+
+        return result;
+    }
+
     //====簽到相關====//
     //執行簽到邏輯
     //1.查詢報名紀錄
@@ -294,7 +370,7 @@ public class RegistrationService {
      * @return 活動報名紀錄列表
      */
 
-    public List<RegistrationWithUserDTO> getActivityRegistration(Long activityId){
+    public List<RegistrationWithUserDTO> getActivityRegistrations(Long activityId){
         if (activityId == null){
             throw new IllegalArgumentException("活動id不可為空");
         }
@@ -313,15 +389,7 @@ public class RegistrationService {
                         userName = null;
                     }
 
-                    return new RegistrationWithUserDTO(
-                            reg.getId(),
-                            reg.getActivityId(),
-                            reg.getUserId(),
-                            userName,
-                            reg.getStatus(),
-                            reg.getRegistrationTime(),
-                            reg.getPaymentStatus()
-                    );
+                    return RegistrationWithUserDTO.from(reg, userName);
                 })
                 .collect(Collectors.toList());
     }
@@ -329,7 +397,7 @@ public class RegistrationService {
     /**
      *查詢所有有效報名紀錄
      */
-    public List<Registration> getAllRegistration(){
+    public List<Registration> getAllRegistrations(){
          return registrationRepository.findByStatusNot(RegistrationStatus.CANCELLED);
         //有效報名名單
 
@@ -379,40 +447,39 @@ public class RegistrationService {
         return registrationRepository.countByActivityIdAndCheckedInTrue(activityId);
     }
 
+
+
     /**
-     * 提醒繳費
+     * 查詢單筆報名的詳細資訊（含會員、活動、繳費）
+     * 用途：管理員查看報名詳情頁面
      */
-    public void sendPaymentReminder(Long id){
-
+    public RegistrationDetailDTO getRegistrationDetail(Long id){
         Registration registration = getRegistrationById(id);
-
         Activity activity = activityService.getActivityById(registration.getActivityId());
-
-        Payment payment = paymentRepository.findByRegistration(registration)
-                .orElseThrow(() -> new RuntimeException("找不到繳費紀錄"));
-
-        if(payment.getStatus() == PaymentStatus.PAID){
-            throw new IllegalStateException("已完成繳費，無須提醒");
-        }
-
-        if (payment.getStatus() == PaymentStatus.CANCELLED||
-                payment.getStatus() == PaymentStatus.REFUNDED
-        ){
-            throw new IllegalStateException("此繳費已取消或已退款");
-        }
-
         UserResponse user = userService.getUserById(registration.getUserId());
+        Payment payment = paymentRepository.findByRegistration(registration).orElse(null);
 
-        //發送郵件
-        emailService.sendPaymentReminder(
-                user.getEmail(),
-                user.getName(),
-                activity.getTitle(),
-                payment.getAmount(),
-                payment.getPaymentDeadline()
-        );
-
+        return RegistrationDetailDTO.from(registration, user, activity, payment);
     }
+
+    /**
+     * 查詢會員的所有報名（含活動摘要、能否取消）
+     * 用途：會員端「我的報名」頁面
+     */
+    public List<UserRegistrationDTO> getUserRegistrationsWithDetails(String userId){
+        if (userId == null || userId.trim().isEmpty()){
+            throw new IllegalArgumentException("會員ID不可為空");
+        }
+
+        List<Registration> registrations = registrationRepository.findByUserIdOrderByRegistrationTimeDesc(userId);
+
+        return registrations.stream().map(registration -> {
+            Activity activity = activityService.getActivityById(registration.getActivityId());
+            Payment payment = paymentRepository.findByRegistration(registration).orElse(null);
+            return UserRegistrationDTO.from(registration, activity, payment);
+        }).collect(Collectors.toList());
+    }
+
 
 
 }

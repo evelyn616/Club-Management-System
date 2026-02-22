@@ -56,6 +56,11 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
             String userId,
             PaymentStatus paymentStatus
     );
+    //查詢某活動的待繳費活動
+    List<Registration>findByActivityIdAndPaymentStatus(
+            Long activityId,
+            PaymentStatus paymentStatus
+    );
 
     //====簽到記錄查詢====//
     //(管理員端only)

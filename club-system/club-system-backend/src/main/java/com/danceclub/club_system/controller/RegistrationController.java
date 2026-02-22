@@ -145,7 +145,7 @@ public class RegistrationController {
 
     @GetMapping("/activity/{activityId}")
     public ResponseEntity<List<RegistrationWithUserDTO>> getActivityRegistrations(@PathVariable() Long activityId){
-        List<RegistrationWithUserDTO> registrations = registrationService.getActivityRegistration(activityId);
+        List<RegistrationWithUserDTO> registrations = registrationService.getActivityRegistrations(activityId);
         return ResponseEntity.ok(registrations);
     }
 
@@ -156,7 +156,7 @@ public class RegistrationController {
 
     @GetMapping("/all")
     public ResponseEntity<List<Registration>> getAllRegistrations(){
-        List<Registration> registrations = registrationService.getAllRegistration();
+        List<Registration> registrations = registrationService.getAllRegistrations();
         return ResponseEntity.ok(registrations);
     }
 
@@ -187,6 +187,9 @@ public class RegistrationController {
         return ResponseEntity.ok(registrations);
     }
 
+    //發送繳費提醒
+    //==單次==
+
     @PostMapping("/{id}/send-payment-reminder")
     public ResponseEntity<?> sendPaymentReminder(@PathVariable Long id) {
         try{
@@ -200,6 +203,15 @@ public class RegistrationController {
         catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "發送失敗"+ e.getMessage()));
         }
+    }
+
+    //==批次==
+    @PostMapping("/activities/{activityId}/batch-payment-reminders")
+    public ResponseEntity<Map<String, Object>> sendBatchPaymentReminders(
+            @PathVariable Long activityId
+    ){
+        Map<String, Object> result = registrationService.sendBatchPaymentReminders(activityId);
+        return ResponseEntity.ok(result);
     }
 }
 

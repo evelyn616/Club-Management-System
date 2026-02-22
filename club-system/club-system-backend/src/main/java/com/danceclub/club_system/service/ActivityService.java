@@ -1,9 +1,13 @@
 package com.danceclub.club_system.service;
 
+import com.danceclub.club_system.dto.ActivityRegistrationSummaryDTO;
 import com.danceclub.club_system.dto.ActivityWithStatsDTO;
 import com.danceclub.club_system.model.Activity;
+import com.danceclub.club_system.model.Registration;
 import com.danceclub.club_system.model.enums.ActivityStatus;
 import com.danceclub.club_system.model.enums.ActivityType;
+import com.danceclub.club_system.model.enums.PaymentStatus;
+import com.danceclub.club_system.model.enums.RegistrationStatus;
 import com.danceclub.club_system.repository.ActivityRepository;
 import com.danceclub.club_system.repository.RegistrationRepository;
 import jakarta.transaction.Transactional;
@@ -409,5 +413,33 @@ public class ActivityService {
             );
         }).collect(Collectors.toList());
     }
+
+    /**
+     * 查詢活動的報名統計摘要
+     * 用途：活動統計頁面、Dashboard
+     */
+    public ActivityRegistrationSummaryDTO getActivityRegistrationSummary(Long activityId){
+        Activity activity = getActivityById(activityId);
+
+        List<Registration> allRegistrations = registrationRepository.findByActivityIdOrderByRegistrationTimeAsc(activityId);
+
+        //統計所有報名總數
+        long totalRegistrations = allRegistrations.stream().filter(registration -> !RegistrationStatus.CANCELLED.equals(registration.getStatus())).count();
+
+        //統計總額
+        long paidCount = allRegistrations.stream().filter(registration -> PaymentStatus.PAID.equals(registration.getPaymentStatus())).count();
+
+        //統計未繳費總數
+        long pendingPaymentCount = allRegistrations.stream().filter(registration -> PaymentStatus.PENDING.equals(registration.getPaymentStatus())).count();
+
+        //統計未簽到總數
+        long checkInCount = allRegistrations.stream().filter((registration -> Boolean.TRUE.equals(registration.getCheckedIn()))).count();
+
+        //統計取消報名數
+        long cancelledCount = allRegistrations.stream().filter((registration -> RegistrationStatus.CANCELLED.equals(registration.getStatus()))).count();
+
+        return ActivityRegistrationSummaryDTO.from(activity, totalRegistrations,paidCount, pendingPaymentCount, checkInCount, cancelledCount);
+    }
+
 
 }
