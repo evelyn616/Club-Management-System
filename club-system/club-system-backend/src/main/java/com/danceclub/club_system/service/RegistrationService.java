@@ -1,12 +1,18 @@
 package com.danceclub.club_system.service;
 
 
+import com.danceclub.club_system.dto.RegistrationWithUserDTO;
+import com.danceclub.club_system.dto.UserResponse;
 import com.danceclub.club_system.model.Activity;
+import com.danceclub.club_system.model.Payment;
 import com.danceclub.club_system.model.Registration;
 import com.danceclub.club_system.model.enums.PaymentStatus;
+import com.danceclub.club_system.model.enums.PaymentType;
 import com.danceclub.club_system.model.enums.RegistrationStatus;
+import com.danceclub.club_system.repository.PaymentRepository;
 import com.danceclub.club_system.repository.RegistrationRepository;
 import org.apache.coyote.BadRequestException;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import java.util.stream.Collectors;
 
@@ -21,10 +27,17 @@ public class RegistrationService {
 
     private final RegistrationRepository registrationRepository;
     private final ActivityService activityService;
+    private final PaymentRepository paymentRepository;
+    public final UserService userService;
+    private final EmailService emailService;
 
-    public RegistrationService(RegistrationRepository registrationRepository, ActivityService activityService){
+    public RegistrationService(RegistrationRepository registrationRepository, @Lazy ActivityService activityService, PaymentRepository paymentRepository, UserService userService, EmailService emailService){
         this.registrationRepository = registrationRepository;
         this.activityService = activityService;
+        this.paymentRepository = paymentRepository;
+        this.userService = userService;
+        this.emailService = emailService;
+
     }
 
     /**
@@ -110,8 +123,37 @@ public class RegistrationService {
 
         Registration saved = registrationRepository.save(registration);
 
+        //如果需要繳費，會建立payment紀錄
+        if (existingActivity.requiresPayment()){
+            createPaymentForRegistration(saved, existingActivity);
+
+        }
+
 
         return saved;
+    }
+
+    /**
+     * 報名建立繳費紀錄
+     */
+    private void createPaymentForRegistration(Registration registration, Activity activity){
+        Payment payment = new Payment();
+        payment.setRegistration(registration);
+        payment.setPaymentType(PaymentType.ACTIVITY_FEE);
+
+
+        //原價(暫時先開發原價)
+        BigDecimal originalAmount = activity.getFeeAmount();
+        payment.setOriginalAmount(originalAmount);
+        payment.setAmount(originalAmount);
+
+        //繳費期限設定活動三天以前
+        if (activity.getStartTime() != null){
+            payment.setPaymentDeadline(activity.getStartTime().minusDays(3));
+        }
+        payment.setNote("系統自動建立");
+
+        paymentRepository.save(payment);
     }
 
     //====取消報名====//
@@ -252,7 +294,7 @@ public class RegistrationService {
      * @return 活動報名紀錄列表
      */
 
-    public List<Registration> getActivityRegistration(Long activityId){
+    public List<RegistrationWithUserDTO> getActivityRegistration(Long activityId){
         if (activityId == null){
             throw new IllegalArgumentException("活動id不可為空");
         }
@@ -262,6 +304,25 @@ public class RegistrationService {
         //有效報名名單
         return allRegistrations.stream()
                 .filter(r -> !RegistrationStatus.CANCELLED.equals(r.getStatus()))
+                .map(reg -> {
+                    String userName;
+                    try {
+                        UserResponse user = userService.getUserById(reg.getUserId());
+                        userName = user.getName();
+                    } catch (Exception e) {
+                        userName = null;
+                    }
+
+                    return new RegistrationWithUserDTO(
+                            reg.getId(),
+                            reg.getActivityId(),
+                            reg.getUserId(),
+                            userName,
+                            reg.getStatus(),
+                            reg.getRegistrationTime(),
+                            reg.getPaymentStatus()
+                    );
+                })
                 .collect(Collectors.toList());
     }
 
@@ -317,4 +378,41 @@ public class RegistrationService {
         }
         return registrationRepository.countByActivityIdAndCheckedInTrue(activityId);
     }
+
+    /**
+     * 提醒繳費
+     */
+    public void sendPaymentReminder(Long id){
+
+        Registration registration = getRegistrationById(id);
+
+        Activity activity = activityService.getActivityById(registration.getActivityId());
+
+        Payment payment = paymentRepository.findByRegistration(registration)
+                .orElseThrow(() -> new RuntimeException("找不到繳費紀錄"));
+
+        if(payment.getStatus() == PaymentStatus.PAID){
+            throw new IllegalStateException("已完成繳費，無須提醒");
+        }
+
+        if (payment.getStatus() == PaymentStatus.CANCELLED||
+                payment.getStatus() == PaymentStatus.REFUNDED
+        ){
+            throw new IllegalStateException("此繳費已取消或已退款");
+        }
+
+        UserResponse user = userService.getUserById(registration.getUserId());
+
+        //發送郵件
+        emailService.sendPaymentReminder(
+                user.getEmail(),
+                user.getName(),
+                activity.getTitle(),
+                payment.getAmount(),
+                payment.getPaymentDeadline()
+        );
+
+    }
+
+
 }

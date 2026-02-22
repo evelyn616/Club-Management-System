@@ -1,24 +1,43 @@
 package com.danceclub.club_system.controller;
 
 import com.danceclub.club_system.dto.CreateRegistrationRequest;
+import com.danceclub.club_system.dto.RegistrationWithUserDTO;
+import com.danceclub.club_system.dto.UserResponse;
+import com.danceclub.club_system.model.Activity;
+import com.danceclub.club_system.model.Payment;
 import com.danceclub.club_system.model.Registration;
+import com.danceclub.club_system.model.enums.PaymentStatus;
+import com.danceclub.club_system.repository.PaymentRepository;
+import com.danceclub.club_system.repository.RegistrationRepository;
+import com.danceclub.club_system.service.ActivityService;
+import com.danceclub.club_system.service.EmailService;
 import com.danceclub.club_system.service.RegistrationService;
+import com.danceclub.club_system.service.UserService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.config.ConfigDataResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/registrations")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 public class RegistrationController {
 
     private final RegistrationService registrationService;
+    private final ActivityService activityService;
 
-    public RegistrationController(RegistrationService registrationService){
+
+
+
+    public RegistrationController(RegistrationService registrationService, ActivityService activityService){
         this.registrationService = registrationService;
+        this.activityService = activityService;
+
     }
     //====會員端API====//
     //====1.建立報名====//
@@ -125,8 +144,8 @@ public class RegistrationController {
      */
 
     @GetMapping("/activity/{activityId}")
-    public ResponseEntity<List<Registration>> getActivityRegistrations(@PathVariable() Long activityId){
-        List<Registration> registrations = registrationService.getActivityRegistration(activityId);
+    public ResponseEntity<List<RegistrationWithUserDTO>> getActivityRegistrations(@PathVariable() Long activityId){
+        List<RegistrationWithUserDTO> registrations = registrationService.getActivityRegistration(activityId);
         return ResponseEntity.ok(registrations);
     }
 
@@ -166,6 +185,21 @@ public class RegistrationController {
     public ResponseEntity<Long> countCheckedIn(@PathVariable Long activityId){
         Long registrations = registrationService.countCheckedIn(activityId);
         return ResponseEntity.ok(registrations);
+    }
+
+    @PostMapping("/{id}/send-payment-reminder")
+    public ResponseEntity<?> sendPaymentReminder(@PathVariable Long id) {
+        try{
+
+            registrationService.sendPaymentReminder(id);
+            return ResponseEntity.ok(Map.of("message","提醒繳費已發送"));
+
+        }catch (IllegalStateException e){
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+        catch (Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "發送失敗"+ e.getMessage()));
+        }
     }
 }
 

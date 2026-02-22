@@ -36,6 +36,11 @@ export const registrationApi = {
     },
     getActivityRegistrationCount: (activityId) => {
         return apiClient.get(`/registrations/activity/${activityId}/count`);
+    },
+    //提醒繳費
+    sendPaymentReminder: (registrationId) => {
+        return apiClient.post(`/registrations/${registrationId}/send-payment-reminder`)
     }
+
 
 };

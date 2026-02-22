@@ -123,47 +123,25 @@ const loadActivities = async () => {
         const response = await activityApi.getAllActivities();
         activities.value = response.data;
 
-        //載入報名人數
-        for(let activity of activities.value){
-            try{
+        const countPromises = activities.value.map(activity => registrationApi.getActivityRegistrationCount(activity.id).then(res => {
+          activity.registrationCount = res.data
+        })
+        .catch(error => {
+          console.log(`載入活動 ${activity.id} 的報名人數失敗`, error);
+          activity.registrationCount = 0; //失敗就當作0人報名
+        }));
 
-                const countResponse = await registrationApi.getActivityRegistrationCount(activity.id);
-                activity.registrationCount = countResponse.data;
+        await Promise.all(countPromises);
 
-                //報名紀錄
-                const registrationsResponse = await registrationApi.getActivityRegistrations(activity.id);
-                const registrations = registrationsResponse.data;
-
-                //計算今天的報名數
-                const today = new Date();
-                today.setHours(0,0,0,0); 
-                activity.todayRegistrations = registrations.filter(reg => {
-                    const regDate = new Date(reg.registrationTime);
-                    regDate.setHours(0,0,0,0);
-                    //把時分秒過濾，只看日期是否一樣，對比日期，一樣的就選出來
-
-                    return regDate.getTime() === today.getTime();
-                }).length;
-
-
-                //計算報名率
-                if(activity.maxParticipants){
-                    activity.registrationRate = activity.registrationCount / activity.maxParticipants;
-
-                }
-                else{
-                    activity.registrationRate = null;
-                }
-            }
-            catch(error){
-                console.log(`載入活動${activity.id}報名數失敗`,error)
-                activity.registrationCount = 0;
-                activity.registrationRate = 0 ;
-                activity.todayRegistrations = 0
-            }
-
-        }
-        console.log('活動列表載入完成:',activities.value)
+        //計算報名率
+        activities.value.forEach(activity => {
+          if(activity.maxParticipants){
+            activity.registrationRate = activity.registrationCount / activity.maxParticipants;
+          }
+        })
+        console.log('載入活動資料成功', activities.value);
+        
+         
 
     }
     catch(error){

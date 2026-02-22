@@ -1,17 +1,23 @@
 package com.danceclub.club_system.controller;
 
 import com.danceclub.club_system.dto.ActivityResponse;
+import com.danceclub.club_system.dto.ActivityWithStatsDTO;
 import com.danceclub.club_system.dto.CancelActivityRequest;
 import com.danceclub.club_system.dto.SchedulePublishRequest;
 import com.danceclub.club_system.model.Activity;
 import com.danceclub.club_system.model.enums.ActivityType;
 import com.danceclub.club_system.repository.ActivityRepository;
 import com.danceclub.club_system.service.ActivityService;
+import com.danceclub.club_system.service.RegistrationService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/activities")
@@ -19,10 +25,12 @@ import java.util.List;
 public class ActivityController {
 
     private final ActivityService activityService;
+    private final RegistrationService registrationService;
 
     // TODO 1: 建構子
-    public ActivityController(ActivityService activityService) {
+    public ActivityController(ActivityService activityService, RegistrationService registrationService) {
         this.activityService = activityService;
+        this.registrationService = registrationService;
     }
     // GET /api/activities/{id}
     // TODO 2: 根據 ID 取得單一活動
@@ -147,4 +155,18 @@ public class ActivityController {
     //查詢草稿活動
     @GetMapping("/drafts")
     public List<Activity> getDraftActivities(){return activityService.getDraftActivities();}
+
+    /**
+     * 取得所有活動及其報名統計
+     */
+    @GetMapping("with-stats")
+    public ResponseEntity<List<ActivityWithStatsDTO>> getActivitiesWithStats(){
+        try {
+            List<ActivityWithStatsDTO> activities = activityService.getAllActivitiesWithStats();
+            return ResponseEntity.ok(activities);
+
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
 }

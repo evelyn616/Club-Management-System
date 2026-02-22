@@ -1,5 +1,6 @@
 package com.danceclub.club_system.service;
 
+import com.danceclub.club_system.dto.ActivityWithStatsDTO;
 import com.danceclub.club_system.model.Activity;
 import com.danceclub.club_system.model.enums.ActivityStatus;
 import com.danceclub.club_system.model.enums.ActivityType;
@@ -8,11 +9,13 @@ import com.danceclub.club_system.repository.RegistrationRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 
@@ -21,11 +24,14 @@ public class ActivityService {
 
     private final ActivityRepository activityRepository;
     private final RegistrationRepository registrationRepository;
+    private final RegistrationService registrationService;
+
 
     // TODO: 寫建構子，注入 activityRepository
-    public ActivityService(ActivityRepository activityRepository, RegistrationRepository registrationRepository){
+    public ActivityService(ActivityRepository activityRepository, RegistrationRepository registrationRepository, @Lazy RegistrationService registrationService){
         this.activityRepository = activityRepository;
         this.registrationRepository = registrationRepository;
+        this.registrationService = registrationService;
     }
 
     public List<Activity>getAllActivities(){
@@ -374,6 +380,34 @@ public class ActivityService {
      */
     public List<Activity> getDraftActivities(){
         return activityRepository.findByStatusOrderByCreatedAtDesc(ActivityStatus.DRAFT);
+    }
+
+    /**
+     * 取得所有活動加上統計資料
+     */
+    public List<ActivityWithStatsDTO> getAllActivitiesWithStats(){
+        List<Activity> activities = activityRepository.findAll();
+
+        //轉換成DTO
+        return activities.stream().map(activity -> {
+            //查詢報名人數
+            Long registrationCount = registrationService.countValidRegistrations(activity.getId());
+
+            //建立DTO
+            return new ActivityWithStatsDTO(
+                    activity.getId(),
+                    activity.getTitle(),
+                    activity.getStartTime(),
+                    activity.getEndTime(),
+                    activity.getLocation(),
+                    activity.getActivityType(),
+                    activity.getMaxParticipants(),
+                    activity.getStatus(),
+                    activity.getFeeAmount(),
+                    activity.getRegistrationDeadline(),
+                    registrationCount
+            );
+        }).collect(Collectors.toList());
     }
 
 }

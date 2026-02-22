@@ -51,4 +51,8 @@ export const activityApi = {
     getDraftActivities: () => {
         return apiClient.get(`/activities/drafts`);
     },
+    //取得活動加上報名資料
+    getActivitiesWithStats: () => {
+        return apiClient.get(`/activities/with-registration-stats`);
+    }
 };

@@ -4,6 +4,7 @@ import com.danceclub.club_system.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -21,6 +22,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.lang.reflect.Array;
+import java.util.Arrays;
 
 /**
  * Spring Security configuration
@@ -39,35 +46,37 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configure(http))
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints - Authentication (需求：1.1, 1.2, 1.8, 1.9)
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/admin/login").permitAll()
-                
+
                 // Public endpoints - Activities (viewable by all) (需求：3.12, 3.13)
                 .requestMatchers("/api/activities", "/api/activities/**").permitAll()
-                
+
                 // Public endpoints - ECPay callbacks (綠界回調不需要認證)
                 .requestMatchers("/api/payments/ecpay/notify", "/api/payments/ecpay/return").permitAll()
-                
+
                 // Admin endpoints - require ADMIN role (需求：2.3, 2.4, 2.5, 2.6, 2.7, 2.8)
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                
+
                 // User profile endpoints - require authentication and proper authorization (需求：14.2, 14.3)
                 .requestMatchers("/api/users/**").authenticated()
-                
-                // Registration endpoints - require authentication (需求：4.1, 4.10, 4.11, 5.1, 5.2)
-                .requestMatchers("/api/registrations/**").authenticated()
-                
-                // Payment endpoints - require authentication (需求：6.7, 6.8, 7.1, 9.1)
-                .requestMatchers("/api/payments/**").authenticated()
-                
-                // Leave endpoints - require authentication (需求：10.1, 10.7, 11.1)
-                .requestMatchers("/api/leaves/**").authenticated()
-                
+
                 // Auth me endpoint - require authentication (需求：1.8)
                 .requestMatchers("/api/auth/me").authenticated()
-                
+
+                // Registration endpoints - require authentication (需求：4.1, 4.10, 4.11, 5.1, 5.2)
+                .requestMatchers("/api/registrations/**").authenticated()
+
+                // Payment endpoints - require authentication (需求：6.7, 6.8, 7.1, 9.1)
+                .requestMatchers("/api/payments/**").authenticated()
+
+                // Leave endpoints - require authentication (需求：10.1, 10.7, 11.1)
+                .requestMatchers("/api/leaves/**").authenticated()
+
+
+
                 // All other endpoints require authentication (需求：14.4, 14.5)
                 .anyRequest().authenticated()
             )
@@ -138,5 +147,21 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    /**
+     * CORS 設定
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource(){
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", configuration);
+        return source;
     }
 }

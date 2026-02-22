@@ -72,7 +72,7 @@
                             </td>
                             <td>
                                 <button @click="cancelRegistration(reg)" class="btn-cancel" :disabled="canceling">取消報名</button>
-                                <button>提醒繳費</button>
+                                <button v-if="reg.paymentStatus === 'PENDING'" @click ="sendPaymentReminder(reg)" class ="remind" :disable = "sending">提醒繳費</button>
                             </td>
                         </tr>
 
@@ -106,6 +106,7 @@ const activity = ref(null);
 const registrations = ref([]);
 const loading = ref(false);
 const canceling = ref(false);
+const sending = ref(false);
 
 //從路由取得活動id
 const activityId = route.params.activityId;
@@ -215,6 +216,29 @@ const cancelRegistration = async (registration) => {
   }
 
 }
+//提醒繳費
+const sendPaymentReminder = async (registration) => {
+  if (!confirm(`確定要發送繳費提醒給 ${registration.userId}嗎?`)) {
+    return
+    
+  }
+
+  sending.value = true;
+  try {
+    await registrationApi.sendPaymentReminder(registration.id);
+    alert('繳費提醒已發送');
+    
+  } catch (error) {
+    console.error('發送繳費提醒失敗', error);
+    alert('發送失敗，請稍後再試');
+    
+    
+  }finally{
+    sending.value =false;
+  }
+  
+}
+
 
 // 匯出名單（先留空，未來實作）
 const exportList = () => {
@@ -470,6 +494,29 @@ onMounted(() => {
 .btn-cancel:disabled {
   background: #ccc;
   cursor: not-allowed;
+}
+
+/* 提醒繳費按鈕 */
+.btn-remind {
+    padding: 6px 16px;
+    background: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+    margin-left: 8px;
+}
+
+.btn-remind:hover:not(:disabled) {
+    background: #f57c00;
+    transform: translateY(-2px);
+}
+
+.btn-remind:disabled {
+    background: #ccc;
+    cursor: not-allowed;
 }
 
 /* 空狀態 */
