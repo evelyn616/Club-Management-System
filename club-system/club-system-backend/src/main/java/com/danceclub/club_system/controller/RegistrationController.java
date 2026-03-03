@@ -1,5 +1,6 @@
 package com.danceclub.club_system.controller;
 
+import com.danceclub.club_system.dto.CheckInRequest;
 import com.danceclub.club_system.dto.CreateRegistrationRequest;
 import com.danceclub.club_system.dto.RegistrationWithUserDTO;
 import com.danceclub.club_system.dto.UserResponse;
@@ -131,6 +132,25 @@ public class RegistrationController {
     @PutMapping("/{id}/checkin")
     public ResponseEntity<Registration> checkIn(@PathVariable Long id){
         Registration registration = registrationService.checkIn(id);
+        return ResponseEntity.ok(registration);
+    }
+
+    /**
+     * QR Code 掃碼簽到
+     * 前端傳入 userId + activityId，後端自行查 registrationId 並執行簽到
+     *
+     * POST /api/registrations/checkin-by-user
+     * Body: { "userId": "M001", "activityId": 1 }
+     *
+     * @param request 包含 userId 和 activityId
+     * @return 200 OK + 更新後的報名狀態
+     */
+    @PostMapping("/checkin-by-user")
+    public ResponseEntity<Registration> checkInByUser(@Valid @RequestBody CheckInRequest request) {
+        Registration registration = registrationService.checkInByUser(
+                request.getUserId(),
+                request.getActivityId()
+        );
         return ResponseEntity.ok(registration);
     }
 

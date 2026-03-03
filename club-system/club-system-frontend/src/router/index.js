@@ -146,6 +146,20 @@ const router = createRouter({
       name: 'add-leave',
       component: () => import('@/views/member/AddLeave.vue')
     },
+      // 管理員簽到 Dashboard
+    {
+      path: '/admin/checkin/dashboard',
+      name: 'checkin-dashboard',
+      component: () => import('@/views/admin/CheckInDashboard.vue'),
+      meta: { requiresAuth: true },
+    },
+    // 會員自助簽到頁（QR Code 掃碼後導入此頁）
+  // URL 格式：/checkin/member?activityId=123
+    {
+      path: '/checkin/member',
+      name: 'member-checkin',
+      component: () => import('@/views/member/MemberCheckIn.vue'),
+    },
   ],
 })
 

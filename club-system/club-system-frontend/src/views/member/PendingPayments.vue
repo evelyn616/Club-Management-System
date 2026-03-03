@@ -49,9 +49,10 @@
                 <span class="value">#{{ payment.id }}</span>
               </div>
 
+              <!-- registration 是一個物件，取其 id -->
               <div class="info-row">
                 <span class="label">報名編號：</span>
-                <span class="value">#{{ payment.registrationId }}</span>
+                <span class="value">#{{ payment.registration?.id }}</span>
               </div>
 
               <div class="info-row" v-if="payment.originalAmount !== payment.amount">
@@ -114,14 +115,6 @@
 
           <div class="payment-methods">
             <button
-              @click="selectPaymentMethod('bank_transfer')"
-              class="method-btn"
-            >
-              <span class="method-icon">🏦</span>
-              <span class="method-name">銀行轉帳</span>
-            </button>
-
-            <button
               @click="selectPaymentMethod('credit_card')"
               class="method-btn"
             >
@@ -145,48 +138,10 @@
               <span class="method-name">超商繳費</span>
             </button>
           </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- 轉帳後五碼 Modal -->
-    <div v-if="showBankProofModal" class="modal-overlay" @click="closeBankProofModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>填寫轉帳資訊</h2>
-          <button @click="closeBankProofModal" class="btn-close">×</button>
-        </div>
-
-        <div class="modal-body">
-          <div class="bank-info">
-            <p><strong>銀行帳號：</strong>123-456-7890123</p>
-            <p><strong>戶名：</strong>社團管理系統</p>
-            <p><strong>應繳金額：</strong>NT$ {{ selectedPayment?.amount }}</p>
-          </div>
-
-          <div class="form-group">
-            <label>請輸入轉帳帳號後五碼：</label>
-            <input
-              v-model="bankProof"
-              type="number"
-              placeholder="請輸入後五碼"
-              maxlength="5"
-              class="input-field"
-            />
-          </div>
-
-          <div v-if="bankProofError" class="error-message">
-            {{ bankProofError }}
-          </div>
-
-          <div class="modal-actions">
-            <button @click="submitBankProof" class="btn-submit" :disabled="submitting">
-              {{ submitting ? '提交中...' : '提交' }}
-            </button>
-            <button @click="closeBankProofModal" class="btn-cancel-modal">
-              取消
-            </button>
-          </div>
+          <p class="payment-note">
+            ⚠️ 點選繳費方式後將跳轉至綠界金流付款頁面
+          </p>
         </div>
       </div>
     </div>
@@ -199,9 +154,8 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import {
   getMyPendingPayments,
-  updateBankProof,
   cancelPayment,
-  createEcpayCheckout
+  createEcpayCheckout,
 } from '@/api/payment'
 
 const router = useRouter()
@@ -212,18 +166,15 @@ const loading = ref(true)
 const errorMessage = ref('')
 
 const showModal = ref(false)
-const showBankProofModal = ref(false)
 const selectedPayment = ref(null)
-const bankProof = ref('')
-const bankProofError = ref('')
-const submitting = ref(false)
 
+// ===== 載入資料 =====
 const loadPendingPayments = async () => {
   try {
     loading.value = true
     errorMessage.value = ''
-    const payments = await getMyPendingPayments()
-    pendingPayments.value = payments
+    // getMyPendingPayments 直接回傳 data（見 payment.js）
+    pendingPayments.value = await getMyPendingPayments()
   } catch (error) {
     console.error('載入待繳費記錄失敗:', error)
     errorMessage.value = '載入待繳費記錄失敗，請稍後再試'
@@ -232,6 +183,7 @@ const loadPendingPayments = async () => {
   }
 }
 
+// ===== Modal =====
 const showPaymentModal = (payment) => {
   selectedPayment.value = payment
   showModal.value = true
@@ -242,36 +194,24 @@ const closeModal = () => {
   selectedPayment.value = null
 }
 
+// ===== 選擇繳費方式（綠界金流）=====
 const selectPaymentMethod = async (method) => {
-  if (method === 'bank_transfer') {
-    // 顯示轉帳後五碼輸入框
-    closeModal()
-    showBankProofModal.value = true
-  } else {
-    // 使用綠界金流
-    await processEcpayPayment(method)
+  const choosePaymentMap = {
+    credit_card: 'Credit',
+    atm: 'ATM',
+    cvs: 'CVS',
   }
-}
 
-const processEcpayPayment = async (method) => {
   try {
-    const choosePayment = {
-      credit_card: 'Credit',
-      atm: 'ATM',
-      cvs: 'CVS'
-    }[method]
-
     const checkoutData = {
       paymentId: selectedPayment.value.id,
       totalAmount: selectedPayment.value.amount,
       tradeDesc: getPaymentTypeText(selectedPayment.value.paymentType),
       itemName: `繳費 #${selectedPayment.value.id}`,
-      choosePayment: choosePayment
+      choosePayment: choosePaymentMap[method],
     }
 
     const response = await createEcpayCheckout(checkoutData)
-    
-    // 使用 POST 表單提交到綠界
     submitEcpayForm(response)
   } catch (error) {
     console.error('創建綠界訂單失敗:', error)
@@ -279,80 +219,36 @@ const processEcpayPayment = async (method) => {
   }
 }
 
+// 建立隱藏表單並 POST 到綠界
 const submitEcpayForm = (response) => {
-  // 創建隱藏表單
   const form = document.createElement('form')
   form.method = 'POST'
   form.action = response.actionUrl
-  
-  // 加上 CheckMacValue
+
   const formData = {
     ...response.formData,
-    CheckMacValue: response.checkMacValue
+    CheckMacValue: response.checkMacValue,
   }
-  
-  // 添加所有表單欄位
-  Object.keys(formData).forEach(key => {
+
+  Object.keys(formData).forEach((key) => {
     const input = document.createElement('input')
     input.type = 'hidden'
     input.name = key
     input.value = formData[key]
     form.appendChild(input)
   })
-  
-  // 提交表單
+
   document.body.appendChild(form)
   form.submit()
 }
 
-const closeBankProofModal = () => {
-  showBankProofModal.value = false
-  bankProof.value = ''
-  bankProofError.value = ''
-}
-
-const submitBankProof = async () => {
-  bankProofError.value = ''
-
-  // 驗證
-  if (!bankProof.value) {
-    bankProofError.value = '請輸入轉帳帳號後五碼'
-    return
-  }
-
-  if (bankProof.value.length !== 5) {
-    bankProofError.value = '請輸入完整的 5 位數字'
-    return
-  }
-
-  try {
-    submitting.value = true
-    await updateBankProof(selectedPayment.value.id, parseInt(bankProof.value))
-    
-    alert('轉帳資訊已提交，請等待管理員審核')
-    closeBankProofModal()
-    closeModal()
-    
-    // 重新載入待繳費列表
-    await loadPendingPayments()
-  } catch (error) {
-    console.error('提交轉帳資訊失敗:', error)
-    bankProofError.value = error.response?.data?.message || '提交失敗，請稍後再試'
-  } finally {
-    submitting.value = false
-  }
-}
-
+// ===== 取消繳費 =====
 const cancelPaymentConfirm = async (payment) => {
-  if (!confirm('確定要取消此繳費嗎？')) {
-    return
-  }
+  if (!confirm('確定要取消此繳費嗎？')) return
 
   try {
     await cancelPayment(payment.id, '用戶取消')
     alert('繳費已取消')
-    
-    // 重新載入待繳費列表
     await loadPendingPayments()
   } catch (error) {
     console.error('取消繳費失敗:', error)
@@ -360,20 +256,22 @@ const cancelPaymentConfirm = async (payment) => {
   }
 }
 
+// ===== 登出 =====
 const handleLogout = () => {
   userStore.logout()
   router.push('/')
 }
 
+// ===== 輔助函式 =====
 const getPaymentTypeText = (type) => {
   const types = {
     ACTIVITY_FEE: '活動費用',
     MEMBERSHIP_FEE: '會費',
     MATERIAL_FEE: '材料費',
     ANNUAL_FEE: '年費',
-    OTHER: '其他'
+    OTHER: '其他',
   }
-  return types[type] || type
+  return types[type] || type || '費用'
 }
 
 const getStatusText = (status) => {
@@ -382,13 +280,13 @@ const getStatusText = (status) => {
     PAID: '已付款',
     CANCELLED: '已取消',
     REFUNDED: '已退款',
-    PARTIAL_REFUNDED: '部分退款'
+    PARTIAL_REFUNDED: '部分退款',
   }
   return statuses[status] || status
 }
 
 const getStatusClass = (status) => {
-  return status.toLowerCase()
+  return status?.toLowerCase() ?? ''
 }
 
 const formatDate = (dateString) => {
@@ -399,7 +297,7 @@ const formatDate = (dateString) => {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   })
 }
 
@@ -750,7 +648,7 @@ onMounted(() => {
 
 .payment-methods {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
 
@@ -779,84 +677,14 @@ onMounted(() => {
 .method-name {
   font-weight: 500;
   color: #1a1a1a;
+  font-size: 0.85rem;
 }
 
-.bank-info {
-  background: #f5f5f5;
-  padding: 1rem;
-  border-radius: 6px;
-  margin-bottom: 1.5rem;
-}
-
-.bank-info p {
-  margin: 0.5rem 0;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: #333;
-}
-
-.input-field {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  font-size: 1rem;
-}
-
-.input-field:focus {
-  outline: none;
-  border-color: #1a1a1a;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
-}
-
-.btn-submit {
-  flex: 1;
-  padding: 0.75rem;
-  background: #1a1a1a;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-submit:hover:not(:disabled) {
-  background: #333;
-}
-
-.btn-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-cancel-modal {
-  padding: 0.75rem 1.25rem;
-  background: white;
-  color: #666;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-cancel-modal:hover {
-  background: #f5f5f5;
-  border-color: #ccc;
+.payment-note {
+  margin-top: 1.25rem;
+  font-size: 0.82rem;
+  color: #888;
+  text-align: center;
 }
 
 /* Responsive */

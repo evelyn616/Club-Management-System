@@ -361,6 +361,33 @@ public class RegistrationService {
         return registrationRepository.save(registration);
     }
 
+    /**
+     * 透過 userId + activityId 執行簽到（QR Code 掃碼流程）
+     * 前端不需要先查 registrationId，由後端自行查找後執行
+     *
+     * @param userId     會員 ID
+     * @param activityId 活動 ID
+     * @return 更新後的報名紀錄
+     */
+    public Registration checkInByUser(String userId, Long activityId) {
+        // 1. 驗證參數
+        if (userId == null || userId.trim().isEmpty()) {
+            throw new IllegalArgumentException("userId 不可為空");
+        }
+        if (activityId == null) {
+            throw new IllegalArgumentException("activityId 不可為空");
+        }
+
+        // 2. 查詢此會員對此活動的報名紀錄
+        Registration registration = registrationRepository
+                .findByActivityIdAndUserId(activityId, userId)
+                .orElseThrow(() -> new IllegalStateException("查無報名紀錄，請確認是否已完成報名"));
+
+        // 3. 委派給現有的 checkIn(id) 執行完整的簽到邏輯
+        //    （防重複簽到、繳費檢查、遲到判斷、狀態更新 都在 checkIn 裡處理）
+        return checkIn(registration.getId());
+    }
+
     //====查詢某活動的所有報名紀錄====//
     //1.檢查活動的id是否為空
     //2.使用 findByActivityIdByRegistrationTimeAsc

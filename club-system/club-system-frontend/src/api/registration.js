@@ -40,7 +40,20 @@ export const registrationApi = {
     //提醒繳費
     sendPaymentReminder: (registrationId) => {
         return apiClient.post(`/registrations/${registrationId}/send-payment-reminder`)
-    }
+    },
+    getActivityRegistrations: (activityId) => {        
+    return apiClient.get(`/registrations/activity/${activityId}`); 
+    },
+    countRegistrations: (activityId) => {
+        return apiClient.get(`/registrations/activity/${activityId}/count`);
+    },
+    countCheckedIn: (activityId) => {
+        return apiClient.get(`/registrations/activity/${activityId}/checkin-count`);
+    },
+      
+    checkIn: (registrationId) => {
+        return apiClient.put(`/registrations/${registrationId}/checkin`);
+    },
 
 
 };
