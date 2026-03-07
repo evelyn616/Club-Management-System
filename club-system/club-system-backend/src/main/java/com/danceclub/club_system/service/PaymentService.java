@@ -212,4 +212,12 @@ public class PaymentService {
     public long countByStatus(PaymentStatus status) {
         return paymentRepository.countByStatus(status);
     }
+
+    /**
+     * 更新繳費記錄
+     */
+    @Transactional
+    public Payment updatePayment(Payment payment) {
+        return paymentRepository.save(payment);
+    }
 }

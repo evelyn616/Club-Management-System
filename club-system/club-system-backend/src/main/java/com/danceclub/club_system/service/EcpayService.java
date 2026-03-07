@@ -142,29 +142,31 @@ public class EcpayService {
         return switch (choosePayment) {
             case "Credit" -> com.danceclub.club_system.model.enums.PaymentMethod.CREDIT_CARD;
             case "ATM" -> com.danceclub.club_system.model.enums.PaymentMethod.BANK_TRANSFER;
-            case "CVS" -> com.danceclub.club_system.model.enums.PaymentMethod.OTHER;
-            case "BARCODE" -> com.danceclub.club_system.model.enums.PaymentMethod.OTHER;
+            case "CVS" -> com.danceclub.club_system.model.enums.PaymentMethod.CVS;
+            case "BARCODE" -> com.danceclub.club_system.model.enums.PaymentMethod.BARCODE;
             default -> com.danceclub.club_system.model.enums.PaymentMethod.OTHER;
         };
     }
 
     /**
      * 生成訂單編號
-     * 格式: P{paymentId}_{timestamp}
+     * 格式: P{paymentId}{timestamp} (移除底線，綠界只接受數字和英文字母)
      */
     private String generateMerchantTradeNo(Long paymentId) {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        return "P" + paymentId + "_" + timestamp;
+        return "P" + paymentId + timestamp;
     }
 
     /**
      * 從訂單編號解析 Payment ID
      */
     private Long extractPaymentIdFromTradeNo(String merchantTradeNo) {
-        // 格式: P{paymentId}_{timestamp}
-        String[] parts = merchantTradeNo.split("_");
-        if (parts.length > 0 && parts[0].startsWith("P")) {
-            return Long.parseLong(parts[0].substring(1));
+        // 格式: P{paymentId}{timestamp}
+        // 移除 P 前綴，然後從右邊移除 14 位時間戳
+        if (merchantTradeNo.startsWith("P") && merchantTradeNo.length() > 15) {
+            String withoutPrefix = merchantTradeNo.substring(1);
+            String paymentIdStr = withoutPrefix.substring(0, withoutPrefix.length() - 14);
+            return Long.parseLong(paymentIdStr);
         }
         throw new IllegalArgumentException("Invalid MerchantTradeNo format");
     }
@@ -177,31 +179,58 @@ public class EcpayService {
     }
 
     /**
-     * 生成 CheckMacValue
+     * 生成 CheckMacValue（按照綠界官方規範）
      */
     private String generateCheckMacValue(Map<String, String> params) {
-        // 排序參數（TreeMap 已自動排序）
+        // 1) 移除 CheckMacValue（如果存在）
         Map<String, String> sortedParams = new TreeMap<>(params);
+        sortedParams.remove("CheckMacValue");
 
-        // 組合參數字串
-        StringBuilder sb = new StringBuilder();
-        sb.append("HashKey=").append(ecpayConfig.getHashKey());
+        // 2) 按鍵值 A-Z 排序（TreeMap 已自動排序）
         
+        // 3) 將陣列轉為 query 字串
+        StringBuilder queryString = new StringBuilder();
+        boolean first = true;
         for (Map.Entry<String, String> entry : sortedParams.entrySet()) {
-            sb.append("&").append(entry.getKey()).append("=").append(entry.getValue());
+            if (!first) {
+                queryString.append("&");
+            }
+            queryString.append(entry.getKey()).append("=").append(entry.getValue());
+            first = false;
         }
-        
-        sb.append("&HashIV=").append(ecpayConfig.getHashIv());
 
-        // URL Encode
-        String encodedString = urlEncode(sb.toString());
+        // 4) 最前方加入 HashKey，最後方加入 HashIV
+        String paramsString = "HashKey=" + ecpayConfig.getHashKey() + "&" + queryString.toString() + "&HashIV=" + ecpayConfig.getHashIv();
 
-        // 轉小寫
+        // 5) 做 URLEncode
+        String encodedString;
+        try {
+            encodedString = URLEncoder.encode(paramsString, StandardCharsets.UTF_8.toString());
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException("URL encoding failed", e);
+        }
+
+        // 6) 轉為全小寫
         encodedString = encodedString.toLowerCase();
 
-        // SHA256 加密
-        return sha256(encodedString).toUpperCase();
+        // 7) 轉換特定字元（與 .NET 相符的字元）
+        encodedString = encodedString
+                .replace("%2d", "-")
+                .replace("%5f", "_")
+                .replace("%2e", ".")
+                .replace("%21", "!")
+                .replace("%2a", "*")
+                .replace("%28", "(")
+                .replace("%29", ")");
+
+        // 8) 進行 SHA256 編碼
+        String hashedString = sha256(encodedString);
+
+        // 9) 轉為全大寫後回傳
+        return hashedString.toUpperCase();
     }
+
+
 
     /**
      * URL Encode
