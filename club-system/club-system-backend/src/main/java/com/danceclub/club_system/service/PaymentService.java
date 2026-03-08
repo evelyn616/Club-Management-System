@@ -212,4 +212,89 @@ public class PaymentService {
     public long countByStatus(PaymentStatus status) {
         return paymentRepository.countByStatus(status);
     }
+
+    /**
+     * 更新繳費記錄
+     */
+    @Transactional
+    public Payment updatePayment(Payment payment) {
+        return paymentRepository.save(payment);
+    }
+
+    /**
+     * 選擇現金付款（狀態變為審核中）
+     */
+    @Transactional
+    public Payment selectCashPayment(Long paymentId, String note) {
+        Payment payment = getPaymentById(paymentId);
+
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            throw new IllegalArgumentException("只能對待繳費的記錄選擇現金付款");
+        }
+
+        payment.setStatus(PaymentStatus.PENDING_REVIEW);
+        payment.setMethod(com.danceclub.club_system.model.enums.PaymentMethod.CASH);
+        if (note != null && !note.isEmpty()) {
+            payment.setNote(note);
+        } else {
+            payment.setNote("現金付款 - 等待管理員審核");
+        }
+
+        return paymentRepository.save(payment);
+    }
+
+    /**
+     * 審核現金付款（管理員）
+     */
+    @Transactional
+    public Payment approveCashPayment(Long paymentId, String adminId, String reviewNote) {
+        Payment payment = getPaymentById(paymentId);
+
+        if (payment.getStatus() != PaymentStatus.PENDING_REVIEW) {
+            throw new IllegalArgumentException("只能審核狀態為「審核中」的記錄");
+        }
+
+        if (payment.getMethod() != com.danceclub.club_system.model.enums.PaymentMethod.CASH) {
+            throw new IllegalArgumentException("此方法只能審核現金付款");
+        }
+
+        payment.setStatus(PaymentStatus.PAID);
+        payment.setPaidAt(LocalDateTime.now());
+        payment.setReviewedBy(adminId);
+        payment.setReviewedAt(LocalDateTime.now());
+        payment.setReviewNote(reviewNote != null ? reviewNote : "現金付款審核通過");
+
+        return paymentRepository.save(payment);
+    }
+
+    /**
+     * 拒絕現金付款（管理員）
+     */
+    @Transactional
+    public Payment rejectCashPayment(Long paymentId, String adminId, String reason) {
+        Payment payment = getPaymentById(paymentId);
+
+        if (payment.getStatus() != PaymentStatus.PENDING_REVIEW) {
+            throw new IllegalArgumentException("只能拒絕狀態為「審核中」的記錄");
+        }
+
+        payment.setStatus(PaymentStatus.PENDING);
+        payment.setMethod(null);
+        payment.setReviewedBy(adminId);
+        payment.setReviewedAt(LocalDateTime.now());
+        payment.setReviewNote("審核未通過：" + reason);
+        payment.setNote(null);
+
+        return paymentRepository.save(payment);
+    }
+
+    /**
+     * 取得所有待審核的現金付款
+     */
+    public List<Payment> getPendingReviewPayments() {
+        return paymentRepository.findByStatusAndMethod(
+            PaymentStatus.PENDING_REVIEW,
+            com.danceclub.club_system.model.enums.PaymentMethod.CASH
+        );
+    }
 }

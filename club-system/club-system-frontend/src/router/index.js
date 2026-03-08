@@ -61,7 +61,7 @@ const router = createRouter({
       component: () =>import('../views/member/PaymentHistory.vue'),
       meta: { requiresAuth: true },
     },
-    
+
     {
       path: '/admin/create-activity-container',
       name: 'create-activity-container',
@@ -160,6 +160,30 @@ const router = createRouter({
       name: 'member-checkin',
       component: () => import('@/views/member/MemberCheckIn.vue'),
     },
+    // 管理後台路由
+    {
+      path: '/admin/login',
+      name: 'admin-login',
+      component: () => import('@/views/admin/AdminLogin.vue'),
+    },
+    {
+      path: '/admin/dashboard',
+      name: 'admin-dashboard',
+      component: () => import('@/views/admin/AdminDashboard.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: () => import('@/views/admin/UserManagement.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/admin/payments',
+      name: 'admin-payments',
+      component: () => import('@/views/admin/PaymentManagement.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
     {
       path: '/my-registration-history',
       name: 'my-registration-history',
@@ -171,14 +195,35 @@ const router = createRouter({
 router.beforeEach((to) => {
   const userStore = useUserStore()
 
-  // 如果已登入且要去登入/註冊頁，重定向到 dashboard
+  // 如果已登入且要去登入/註冊頁，根據角色重定向
   if (userStore.isLoggedIn && (to.name === 'login' || to.name === 'register')) {
+    if (userStore.userRole?.toUpperCase() === 'ADMIN') {
+      return { name: 'admin-dashboard' }
+    }
     return { name: 'dashboard' }
+  }
+
+  // 如果已登入且要去管理員登入頁，檢查是否為管理員
+  if (userStore.isLoggedIn && to.name === 'admin-login') {
+    if (userStore.userRole?.toUpperCase() === 'ADMIN') {
+      return { name: 'admin-dashboard' }
+    } else {
+      return { name: 'dashboard' }
+    }
   }
 
   // 頁面需要登入，但沒有登入的情況
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
+    // 如果是管理後台頁面，導向管理員登入
+    if (to.meta.requiresAdmin) {
+      return { name: 'admin-login' }
+    }
     return { name: 'login' }
+  }
+
+  // 頁面需要管理員權限，但不是管理員
+  if (to.meta.requiresAdmin && userStore.userRole?.toUpperCase() !== 'ADMIN') {
+    return { name: 'dashboard' }
   }
 })
 

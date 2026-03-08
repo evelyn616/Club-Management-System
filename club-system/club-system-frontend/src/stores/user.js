@@ -6,6 +6,7 @@ export const useUserStore = defineStore("user", () => {
 
     const userId = ref(null);
     const userName = ref(null);
+    const userRole = ref(null);
     const isLoggedIn = ref(false);
     const token = ref(localStorage.getItem('token') || null);
 
@@ -14,6 +15,7 @@ export const useUserStore = defineStore("user", () => {
         token.value = jwtResponse.token;
         userId.value = jwtResponse.user.id;
         userName.value = jwtResponse.user.name;
+        userRole.value = jwtResponse.user.role;
         isLoggedIn.value = true;
         localStorage.setItem('token',jwtResponse.token);
     }
@@ -23,6 +25,7 @@ export const useUserStore = defineStore("user", () => {
         token.value = null;
         userId.value = null;
         userName.value = null;
+        userRole.value = null;
         isLoggedIn.value = false;
         localStorage.removeItem('token');
 
@@ -45,6 +48,7 @@ export const useUserStore = defineStore("user", () => {
                     const userData = await response.json();
                     userId.value = userData.id;
                     userName.value = userData.name;
+                    userRole.value = userData.role;
                 }
             }
             catch(error){
@@ -59,6 +63,7 @@ export const useUserStore = defineStore("user", () => {
     return{
         userId,
         userName,
+        userRole,
         isLoggedIn,
         token,
         login,
