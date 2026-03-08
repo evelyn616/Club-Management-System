@@ -90,6 +90,13 @@ public class PaymentService {
         payment.setReviewedAt(LocalDateTime.now());
         payment.setReviewNote(reviewNote);
 
+        Registration registration = payment.getRegistration();
+        if (registration == null) {
+            throw new IllegalArgumentException("報名記錄不存在");
+        }
+        registration.setPaymentStatus(PaymentStatus.PAID);
+        registrationRepository.save(registration);
+
         return paymentRepository.save(payment);
     }
 
@@ -158,6 +165,13 @@ public class PaymentService {
         payment.setReviewedBy(reviewedBy);
         payment.setReviewedAt(LocalDateTime.now());
         payment.setReviewNote(reviewNote);
+
+        Registration registration = payment.getRegistration();
+        if (registration == null) {
+            throw new IllegalArgumentException("報名記錄不存在");
+        }
+        registration.setPaymentStatus(PaymentStatus.REFUNDED);
+        registrationRepository.save(registration);
 
         return paymentRepository.save(payment);
     }
@@ -263,6 +277,13 @@ public class PaymentService {
         payment.setReviewedBy(adminId);
         payment.setReviewedAt(LocalDateTime.now());
         payment.setReviewNote(reviewNote != null ? reviewNote : "現金付款審核通過");
+
+        Registration registration = payment.getRegistration();
+        if (registration == null) {
+            throw new IllegalArgumentException("報名記錄不存在");
+        }
+        registration.setPaymentStatus(PaymentStatus.PAID);
+        registrationRepository.save(registration);
 
         return paymentRepository.save(payment);
     }

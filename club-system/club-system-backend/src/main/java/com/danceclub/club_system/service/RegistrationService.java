@@ -399,9 +399,8 @@ public class RegistrationService {
     public int markAbsentForExpiredActivities() {
         LocalDateTime now = LocalDateTime.now();
 
-        List<Long> expiredActivityIds = activityRepository.findExpiredActivityIds(
-                ActivityStatus.PUBLISHED, now
-        );
+        List<Long> expiredActivityIds =
+                activityRepository.findExpiredActivityIds(ActivityStatus.COMPLETED, now);
 
         if (expiredActivityIds.isEmpty()) return 0;
 
