@@ -137,10 +137,19 @@
               <span class="method-icon">🏪</span>
               <span class="method-name">超商繳費</span>
             </button>
+
+            <button
+              @click="selectCashPayment"
+              class="method-btn method-cash"
+            >
+              <span class="method-icon">💵</span>
+              <span class="method-name">現金付款</span>
+            </button>
           </div>
 
           <p class="payment-note">
-            ⚠️ 點選繳費方式後將跳轉至綠界金流付款頁面
+            ⚠️ 線上付款將跳轉至綠界金流頁面<br>
+            💵 現金付款需等待管理員審核
           </p>
         </div>
       </div>
@@ -156,6 +165,7 @@ import {
   getMyPendingPayments,
   cancelPayment,
   createEcpayCheckout,
+  selectCashPayment as selectCashPaymentAPI,
 } from '@/api/payment'
 
 const router = useRouter()
@@ -256,6 +266,25 @@ const cancelPaymentConfirm = async (payment) => {
   }
 }
 
+// ===== 現金付款 =====
+const selectCashPayment = async () => {
+  if (!confirm('選擇現金付款後，需要等待管理員審核。確定要繼續嗎？')) {
+    return
+  }
+
+  try {
+    await selectCashPaymentAPI(selectedPayment.value.id, {
+      note: '用戶選擇現金付款'
+    })
+    alert('已選擇現金付款，請找管理員確認並完成付款。\n狀態將變更為「審核中」。')
+    closeModal()
+    await loadPendingPayments()
+  } catch (error) {
+    console.error('選擇現金付款失敗:', error)
+    alert(error.response?.data?.message || '操作失敗，請稍後再試')
+  }
+}
+
 // ===== 登出 =====
 const handleLogout = () => {
   userStore.logout()
@@ -277,6 +306,7 @@ const getPaymentTypeText = (type) => {
 const getStatusText = (status) => {
   const statuses = {
     PENDING: '待付款',
+    PENDING_REVIEW: '審核中',
     PAID: '已付款',
     CANCELLED: '已取消',
     REFUNDED: '已退款',
@@ -483,6 +513,11 @@ onMounted(() => {
   color: #856404;
 }
 
+.status-badge.pending_review {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
 .status-badge.paid {
   background: #d4edda;
   color: #155724;
@@ -650,6 +685,7 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .method-btn {
@@ -668,6 +704,16 @@ onMounted(() => {
 .method-btn:hover {
   border-color: #1a1a1a;
   background: #fafafa;
+}
+
+.method-cash {
+  grid-column: span 3;
+  border-color: #28a745;
+}
+
+.method-cash:hover {
+  border-color: #218838;
+  background: #f0f8f4;
 }
 
 .method-icon {

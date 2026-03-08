@@ -676,6 +676,92 @@ public class PaymentController {
     }
 
     /**
+     * 選擇現金付款
+     * POST /api/payments/{id}/cash
+     */
+    @PostMapping("/{id}/cash")
+    public ResponseEntity<?> selectCashPayment(@PathVariable Long id, 
+                                               @RequestBody(required = false) CashPaymentRequest request) {
+        try {
+            String note = request != null ? request.getNote() : null;
+            Payment payment = paymentService.selectCashPayment(id, note);
+            PaymentResponse response = convertToResponse(payment);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "CASH_PAYMENT_FAILED", "message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "INTERNAL_ERROR", "message", "選擇現金付款時發生錯誤"));
+        }
+    }
+
+    /**
+     * 審核現金付款（管理員）
+     * PUT /api/payments/{id}/approve-cash
+     */
+    @PutMapping("/{id}/approve-cash")
+    public ResponseEntity<?> approveCashPayment(@PathVariable Long id, 
+                                               @RequestBody Map<String, String> body) {
+        try {
+            String adminId = getCurrentUserId();
+            String reviewNote = body.get("reviewNote");
+            
+            Payment payment = paymentService.approveCashPayment(id, adminId, reviewNote);
+            PaymentResponse response = convertToResponse(payment);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "APPROVE_FAILED", "message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "INTERNAL_ERROR", "message", "審核現金付款時發生錯誤"));
+        }
+    }
+
+    /**
+     * 拒絕現金付款（管理員）
+     * PUT /api/payments/{id}/reject-cash
+     */
+    @PutMapping("/{id}/reject-cash")
+    public ResponseEntity<?> rejectCashPayment(@PathVariable Long id, 
+                                              @RequestBody Map<String, String> body) {
+        try {
+            String adminId = getCurrentUserId();
+            String reason = body.getOrDefault("reason", "未通過審核");
+            
+            Payment payment = paymentService.rejectCashPayment(id, adminId, reason);
+            PaymentResponse response = convertToResponse(payment);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "REJECT_FAILED", "message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "INTERNAL_ERROR", "message", "拒絕現金付款時發生錯誤"));
+        }
+    }
+
+    /**
+     * 取得待審核的現金付款列表（管理員）
+     * GET /api/payments/admin/pending-review
+     */
+    @GetMapping("/admin/pending-review")
+    public ResponseEntity<?> getPendingReviewPayments() {
+        try {
+            List<Payment> payments = paymentService.getPendingReviewPayments();
+            List<PaymentResponse> responses = payments.stream()
+                    .map(this::convertToResponse)
+                    .collect(Collectors.toList());
+            
+            return ResponseEntity.ok(responses);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "INTERNAL_ERROR", "message", "取得待審核列表時發生錯誤"));
+        }
+    }
+
+    /**
      * 轉換 Payment 為 PaymentResponse
      */
     private PaymentResponse convertToResponse(Payment payment) {

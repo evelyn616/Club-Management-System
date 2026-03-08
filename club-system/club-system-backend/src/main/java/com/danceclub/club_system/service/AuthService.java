@@ -145,8 +145,8 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
             .orElseThrow(() -> new IllegalArgumentException("用戶不存在"));
         
-        // Check if user is admin
-        if (!"admin".equals(user.getRole())) {
+        // Check if user is admin (case-insensitive)
+        if (!"admin".equalsIgnoreCase(user.getRole())) {
             throw new IllegalArgumentException("權限不足，僅限管理員登入");
         }
         

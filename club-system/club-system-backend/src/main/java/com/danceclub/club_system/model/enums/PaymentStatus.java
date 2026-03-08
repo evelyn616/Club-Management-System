@@ -4,6 +4,7 @@ package com.danceclub.club_system.model.enums;
  * 繳費狀態列舉
  * NOT_REQUIRED - 無須繳費（用於免費活動）
  * PENDING - 待繳費
+ * PENDING_REVIEW - 審核中（現金付款）
  * PAID - 已繳費
  * CANCELLED - 已取消
  * REFUNDED - 已退款
@@ -12,6 +13,7 @@ package com.danceclub.club_system.model.enums;
 public enum PaymentStatus {
     NOT_REQUIRED("無須繳費"),
     PENDING("待繳費"),
+    PENDING_REVIEW("審核中"),
     PAID("已繳費"),
     CANCELLED("已取消"),
     REFUNDED("已退款"),

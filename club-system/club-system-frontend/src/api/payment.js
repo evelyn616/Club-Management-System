@@ -87,3 +87,39 @@ export const getPaymentStatistics = async () => {
   const response = await apiClient.get('/payments/admin/statistics')
   return response.data
 }
+
+/**
+ * 選擇現金付款
+ */
+export const selectCashPayment = async (paymentId, data) => {
+  const response = await apiClient.post(`/payments/${paymentId}/cash`, data)
+  return response.data
+}
+
+/**
+ * 審核現金付款（管理員）
+ */
+export const approveCashPayment = async (paymentId, reviewNote) => {
+  const response = await apiClient.put(`/payments/${paymentId}/approve-cash`, {
+    reviewNote
+  })
+  return response.data
+}
+
+/**
+ * 拒絕現金付款（管理員）
+ */
+export const rejectCashPayment = async (paymentId, reason) => {
+  const response = await apiClient.put(`/payments/${paymentId}/reject-cash`, {
+    reason
+  })
+  return response.data
+}
+
+/**
+ * 取得待審核的現金付款列表（管理員）
+ */
+export const getPendingReviewPayments = async () => {
+  const response = await apiClient.get('/payments/admin/pending-review')
+  return response.data
+}
