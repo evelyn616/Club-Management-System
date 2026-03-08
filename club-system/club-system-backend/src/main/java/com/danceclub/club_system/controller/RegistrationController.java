@@ -1,9 +1,6 @@
 package com.danceclub.club_system.controller;
 
-import com.danceclub.club_system.dto.CheckInRequest;
-import com.danceclub.club_system.dto.CreateRegistrationRequest;
-import com.danceclub.club_system.dto.RegistrationWithUserDTO;
-import com.danceclub.club_system.dto.UserResponse;
+import com.danceclub.club_system.dto.*;
 import com.danceclub.club_system.model.Activity;
 import com.danceclub.club_system.model.Payment;
 import com.danceclub.club_system.model.Registration;
@@ -167,6 +164,17 @@ public class RegistrationController {
     public ResponseEntity<List<RegistrationWithUserDTO>> getActivityRegistrations(@PathVariable() Long activityId){
         List<RegistrationWithUserDTO> registrations = registrationService.getActivityRegistrations(activityId);
         return ResponseEntity.ok(registrations);
+    }
+
+    /**
+     * 查詢會員報名紀錄（含活動與繳費詳情）
+     * GET /api/registrations/my-detail?userId=M001
+     */
+    @GetMapping("/my-detail")
+    public ResponseEntity<List<RegistrationDetailDTO>> getMyRegistrationsDetail(
+            @RequestParam String userId) {
+        List<RegistrationDetailDTO> result = registrationService.getUserRegistrationsDetail(userId);
+        return ResponseEntity.ok(result);
     }
 
     /**

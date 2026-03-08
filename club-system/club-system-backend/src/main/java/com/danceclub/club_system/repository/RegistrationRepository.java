@@ -1,9 +1,12 @@
 package com.danceclub.club_system.repository;
 
 import com.danceclub.club_system.model.Registration;
+import com.danceclub.club_system.model.enums.ActivityStatus;
 import com.danceclub.club_system.model.enums.PaymentStatus;
 import com.danceclub.club_system.model.enums.RegistrationStatus;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -88,4 +91,17 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
             @Param("startTime")LocalDateTime startTime,
             @Param("endTime")LocalDateTime endTime
             );
+
+
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Registration r SET r.status = :absent " +
+            "WHERE r.activityId IN :activityIds " +
+            "AND r.status = :registered")
+    int markAbsentByActivityIds(
+            @Param("activityIds") List<Long> activityIds,
+            @Param("registered") RegistrationStatus registered,
+            @Param("absent") RegistrationStatus absent
+    );
 }

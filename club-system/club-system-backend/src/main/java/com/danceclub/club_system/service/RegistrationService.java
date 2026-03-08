@@ -5,11 +5,14 @@ import com.danceclub.club_system.dto.*;
 import com.danceclub.club_system.model.Activity;
 import com.danceclub.club_system.model.Payment;
 import com.danceclub.club_system.model.Registration;
+import com.danceclub.club_system.model.enums.ActivityStatus;
 import com.danceclub.club_system.model.enums.PaymentStatus;
 import com.danceclub.club_system.model.enums.PaymentType;
 import com.danceclub.club_system.model.enums.RegistrationStatus;
+import com.danceclub.club_system.repository.ActivityRepository;
 import com.danceclub.club_system.repository.PaymentRepository;
 import com.danceclub.club_system.repository.RegistrationRepository;
+import jakarta.transaction.Transactional;
 import org.apache.coyote.BadRequestException;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -26,16 +29,18 @@ public class RegistrationService {
 
     private final RegistrationRepository registrationRepository;
     private final ActivityService activityService;
+    private final ActivityRepository activityRepository;
     private final PaymentRepository paymentRepository;
     public final UserService userService;
     private final EmailService emailService;
 
-    public RegistrationService(RegistrationRepository registrationRepository, @Lazy ActivityService activityService, PaymentRepository paymentRepository, UserService userService, EmailService emailService){
+    public RegistrationService(RegistrationRepository registrationRepository, @Lazy ActivityService activityService, PaymentRepository paymentRepository, UserService userService, EmailService emailService, ActivityRepository activityRepository){
         this.registrationRepository = registrationRepository;
         this.activityService = activityService;
         this.paymentRepository = paymentRepository;
         this.userService = userService;
         this.emailService = emailService;
+        this.activityRepository = activityRepository;
 
     }
 
@@ -166,26 +171,55 @@ public class RegistrationService {
 
     /**
      * 取消報名
-     * @param id
-     * @return 取消的報名
+     * 同步更新 Registration.paymentStatus 及 Payment.status
+     * @param id 報名 id
+     * @return 取消後的報名
      */
-
-    public Registration cancelRegistration(Long id){
-        //找尋報名紀錄
+    public Registration cancelRegistration(Long id) {
+        // 1. 查詢報名紀錄
         Registration registration = getRegistrationById(id);
-        //查詢活動
+
+        // 2. 查詢活動，確認活動尚未開始
         Activity activity = activityService.getActivityById(registration.getActivityId());
-        //檢查活動是否已開始
         LocalDateTime now = LocalDateTime.now();
-        if (now.isAfter(activity.getStartTime())){
+        if (now.isAfter(activity.getStartTime())) {
             throw new IllegalStateException("活動開始無法取消報名喔!");
         }
-        //檢查是否已簽到
-        if (!registration.canCancel()){
+
+        // 3. 確認可以取消（未簽到）
+        if (!registration.canCancel()) {
             throw new IllegalStateException("簽到後無法取消報名!");
         }
-        //儲存狀態為CANCEL
+
+        // 4. 更新報名狀態
         registration.setStatus(RegistrationStatus.CANCELLED);
+
+        // 5. 同步更新繳費狀態
+        PaymentStatus currentPaymentStatus = registration.getPaymentStatus();
+
+        if (PaymentStatus.PENDING.equals(currentPaymentStatus)) {
+            // 尚未繳費：直接取消繳費
+            registration.setPaymentStatus(PaymentStatus.CANCELLED);
+
+            // 同步更新 Payment entity（若存在）
+            paymentRepository.findByRegistration(registration).ifPresent(payment -> {
+                payment.setStatus(PaymentStatus.CANCELLED);
+                paymentRepository.save(payment);
+            });
+
+        } else if (PaymentStatus.PAID.equals(currentPaymentStatus)) {
+            // 已繳費：標記為待退款（REFUNDED），由管理員後續處理退款
+            registration.setPaymentStatus(PaymentStatus.REFUNDED);
+
+            // 同步更新 Payment entity（若存在）
+            paymentRepository.findByRegistration(registration).ifPresent(payment -> {
+                payment.setStatus(PaymentStatus.REFUNDED);
+                paymentRepository.save(payment);
+            });
+        }
+        // NOT_REQUIRED（免費活動）：繳費狀態不動
+
+        // 6. 儲存報名紀錄
         return registrationRepository.save(registration);
     }
 
@@ -361,6 +395,23 @@ public class RegistrationService {
         return registrationRepository.save(registration);
     }
 
+    @Transactional
+    public int markAbsentForExpiredActivities() {
+        LocalDateTime now = LocalDateTime.now();
+
+        List<Long> expiredActivityIds = activityRepository.findExpiredActivityIds(
+                ActivityStatus.PUBLISHED, now
+        );
+
+        if (expiredActivityIds.isEmpty()) return 0;
+
+        return registrationRepository.markAbsentByActivityIds(
+                expiredActivityIds,
+                RegistrationStatus.REGISTERED,
+                RegistrationStatus.ABSENT
+        );
+    }
+
     /**
      * 透過 userId + activityId 執行簽到（QR Code 掃碼流程）
      * 前端不需要先查 registrationId，由後端自行查找後執行
@@ -417,6 +468,43 @@ public class RegistrationService {
                     }
 
                     return RegistrationWithUserDTO.from(reg, userName);
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 查詢會員報名紀錄（含活動、繳費詳情）- 用於「我的報名」頁面
+     * @param userId 會員 ID
+     * @return 含活動標題、地點、時間、繳費狀態的報名列表
+     */
+    public List<RegistrationDetailDTO> getUserRegistrationsDetail(String userId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            throw new IllegalArgumentException("會員ID不可為空");
+        }
+
+        //  查報名紀錄
+        List<Registration> registrations =
+                registrationRepository.findByUserIdOrderByRegistrationTimeDesc(userId);
+
+        //  查會員資訊（一次，所有報名共用）
+        UserResponse user = userService.getUserById(userId);
+
+        // 整合
+        return registrations.stream()
+                .map(reg -> {
+                    // 查活動
+                    Activity activity = null;
+                    try {
+                        activity = activityService.getActivityById(reg.getActivityId());
+                    } catch (Exception ignored) { }
+
+                    // 查繳費紀錄（可能為 null）
+                    Payment payment = null;
+                    try {
+                        payment = paymentRepository.findByRegistration(reg).orElse(null);
+                    } catch (Exception ignored) { }
+
+                    return RegistrationDetailDTO.from(reg, user, activity, payment);
                 })
                 .collect(Collectors.toList());
     }

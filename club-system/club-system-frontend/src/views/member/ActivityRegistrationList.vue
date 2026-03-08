@@ -75,9 +75,15 @@
                     <td>{{ activity.location }}</td>
                     <td>{{ getActivityTypeLabel(activity.activityType) }}</td>
                     <td>{{ activity.feeAmount }}</td>
-                    <td><button v-if="!isRegistered(activity.id)&& !isActivityFull(activity)" class="register-btn" @click="openRegisterModal(activity)">報名</button>
-                    <span v-else-if="isActivityFull(activity)" class="full-badge">已額滿</span>
-                    <span v-else class="registered-badge">✓ 已報名</span>
+                    <td>
+                        <!-- 已額滿 -->
+                        <span v-if="isActivityFull(activity) && !isRegistered(activity.id)" class="full-badge">已額滿</span>
+                        <!-- 有效報名中 -->
+                        <span v-else-if="isRegistered(activity.id)" class="registered-badge">✓ 已報名</span>
+                        <!-- 曾取消，可重新報名 -->
+                        <button v-else-if="isCancelled(activity.id)" class="register-btn reregister-btn" @click="openRegisterModal(activity)">重新報名</button>
+                        <!-- 未報名 -->
+                        <button v-else class="register-btn" @click="openRegisterModal(activity)">報名</button>
                     </td>
                     
                     
@@ -310,11 +316,11 @@ catch (error) {
     }
 }
 
-//載入報名紀錄
+//載入報名紀錄（存完整物件，以便區分狀態）
 const loadRegistrations = async () => {
     try {
         const response = await registrationApi.getMyRegistrations(userStore.userId);
-        registrations.value = response.data.map(reg => reg.activityId);
+        registrations.value = response.data; // 保留完整物件
         console.log('報名紀錄:', registrations.value);
     } catch (error) {
         console.error('載入報名紀錄失敗:', error);
@@ -326,9 +332,17 @@ const isActivityFull = (activity) => {
 
     return (activity.registrationCount || 0) >= activity.maxParticipants;
 }
-//檢查是否已報名
+//檢查是否已報名（有效報名，排除已取消）
 const isRegistered = (activityId) => {
-    return registrations.value.includes(activityId);
+    return registrations.value.some(
+        r => r.activityId === activityId && r.status !== 'CANCELLED'
+    );
+}
+//檢查是否曾取消報名（可重新報名）
+const isCancelled = (activityId) => {
+    return registrations.value.some(
+        r => r.activityId === activityId && r.status === 'CANCELLED'
+    );
 }
 //格式化活動類型
 const getActivityTypeLabel = (type) => {
@@ -638,6 +652,15 @@ h1 {
     border-radius: 12px;
     font-size: 13px;
     display: inline-block;
+}
+
+/* 重新報名按鈕 */
+.reregister-btn {
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
+}
+.reregister-btn:hover {
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45) !important;
 }
 
 /* 已額滿標記 */

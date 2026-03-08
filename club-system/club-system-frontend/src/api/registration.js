@@ -54,6 +54,9 @@ export const registrationApi = {
     checkIn: (registrationId) => {
         return apiClient.put(`/registrations/${registrationId}/checkin`);
     },
+        getMyRegistrationsDetail: (userId) => {
+        return apiClient.get(`/registrations/my-detail`, { params: { userId } });
+    },
 
 
 };

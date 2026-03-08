@@ -3,10 +3,7 @@ package com.danceclub.club_system.dto;
 import com.danceclub.club_system.model.Activity;
 import com.danceclub.club_system.model.Payment;
 import com.danceclub.club_system.model.Registration;
-import com.danceclub.club_system.model.enums.PaymentMethod;
-import com.danceclub.club_system.model.enums.PaymentStatus;
-import com.danceclub.club_system.model.enums.PaymentType;
-import com.danceclub.club_system.model.enums.RegistrationStatus;
+import com.danceclub.club_system.model.enums.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -42,6 +39,7 @@ public class RegistrationDetailDTO {
     private LocalDateTime activityEndTime;
     private String activityLocation;
     private BigDecimal activityFeeAmount;
+    private ActivityStatus activityStatus;
 
     //繳費資訊
     private PaymentStatus paymentStatus;
@@ -73,7 +71,9 @@ public class RegistrationDetailDTO {
                 .activityStartTime(activity.getStartTime())
                 .activityEndTime(activity.getEndTime())
                 .activityLocation(activity.getLocation())
-                .activityFeeAmount(activity.getFeeAmount());
+                .activityFeeAmount(activity.getFeeAmount())
+                .activityStatus(activity.getStatus());
+
 
         // 繳費資訊（可能為 null）
         if (payment != null) {

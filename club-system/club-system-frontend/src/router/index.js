@@ -160,6 +160,11 @@ const router = createRouter({
       name: 'member-checkin',
       component: () => import('@/views/member/MemberCheckIn.vue'),
     },
+    {
+      path: '/my-registration-history',
+      name: 'my-registration-history',
+      component: () => import('@/views/member/RegistrationHistory.vue'),
+    }
   ],
 })
 
