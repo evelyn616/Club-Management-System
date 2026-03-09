@@ -60,20 +60,30 @@ const userStore = useUserStore();
 const loading = ref(false);
 
 const fetchRegistrations = async () => {
-
   if (!userStore.userId) {
     console.error("未找到使用者 ID");
-    // router.push('/login'); // 選用：未登入則踢回登入頁
     return;
   }
-  loading.value = true;
 
+  const token = userStore.token; 
+
+  loading.value = true;
   try {
-    const response = await axios.get(`http://localhost:8080/api/registrations/my?userId=${userStore.userId}`);
+    const response = await axios.get(`http://localhost:8080/api/registrations/my?userId=${userStore.userId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}` 
+      }
+    });
     registeredList.value = response.data; 
   } catch (error) {
     console.error("讀取報名資料失敗:", error);
-    alert("無法取得報名紀錄，請檢查後端連線");
+    
+    if (error.response && error.response.status === 401) {
+      alert("登入驗證已過期，請重新登入");
+      // router.push('/login');
+    } else {
+      alert("無法取得報名紀錄，請檢查後端連線");
+    }
   } finally {
     loading.value = false;
   }
