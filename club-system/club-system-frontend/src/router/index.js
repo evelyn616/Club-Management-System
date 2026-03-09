@@ -61,7 +61,7 @@ const router = createRouter({
       component: () =>import('../views/member/PaymentHistory.vue'),
       meta: { requiresAuth: true },
     },
-    
+
     {
       path: '/admin/create-activity-container',
       name: 'create-activity-container',
@@ -184,6 +184,11 @@ const router = createRouter({
       component: () => import('@/views/admin/PaymentManagement.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
     },
+    {
+      path: '/my-registration-history',
+      name: 'my-registration-history',
+      component: () => import('@/views/member/RegistrationHistory.vue'),
+    }
   ],
 })
 

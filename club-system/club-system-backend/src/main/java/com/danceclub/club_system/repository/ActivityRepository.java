@@ -72,6 +72,13 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
 
     );
 
+    @Query("SELECT a.id FROM Activity a " +
+            "WHERE a.status = :status AND a.endTime < :now")
+    List<Long> findExpiredActivityIds(
+            @Param("status") ActivityStatus status,
+            @Param("now") LocalDateTime now
+    );
+
     //查詢發布時間到的活動
     List<Activity> findByStatusAndPublishedAtBefore(
             ActivityStatus status,

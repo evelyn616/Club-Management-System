@@ -88,14 +88,14 @@
             v-for="reg in filteredRegistrations"
             :key="reg.id"
             class="registration-row"
-            :class="{ 'checked': reg.checkedIn, 'late': reg.isLate }"
+            :class="{ 'checked': reg.status === 'ATTENDED', 'late': reg.late === true }"
           >
             <div class="reg-info">
-              <span class="reg-id">{{ reg.userId }}</span>
+              <span class="reg-id">{{ reg.userName || reg.userId }}</span>
               <span class="reg-time">報名：{{ formatDate(reg.registrationTime) }}</span>
-              <span v-if="reg.checkedIn" class="check-time">
+              <span v-if="reg.status === 'ATTENDED'" class="check-time">
                 簽到：{{ formatDate(reg.checkInTime) }}
-                <span v-if="reg.isLate" class="late-badge">遲到</span>
+                <span v-if="reg.late === true" class="late-badge">遲到</span>
               </span>
             </div>
             <div class="reg-status">
@@ -103,14 +103,14 @@
                 {{ paymentLabel(reg.paymentStatus) }}
               </span>
               <button
-                v-if="!reg.checkedIn"
+                v-if="reg.status === 'REGISTERED'"
                 class="checkin-btn"
                 @click="handleManualCheckIn(reg)"
                 :disabled="checkingIn === reg.id"
               >
                 {{ checkingIn === reg.id ? '處理中...' : '✓ 簽到' }}
               </button>
-              <span v-else class="checked-badge">✓ 已簽到</span>
+              <span v-else-if="reg.status === 'ATTENDED'" class="checked-badge">✓ 已簽到</span>
             </div>
           </div>
         </div>
@@ -189,11 +189,14 @@ const filteredRegistrations = computed(() => {
   let list = registrations.value;
   if (searchKeyword.value) {
     const kw = searchKeyword.value.toLowerCase();
-    list = list.filter(r => r.userId?.toLowerCase().includes(kw));
+    list = list.filter(r =>
+      r.userId?.toLowerCase().includes(kw) ||
+      r.userName?.toLowerCase().includes(kw)
+    );
   }
-  if (activeFilter.value === 'pending') list = list.filter(r => !r.checkedIn);
-  if (activeFilter.value === 'checkedIn') list = list.filter(r => r.checkedIn);
-  if (activeFilter.value === 'late') list = list.filter(r => r.isLate);
+  if (activeFilter.value === 'pending')   list = list.filter(r => r.status === 'REGISTERED');
+  if (activeFilter.value === 'checkedIn') list = list.filter(r => r.status === 'ATTENDED');
+  if (activeFilter.value === 'late')      list = list.filter(r => r.status === 'ATTENDED' && r.late === true);
   return list;
 });
 
@@ -210,7 +213,7 @@ async function onActivityChange() {
       registrationApi.countCheckedIn(selectedActivityId.value),
     ]);
     registrations.value = regRes.data || [];
-    const lateCount = registrations.value.filter(r => r.isLate).length;
+    const lateCount = registrations.value.filter(r => r.late === true).length;
     stats.value = {
       total: countRes.data || 0,
       checkedIn: checkinCountRes.data || 0,
@@ -226,16 +229,13 @@ async function onActivityChange() {
 async function handleManualCheckIn(reg) {
   checkingIn.value = reg.id;
   try {
-    await registrationApi.checkIn(reg.id);
-    reg.checkedIn = true;
-    reg.checkInTime = new Date().toISOString();
-    // 判斷是否遲到（前端估算，以活動開始時間+30分鐘）
-    if (currentActivity.value?.startTime) {
-      const lateThreshold = new Date(new Date(currentActivity.value.startTime).getTime() + 30 * 60000);
-      reg.isLate = new Date() > lateThreshold;
-    }
+    const res = await registrationApi.checkIn(reg.id);
+    // 用後端回傳的資料更新，確保 status / late 欄位正確
+    reg.status = res.data.status;
+    reg.checkInTime = res.data.checkInTime;
+    reg.late = res.data.late;
     stats.value.checkedIn++;
-    if (reg.isLate) stats.value.late++;
+    if (reg.late === true) stats.value.late++;
     showToast(`✓ ${reg.userId} 簽到成功`, 'success');
   } catch (e) {
     const msg = e.response?.data?.message || '簽到失敗';
