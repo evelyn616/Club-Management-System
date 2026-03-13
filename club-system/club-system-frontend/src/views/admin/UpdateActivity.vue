@@ -1,415 +1,579 @@
 <template>
-    <div class="update-activity-container">
-        <h2>編輯活動</h2>
-        <div v-if="hasRegistrations" class="warning-message">
-            此活動已有{{ registrationCount }}個報名紀錄,修改活動會同步通知所有報名者。
-        </div>
-        
-        <!-- Loading 狀態 -->
-        <div v-if="loading" class="loading">載入中...</div>
-        
-        <form v-else @submit.prevent="handlesubmit" class="activity-form">
-            <!-- 活動表單 -->
-            <div class="form-group">
-                <label for="title">活動標題</label>
-                <input v-model="form.title" type="text" id="title" required maxlength="100" placeholder="請輸入活動名稱"/>
-            </div>
-            <div class="form-group">
-                <label for="description">活動描述</label>
-                <textarea v-model="form.description" id="description" rows="4" maxlength="5000" placeholder="請輸入活動描述"></textarea>
-            </div>
-            <div class="form-group">
-                <label for="coverImageUrl">封面圖片 URL</label>
-                <input v-model="form.coverImageUrl" type="text" id="coverImageUrl" maxlength="500" placeholder="範例:https://example.com/image.jpg" />
-            </div>
-            <div class="form-group">
-                <label for="startTime">
-                    開始時間 
-                    <span v-if="hasRegistrations && isTimeChanged" class="changed-badge">(已修改)</span>
-                </label>
-                <input v-model="form.startTime" type="datetime-local" id="startTime" required @change="checkChanges"/>
-            </div>
-            <div class="form-group">
-                <label for="endTime">結束時間</label>
-                <input v-model="form.endTime" type="datetime-local" id="endTime" required />
-            </div>
-            <div class="form-group">
-                <label for="location">
-                    活動地點
-                    <span v-if="hasRegistrations && isLocationChanged" class="changed-badge">(已修改)</span>
-                </label>
-                <input v-model="form.location" type="text" id="location" required maxlength="200" placeholder="請輸入活動地點" @change="checkChanges" />
-            </div>
-            <div class="form-group">
-                <label for="maxParticipants">最大參與人數</label>
-                <input v-model.number="form.maxParticipants" type="number" id="maxParticipants" min="1" placeholder="預設:無上限"/>
-            </div>
-            <div class="form-group">
-                <label for="registrationDeadline">報名截止時間</label>
-                <input v-model="form.registrationDeadline"
-                       type="datetime-local"
-                       id="registrationDeadline"
-                       required />
-            </div>
-            <div class="form-group">
-                <label for="feeAmount">費用金額</label>
-                <input v-model.number="form.feeAmount"
-                       type="number"
-                       id="feeAmount"
-                       required />
-            </div>
-            <div class="form-group">
-                <label for="activityType">活動類型</label>
-                <select v-model="form.activityType" id="activityType" required>
-                    <option value="">請選擇活動類型</option>
-                    <option value="REGULAR">社課</option>
-                    <option value="SPECIAL">特別活動</option>
-                    <option value="TRAINING">團練</option>
-                    <option value="PERFORMANCE">演出</option>
-                    <option value="COMPETITION">比賽</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="targetAudience">目標對象</label>
-                <select v-model="form.targetAudience" id="targetAudience" required>
-                    <option value="">請選擇目標對象</option>
-                    <option value="ALL">所有人</option>
-                    <option value="MEMBER_ONLY">社員限定</option>
-                    <option value="MANAGER_ONLY">幹部限定</option>
-                </select>
-            </div>
-            <!-- 活動按鈕-->
-            <div class="form-actions">
-                <button type="submit" class="submit-button" :disabled="loading">
-                    {{ hasRegistrations ? '更新並通知報名者' : '更新活動' }}
-                </button>
-                <button type="button" @click="handleCancel" class="cancel-button">取消</button>
-            </div>
-        </form>
+  <div class="ua-wrap">
+
+    <!-- Navbar -->
+    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
+      <div class="nav-container">
+        <router-link to="/admin/activity-management-container" class="nav-logo">CLUB SYSTEM</router-link>
+        <span class="nav-crumb">ADMIN / <span class="nav-crumb-active">編輯活動</span></span>
+      </div>
+    </nav>
+
+    <!-- Loading -->
+    <div v-if="loading" class="state-wrap">
+      <div class="loading-bars">
+        <span v-for="i in 5" :key="i" :style="{ animationDelay: (i * 0.1) + 's' }"></span>
+      </div>
+      <p class="mono state-text">LOADING...</p>
     </div>
+
+    <!-- Loaded -->
+    <template v-else>
+
+      <!-- Header -->
+      <div class="ua-header">
+        <div class="header-left">
+          <span class="ua-eyebrow">EDIT ACTIVITY #{{ activityId }}</span>
+          <h1 class="ua-title">編輯活動</h1>
+        </div>
+        <!-- 有報名警告 -->
+        <div v-if="hasRegistrations" class="reg-warning">
+          <span class="warn-dot">!</span>
+          <span>已有 <strong>{{ registrationCount }}</strong> 筆報名，修改時間或地點將通知所有報名者</span>
+        </div>
+      </div>
+
+      <div class="ua-layout">
+
+        <!-- ===== 表單 ===== -->
+        <form class="ua-form" @submit.prevent="handlesubmit">
+
+          <!-- 基本資訊 -->
+          <section class="form-section">
+            <p class="section-label">BASIC INFO</p>
+
+            <div class="field">
+              <label class="field-label">活動標題 <span class="req">*</span></label>
+              <input v-model="form.title" type="text" class="field-input" required maxlength="100" placeholder="輸入活動名稱" />
+            </div>
+
+            <div class="field">
+              <label class="field-label">活動描述</label>
+              <textarea v-model="form.description" class="field-textarea" rows="4" maxlength="5000" placeholder="輸入活動說明、注意事項等..."></textarea>
+            </div>
+
+            <div class="field">
+              <label class="field-label">封面圖片 URL</label>
+              <input v-model="form.coverImageUrl" type="text" class="field-input" maxlength="500" placeholder="https://example.com/image.jpg" />
+              <div v-if="form.coverImageUrl" class="img-preview">
+                <img :src="form.coverImageUrl" alt="封面預覽" @error="imgError = true" @load="imgError = false" />
+                <p v-if="imgError" class="img-error">圖片載入失敗，請確認 URL</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- 時間與地點 -->
+          <section class="form-section">
+            <p class="section-label">TIME & PLACE</p>
+
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">
+                  開始時間 <span class="req">*</span>
+                  <span v-if="hasRegistrations && isTimeChanged" class="changed-tag">已修改</span>
+                </label>
+                <input v-model="form.startTime" type="datetime-local" class="field-input" :class="{ modified: hasRegistrations && isTimeChanged }" required />
+              </div>
+              <div class="field">
+                <label class="field-label">結束時間 <span class="req">*</span></label>
+                <input v-model="form.endTime" type="datetime-local" class="field-input" :class="{ modified: hasRegistrations && isTimeChanged }" required />
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">報名截止時間 <span class="req">*</span></label>
+                <input v-model="form.registrationDeadline" type="datetime-local" class="field-input" required />
+              </div>
+              <div class="field">
+                <label class="field-label">
+                  活動地點 <span class="req">*</span>
+                  <span v-if="hasRegistrations && isLocationChanged" class="changed-tag">已修改</span>
+                </label>
+                <input v-model="form.location" type="text" class="field-input" :class="{ modified: hasRegistrations && isLocationChanged }" required maxlength="200" placeholder="輸入地點" />
+              </div>
+            </div>
+
+            <!-- 通知提示 -->
+            <div v-if="hasRegistrations && hasImportantChanges" class="notify-banner">
+              <span class="notify-icon">⚑</span>
+              儲存後將自動通知 {{ registrationCount }} 位已報名的人員
+            </div>
+          </section>
+
+          <!-- 活動設定 -->
+          <section class="form-section">
+            <p class="section-label">SETTINGS</p>
+
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">活動類型 <span class="req">*</span></label>
+                <select v-model="form.activityType" class="field-select" required>
+                  <option value="">請選擇</option>
+                  <option value="REGULAR">社課</option>
+                  <option value="SPECIAL">特別活動</option>
+                  <option value="TRAINING">團練</option>
+                  <option value="PERFORMANCE">演出</option>
+                  <option value="COMPETITION">比賽</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field-label">目標對象 <span class="req">*</span></label>
+                <select v-model="form.targetAudience" class="field-select" required>
+                  <option value="">請選擇</option>
+                  <option value="ALL">所有人</option>
+                  <option value="MEMBER_ONLY">社員限定</option>
+                  <option value="MANAGER_ONLY">幹部限定</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">費用金額 <span class="req">*</span></label>
+                <div class="input-prefix-wrap">
+                  <span class="input-prefix">NT$</span>
+                  <input v-model.number="form.feeAmount" type="number" class="field-input has-prefix" min="0" required placeholder="0" />
+                </div>
+              </div>
+              <div class="field">
+                <label class="field-label">最大參與人數</label>
+                <input v-model.number="form.maxParticipants" type="number" class="field-input" min="1" placeholder="不填則無上限" />
+              </div>
+            </div>
+          </section>
+
+          <!-- 送出 -->
+          <div class="form-actions">
+            <button type="button" class="btn-cancel" @click="handleCancel">取消</button>
+            <button type="submit" class="btn-submit" :disabled="submitting">
+              {{ submitting ? '更新中...' : (hasRegistrations && hasImportantChanges ? '更新並通知報名者 →' : '儲存變更 →') }}
+            </button>
+          </div>
+
+        </form>
+
+        <!-- ===== 右側：預覽 + 變更摘要 ===== -->
+        <aside class="ua-sidebar">
+
+          <!-- 預覽卡 -->
+          <div class="sidebar-block">
+            <p class="section-label">PREVIEW</p>
+            <div class="preview-card">
+              <div class="preview-cover" :style="previewCoverStyle">
+                <span v-if="!form.coverImageUrl || imgError" class="preview-cover-placeholder">NO IMAGE</span>
+                <span v-if="form.activityType" class="preview-type-badge">{{ getTypeLabel(form.activityType) }}</span>
+              </div>
+              <div class="preview-body">
+                <p class="preview-title">{{ form.title || '活動標題' }}</p>
+                <p class="preview-meta">{{ form.location || '— 地點未填 —' }}</p>
+                <p class="preview-meta" v-if="form.startTime">{{ formatDT(form.startTime) }}</p>
+                <div class="preview-tags">
+                  <span v-if="form.targetAudience" class="preview-tag">{{ getAudienceLabel(form.targetAudience) }}</span>
+                  <span v-if="form.feeAmount > 0" class="preview-tag fee">NT$ {{ form.feeAmount }}</span>
+                  <span v-else-if="form.feeAmount === 0" class="preview-tag free">免費</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 變更摘要（有報名且有修改時顯示） -->
+          <div v-if="hasRegistrations && hasImportantChanges" class="sidebar-block changes-block">
+            <p class="section-label">CHANGES</p>
+            <div v-if="isTimeChanged" class="change-row">
+              <span class="change-label">時間</span>
+              <div class="change-vals">
+                <span class="change-old">{{ formatDT(originalData.startTime) }}</span>
+                <span class="change-arrow">→</span>
+                <span class="change-new">{{ formatDT(form.startTime) }}</span>
+              </div>
+            </div>
+            <div v-if="isLocationChanged" class="change-row">
+              <span class="change-label">地點</span>
+              <div class="change-vals">
+                <span class="change-old">{{ originalData.location }}</span>
+                <span class="change-arrow">→</span>
+                <span class="change-new">{{ form.location }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Checklist -->
+          <div class="sidebar-block">
+            <p class="section-label">CHECKLIST</p>
+            <div class="hint-item" :class="{ done: form.title }">
+              <span class="hint-dot"></span>活動標題
+            </div>
+            <div class="hint-item" :class="{ done: form.startTime && form.endTime }">
+              <span class="hint-dot"></span>時間設定
+            </div>
+            <div class="hint-item" :class="{ done: form.location }">
+              <span class="hint-dot"></span>活動地點
+            </div>
+            <div class="hint-item" :class="{ done: form.activityType }">
+              <span class="hint-dot"></span>活動類型
+            </div>
+            <div class="hint-item" :class="{ done: form.targetAudience }">
+              <span class="hint-dot"></span>目標對象
+            </div>
+            <div class="hint-item" :class="{ done: form.registrationDeadline }">
+              <span class="hint-dot"></span>報名截止
+            </div>
+          </div>
+
+        </aside>
+
+      </div>
+    </template>
+
+    <!-- Cancel confirm dialog -->
+    <Teleport to="body">
+      <div v-if="showCancelDialog" class="modal-overlay" @click.self="showCancelDialog = false">
+        <div class="dialog-box">
+          <div class="dialog-header">
+            <h2 class="dialog-title">放棄編輯？</h2>
+            <button class="dialog-close" @click="showCancelDialog = false">×</button>
+          </div>
+          <div class="dialog-body">
+            <p class="dialog-msg">所有未儲存的變更將會丟失，確定要離開嗎？</p>
+          </div>
+          <div class="dialog-footer">
+            <button class="modal-btn cancel" @click="showCancelDialog = false">繼續編輯</button>
+            <button class="modal-btn confirm" @click="confirmCancel">確定離開</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+  </div>
 </template>
 
 <script setup>
-    import { computed, onMounted, ref } from 'vue';
-    import { activityApi } from '@/api/activity';
-    import { useRoute, useRouter } from 'vue-router';
-    import { useUserStore } from '@/stores/user';
-   
-    const userStore = useUserStore();
-    const router = useRouter();
-    const route = useRoute();
-    
-    
-    const activityId = computed(() => route.params.activityId);
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { activityApi } from '@/api/activity'
+import { useUserStore } from '@/stores/user'
 
-    // 表單資料
-    const form = ref({
-        title: '',
-        description: '',
-        coverImageUrl: '',
-        startTime: '',
-        endTime: '',
-        location: '',
-        maxParticipants: null,
-        registrationDeadline: '',
-        feeAmount: null,
-        activityType: '',
-        targetAudience: '',
-        updatedBy: ''
-    });
+const router = useRouter()
+const route = useRoute()
+const userStore = useUserStore()
 
-    const loading = ref(false);
-    const hasRegistrations = ref(false);
-    const registrationCount = ref(0);
-    const originalData = ref({}); // 用於存儲原始活動資料
-    
-    const isTimeChanged = computed(() => {
-        return form.value.startTime !== originalData.value.startTime || 
-               form.value.endTime !== originalData.value.endTime;
-    });
-    
-    const isLocationChanged = computed(() => {
-        return form.value.location !== originalData.value.location;
-    });
+const activityId = computed(() => route.params.activityId)
+const loading = ref(false)
+const submitting = ref(false)
+const imgError = ref(false)
+const showCancelDialog = ref(false)
+const hasRegistrations = ref(false)
+const registrationCount = ref(0)
+const originalData = ref({})
 
-    // 檢查變更
-    const checkChanges = () => {
-        console.log('時間已變更:', isTimeChanged.value);
-        console.log('地點已變更:', isLocationChanged.value);
-    };
+const form = ref({
+  title: '',
+  description: '',
+  coverImageUrl: '',
+  startTime: '',
+  endTime: '',
+  location: '',
+  maxParticipants: null,
+  registrationDeadline: '',
+  feeAmount: 0,
+  activityType: '',
+  targetAudience: '',
+  updatedBy: ''
+})
 
-    // 表單提交處理
-    const handlesubmit = async () => {
-        const hasImportantChanges = isTimeChanged.value || isLocationChanged.value;
-        
-        if (hasRegistrations.value && hasImportantChanges) {
-            const confirmUpdate = confirm(
-                `此活動已有${registrationCount.value}個報名紀錄,修改活動時間或地點將會通知所有報名者。是否繼續?`
-            );
-            if (!confirmUpdate) {
-                return; // 使用者取消更新
-            }
-        }
-        
-        loading.value = true;
-        
-        try {
-            
-            const response = await activityApi.updateActivity(activityId.value, form.value);
-            
-            console.log('活動更新成功:', response.data);
-            alert('活動更新成功' + (hasImportantChanges ? ',已通知所有報名者。' : ''));
-            
-            // 跳轉回活動列表
-            router.push({ name: 'activity-list-container'});
-        } catch (error) {
-            console.error('更新活動失敗:', error);
-            
-            if (error.response?.status === 400) {
-                alert('更新失敗:資料驗證錯誤');
-            } else if (error.response?.status === 404) {
-                alert('更新失敗:找不到此活動');
-            } else {
-                alert('更新活動失敗,請稍後再試');
-            }
-        } finally {
-            loading.value = false;
-        }
-    };
+// ===== Navbar scroll =====
+const navHidden = ref(false)
+let lastY = 0
+const onScroll = () => {
+  const y = window.scrollY
+  navHidden.value = y > lastY && y > 60
+  lastY = y
+}
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true })
+  loadActivity()
+})
+onUnmounted(() => window.removeEventListener('scroll', onScroll))
 
-    const handleCancel = () => {
-        if (confirm('確定要取消編輯嗎?未保存的更改將丟失。')) {
-            router.push('/admin/activity-list-container');
-        }
-    };
-    
-    onMounted(async () => {
-        console.log('=== UpdateActivity onMounted ===');
-        console.log('Route params:', route.params);
-        console.log('activityId:', activityId.value);
-        
-        // 驗證 activityId
-        if (!activityId.value) {
-            console.error('❌ Missing activityId');
-            alert('缺少活動 ID');
-            router.push({ name: 'activity-list-container' });
-            return;
-        }
-        
-        loading.value = true;
-        
-        try {
-            // ⭐ 關鍵:調用 API 獲取活動詳情
-            const response = await activityApi.getActivityDetails(activityId.value);
-            
-            console.log('✅ 活動資料載入成功:', response.data);
-            
-            // 處理時間格式(截取前 16 個字符以符合 datetime-local 格式)
-            const data = { 
-                ...response.data,
-                startTime: response.data.startTime?.slice(0, 16) || '',
-                endTime: response.data.endTime?.slice(0, 16) || '',
-                registrationDeadline: response.data.registrationDeadline?.slice(0, 16) || ''
-            };
-            
-            form.value = data;
-            originalData.value = { ...form.value }; // 存儲原始資料
-            
-            console.log('活動資料:', form.value);
-            
-            // 設定報名相關資訊
-            hasRegistrations.value = (response.data.hasRegistrations || 0) > 0;
-            registrationCount.value = response.data.hasRegistrations || 0;
-            
-            console.log('報名狀態:', hasRegistrations.value);
-            console.log('報名人數:', registrationCount.value);
-            
-            // 設定更新者
-            if (userStore.userId) {
-                form.value.updatedBy = userStore.userId;
-                console.log('更新者:', form.value.updatedBy);
-            }
-            
-        } catch (error) {
-            console.error('❌ 載入活動詳情失敗:', error);
-            
-            if (error.response?.status === 404) {
-                alert(`找不到活動 (ID: ${activityId.value})`);
-            } else if (error.response?.status === 403) {
-                alert('沒有權限訪問此活動');
-            } else {
-                alert('載入活動失敗,請稍後再試');
-            }
-            
-            router.push({ name: 'ActivityList' });
-        } finally {
-            loading.value = false;
-        }
-    });
+// ===== Load =====
+const loadActivity = async () => {
+  if (!activityId.value) {
+    alert('缺少活動 ID')
+    router.push({ name: 'activity-list-container' })
+    return
+  }
+  loading.value = true
+  try {
+    const response = await activityApi.getActivityDetails(activityId.value)
+    const data = {
+      ...response.data,
+      startTime: response.data.startTime?.slice(0, 16) || '',
+      endTime: response.data.endTime?.slice(0, 16) || '',
+      registrationDeadline: response.data.registrationDeadline?.slice(0, 16) || ''
+    }
+    form.value = data
+    originalData.value = { ...data }
+    hasRegistrations.value = (response.data.registrationCount || response.data.hasRegistrations || 0) > 0
+    registrationCount.value = response.data.registrationCount || response.data.hasRegistrations || 0
+    if (userStore.userId) form.value.updatedBy = userStore.userId
+  } catch (e) {
+    const s = e.response?.status
+    alert(s === 404 ? `找不到活動 (ID: ${activityId.value})` : s === 403 ? '沒有權限訪問此活動' : '載入活動失敗，請稍後再試')
+    router.push({ name: 'activity-list-container' })
+  } finally {
+    loading.value = false
+  }
+}
+
+// ===== Computed =====
+const isTimeChanged = computed(() =>
+  form.value.startTime !== originalData.value.startTime ||
+  form.value.endTime !== originalData.value.endTime
+)
+const isLocationChanged = computed(() =>
+  form.value.location !== originalData.value.location
+)
+const hasImportantChanges = computed(() => isTimeChanged.value || isLocationChanged.value)
+
+const previewCoverStyle = computed(() => {
+  if (form.value.coverImageUrl && !imgError.value) {
+    return { backgroundImage: `url(${form.value.coverImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  }
+  return {}
+})
+
+// ===== Helpers =====
+const getTypeLabel = (t) =>
+  ({ REGULAR:'社課', SPECIAL:'特別活動', TRAINING:'團練', PERFORMANCE:'演出', COMPETITION:'比賽' })[t] || t
+const getAudienceLabel = (a) =>
+  ({ ALL:'所有人', MEMBER_ONLY:'社員限定', MANAGER_ONLY:'幹部限定' })[a] || a
+const formatDT = (dt) => {
+  if (!dt) return '—'
+  const d = new Date(dt)
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} (${days[d.getDay()]}) ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+}
+
+// ===== Submit =====
+const handlesubmit = async () => {
+  submitting.value = true
+  try {
+    await activityApi.updateActivity(activityId.value, form.value)
+    const msg = hasImportantChanges.value ? '活動已更新，已通知所有報名者。' : '活動已更新。'
+    alert(msg)
+    router.push({ name: 'activity-list-container' })
+  } catch (e) {
+    const s = e.response?.status
+    alert(s === 400 ? '更新失敗：資料驗證錯誤' : s === 404 ? '更新失敗：找不到此活動' : '更新失敗，請稍後再試')
+  } finally {
+    submitting.value = false
+  }
+}
+
+const handleCancel = () => { showCancelDialog.value = true }
+const confirmCancel = () => { router.push({ name: 'activity-list-container' }) }
 </script>
 
 <style scoped>
-.update-activity-container {
-  width: 100%;
-  margin: 40px auto;
-  padding: 0 20px;
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
+
+/* ===== Base ===== */
+.ua-wrap { min-height: 100vh; background: #fff; font-family: 'Noto Sans TC', sans-serif; color: #0a0a0a; }
+.mono { font-family: 'Space Mono', monospace; }
+
+/* ===== Navbar ===== */
+.navbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 1rem 2rem; background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.08);
+  transform: translateY(0); transition: transform 0.35s ease;
+}
+.navbar-hidden { transform: translateY(-100%); }
+.nav-container { max-width: 1300px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+.nav-logo { font-family: 'Space Mono', monospace; font-size: 1rem; font-weight: 700; letter-spacing: 0.15em; color: #0a0a0a; text-decoration: none; }
+.nav-logo:hover { color: #ff2d6b; }
+.nav-crumb { font-family: 'Space Mono', monospace; font-size: 0.65rem; letter-spacing: 0.12em; color: #aaa; }
+.nav-crumb-active { color: #0a0a0a; }
+
+/* ===== State ===== */
+.state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; gap: 0.75rem; }
+.state-text { font-family: 'Space Mono', monospace; font-size: 0.75rem; letter-spacing: 0.1em; color: #aaa; }
+.loading-bars { display: flex; gap: 4px; }
+.loading-bars span { display: block; width: 3px; height: 28px; background: #ff2d6b; border-radius: 2px; animation: barPulse 0.8s ease-in-out infinite alternate; }
+@keyframes barPulse { from { transform: scaleY(0.3); opacity: 0.3; } to { transform: scaleY(1); opacity: 1; } }
+
+/* ===== Header ===== */
+.ua-header {
+  max-width: 1300px; margin: 0 auto;
+  padding: 6.5rem 2rem 2rem;
+  border-bottom: 2px solid #0a0a0a;
+  display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;
+}
+.ua-eyebrow { display: block; font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.25em; color: #ff2d6b; font-weight: 700; margin-bottom: 0.4rem; }
+.ua-title { font-family: 'Bebas Neue', sans-serif; font-size: 4rem; line-height: 1; letter-spacing: 0.02em; margin: 0; }
+
+/* 報名警告 */
+.reg-warning {
+  display: flex; align-items: center; gap: 0.6rem;
+  background: #fff3e0; border: 1px solid #ff9800;
+  padding: 0.65rem 1rem; font-size: 0.8rem; color: #e65100;
+  align-self: flex-end; margin-bottom: 0.5rem;
+}
+.warn-dot {
+  width: 20px; height: 20px; background: #ff9800; color: #fff;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Mono', monospace; font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
 }
 
-.update-activity-container h2 {
-  font-size: 26px;
-  font-weight: 600;
-  margin-bottom: 20px;
-  color: #2c2c2c;
-  letter-spacing: 0.5px;
+/* ===== Layout ===== */
+.ua-layout {
+  max-width: 1300px; margin: 0 auto;
+  padding: 2.5rem 2rem 4rem;
+  display: grid; grid-template-columns: 1fr 300px; gap: 3rem; align-items: start;
 }
 
-/* ⚠️ 已有報名警告 */
-.warning-message {
-  background: linear-gradient(135deg, #fff8e1, #fff3cd);
-  border-left: 6px solid #ffc107;
-  color: #7a5d00;
-  padding: 14px 16px;
-  border-radius: 8px;
-  margin-bottom: 24px;
-  font-size: 14px;
+/* ===== Form ===== */
+.ua-form { display: flex; flex-direction: column; gap: 2.5rem; }
+.form-section { display: flex; flex-direction: column; gap: 1.25rem; }
+.section-label {
+  font-family: 'Space Mono', monospace; font-size: 0.58rem;
+  letter-spacing: 0.22em; color: #ff2d6b; font-weight: 700;
+  padding-bottom: 0.6rem; border-bottom: 1px solid #f0f0f0; margin-bottom: 0.25rem;
+}
+.field { display: flex; flex-direction: column; gap: 0.4rem; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.field-label {
+  font-family: 'Space Mono', monospace; font-size: 0.65rem;
+  letter-spacing: 0.1em; color: #555; display: flex; align-items: center; gap: 0.4rem;
+}
+.req { color: #ff2d6b; }
+
+.changed-tag {
+  font-size: 0.55rem; letter-spacing: 0.08em; background: #ff9800;
+  color: #fff; padding: 0.1rem 0.4rem; font-weight: 700;
 }
 
-/* Loading */
-.loading {
-  text-align: center;
-  padding: 60px 0;
-  font-size: 16px;
-  color: #888;
+.field-input, .field-select, .field-textarea {
+  width: 100%; padding: 0.7rem 0.9rem;
+  border: 1px solid #e0e0e0; border-radius: 0;
+  font-family: 'Noto Sans TC', sans-serif; font-size: 0.88rem;
+  color: #0a0a0a; background: #fff; outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s; box-sizing: border-box;
 }
-
-/* 表單卡片 */
-.activity-form {
-  background: #ffffff;
-  padding: 28px;
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+.field-input:focus, .field-select:focus, .field-textarea:focus { border-color: #0a0a0a; }
+.field-input.modified { border-color: #ff9800; box-shadow: inset 2px 0 0 #ff9800; }
+.field-textarea { resize: vertical; min-height: 100px; }
+.field-select {
+  appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 0.8rem center; padding-right: 2.2rem;
 }
+.input-prefix-wrap { position: relative; display: flex; align-items: center; }
+.input-prefix { position: absolute; left: 0.9rem; font-family: 'Space Mono', monospace; font-size: 0.72rem; color: #aaa; pointer-events: none; }
+.field-input.has-prefix { padding-left: 2.8rem; }
 
-/* 表單欄位 */
-.form-group {
-  margin-bottom: 22px;
+/* 封面預覽 */
+.img-preview { margin-top: 0.5rem; border: 1px solid #e0e0e0; overflow: hidden; max-height: 160px; }
+.img-preview img { width: 100%; height: 160px; object-fit: cover; display: block; }
+.img-error { font-family: 'Space Mono', monospace; font-size: 0.65rem; color: #ff2d6b; padding: 0.5rem; margin: 0; }
+
+/* 通知 banner */
+.notify-banner {
+  display: flex; align-items: center; gap: 0.6rem;
+  background: #e3f2fd; border: 1px solid #1565c0;
+  padding: 0.7rem 1rem; font-size: 0.78rem; color: #1565c0;
 }
+.notify-icon { font-size: 0.9rem; }
 
-.form-group label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-  font-weight: 600;
-  font-size: 14px;
-  color: #333;
+/* 送出按鈕 */
+.form-actions { display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid #e0e0e0; }
+.btn-cancel {
+  background: transparent; border: 1px solid #e0e0e0; color: #888;
+  padding: 0.7rem 1.5rem; font-family: 'Space Mono', monospace;
+  font-size: 0.75rem; letter-spacing: 0.08em; cursor: pointer; transition: all 0.2s;
 }
-
-/* 已修改提示 */
-.changed-badge {
-  background: #ffecec;
-  color: #d93025;
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-weight: 500;
+.btn-cancel:hover { border-color: #0a0a0a; color: #0a0a0a; }
+.btn-submit {
+  background: #0a0a0a; color: #fff; border: none;
+  padding: 0.75rem 2rem; font-family: 'Space Mono', monospace;
+  font-size: 0.78rem; letter-spacing: 0.1em; cursor: pointer; transition: background 0.2s;
 }
+.btn-submit:hover:not(:disabled) { background: #ff2d6b; }
+.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* Input / Select / Textarea */
-.form-group input,
-.form-group textarea,
-.form-group select {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #ddd;
-  font-size: 14px;
-  transition: all 0.2s ease;
-  background: #fafafa;
+/* ===== Sidebar ===== */
+.ua-sidebar { position: sticky; top: 5rem; display: flex; flex-direction: column; gap: 1.5rem; }
+.sidebar-block { display: flex; flex-direction: column; gap: 0.5rem; }
+
+/* Preview */
+.preview-card { border: 1px solid #e0e0e0; overflow: hidden; }
+.preview-cover {
+  height: 140px; background: #f5f5f5;
+  display: flex; align-items: center; justify-content: center; position: relative;
 }
-
-.form-group input::placeholder,
-.form-group textarea::placeholder {
-  color: #aaa;
+.preview-cover-placeholder { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; color: #ccc; letter-spacing: 0.1em; }
+.preview-type-badge {
+  position: absolute; top: 0.5rem; left: 0.5rem;
+  background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+  color: #fff; font-family: 'Space Mono', monospace;
+  font-size: 0.52rem; letter-spacing: 0.1em; padding: 0.18rem 0.45rem;
 }
+.preview-body { padding: 0.85rem; }
+.preview-title { font-weight: 700; font-size: 0.88rem; margin: 0 0 0.3rem; line-height: 1.3; color: #0a0a0a; }
+.preview-meta { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: #888; margin: 0 0 0.2rem; }
+.preview-tags { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.preview-tag { font-family: 'Space Mono', monospace; font-size: 0.55rem; letter-spacing: 0.08em; border: 1px solid #e0e0e0; padding: 0.12rem 0.4rem; color: #888; }
+.preview-tag.fee { border-color: #ff2d6b; color: #ff2d6b; }
+.preview-tag.free { border-color: #2e7d32; color: #2e7d32; }
 
-.form-group textarea {
-  resize: vertical;
-  min-height: 100px;
+/* Changes */
+.changes-block { border: 1px solid #ff9800; padding: 0.85rem; background: #fffde7; }
+.change-row { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.5rem 0; border-bottom: 1px solid #ffe0b2; }
+.change-row:last-child { border-bottom: none; padding-bottom: 0; }
+.change-label { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; color: #e65100; font-weight: 700; }
+.change-vals { display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; }
+.change-old { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: #aaa; text-decoration: line-through; }
+.change-arrow { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: #e65100; }
+.change-new { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: #0a0a0a; font-weight: 700; }
+
+/* Checklist */
+.hint-item {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-family: 'Space Mono', monospace; font-size: 0.62rem;
+  color: #bbb; transition: color 0.2s;
 }
+.hint-item.done { color: #0a0a0a; }
+.hint-dot { width: 6px; height: 6px; border-radius: 50%; background: #e0e0e0; flex-shrink: 0; transition: background 0.2s; }
+.hint-item.done .hint-dot { background: #ff2d6b; }
 
-/* Focus 狀態 */
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: #4caf50;
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.15);
+/* ===== Modal / Dialog ===== */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 200;
 }
+.dialog-box { background: #fff; width: 400px; max-width: 95vw; }
+.dialog-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 2px solid #0a0a0a; }
+.dialog-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.05em; margin: 0; }
+.dialog-close { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #aaa; }
+.dialog-close:hover { color: #0a0a0a; }
+.dialog-body { padding: 1.5rem; }
+.dialog-msg { font-size: 0.85rem; color: #555; margin: 0; }
+.dialog-footer { display: flex; justify-content: flex-end; gap: 0.6rem; padding: 1rem 1.5rem; border-top: 1px solid #e0e0e0; }
+.modal-btn { padding: 0.55rem 1.2rem; font-family: 'Space Mono', monospace; font-size: 0.72rem; letter-spacing: 0.06em; cursor: pointer; border: 1px solid; transition: all 0.15s; }
+.modal-btn.cancel { border-color: #e0e0e0; color: #555; background: #fff; }
+.modal-btn.cancel:hover { background: #f5f5f5; }
+.modal-btn.confirm { border-color: #0a0a0a; color: #fff; background: #0a0a0a; }
+.modal-btn.confirm:hover { background: #ff2d6b; border-color: #ff2d6b; }
 
-/* Actions */
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 14px;
-  margin-top: 30px;
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+  .ua-layout { grid-template-columns: 1fr; }
+  .ua-sidebar { position: static; }
+  .ua-title { font-size: 2.8rem; }
+  .ua-header { flex-direction: column; align-items: flex-start; }
 }
-
-/* Buttons */
-button {
-  padding: 10px 22px;
-  border-radius: 999px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-}
-
-/* Submit */
-.submit-button {
-  background: linear-gradient(135deg, #4caf50, #66bb6a);
-  color: white;
-  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.3);
-}
-
-.submit-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.35);
-}
-
-.submit-button:disabled {
-  background: #cfcfcf;
-  box-shadow: none;
-  cursor: not-allowed;
-}
-
-/* Cancel */
-.cancel-button {
-  background: #f2f2f2;
-  color: #444;
-}
-
-.cancel-button:hover {
-  background: #e6e6e6;
-}
-
-/* RWD */
 @media (max-width: 600px) {
-  .activity-form {
-    padding: 20px;
-  }
-
-  .form-actions {
-    flex-direction: column;
-  }
-
-  button {
-    width: 100%;
-  }
+  .field-row { grid-template-columns: 1fr; }
 }
-
-
-
 </style>

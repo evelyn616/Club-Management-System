@@ -36,25 +36,25 @@
           </div>
 
           <!-- 其他開發人員負責的功能（預留） -->
-          <div class="feature-card placeholder">
+          <div class="feature-card active" @click="navigateTo('/admin/activity-management-container')">
             <div class="card-icon">📅</div>
             <h3>活動上架</h3>
             <p>發布和管理活動</p>
-            <span class="coming-soon">開發中</span>
+            
           </div>
 
-          <div class="feature-card placeholder">
+          <div class="feature-card active" @click="navigateTo('/admin/registrations-overview-container')">
             <div class="card-icon">📝</div>
             <h3>查看報名人</h3>
             <p>查看活動報名名單</p>
-            <span class="coming-soon">開發中</span>
+            
           </div>
-
-          <div class="feature-card placeholder">
+           
+          <div class="feature-card active" @click="navigateTo(' /admin/checkin/dashboard')">
             <div class="card-icon">✅</div>
             <h3>查看點名</h3>
             <p>管理活動簽到記錄</p>
-            <span class="coming-soon">開發中</span>
+            
           </div>
 
           <div class="feature-card placeholder">

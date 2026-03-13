@@ -6,6 +6,7 @@ import com.danceclub.club_system.dto.EcpayCheckoutResponse;
 import com.danceclub.club_system.model.Payment;
 import com.danceclub.club_system.model.enums.PaymentStatus;
 import com.danceclub.club_system.repository.PaymentRepository;
+import com.danceclub.club_system.repository.RegistrationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,10 +27,12 @@ public class EcpayService {
 
     private final EcpayConfig ecpayConfig;
     private final PaymentRepository paymentRepository;
+    private final RegistrationRepository registrationRepository;
 
-    public EcpayService(EcpayConfig ecpayConfig, PaymentRepository paymentRepository) {
+    public EcpayService(EcpayConfig ecpayConfig, PaymentRepository paymentRepository, RegistrationRepository registrationRepository) {
         this.ecpayConfig = ecpayConfig;
         this.paymentRepository = paymentRepository;
+        this.registrationRepository = registrationRepository;
     }
 
     /**
@@ -111,6 +114,8 @@ public class EcpayService {
             // 付款成功
             payment.setStatus(PaymentStatus.PAID);
             payment.setPaidAt(LocalDateTime.now());
+            registrationRepository.save(payment.getRegistration());
+
             
             // 處理 ATM 或超商付款的額外資訊
             if ("ATM".equals(paymentType)) {

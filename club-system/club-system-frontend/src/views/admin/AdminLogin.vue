@@ -51,7 +51,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { login } from '@/api/auth'
+import { adminLogin } from '@/api/auth'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -69,13 +69,13 @@ const handleLogin = async () => {
     loading.value = true
     errorMessage.value = ''
 
-    // 調用登入 API
-    const response = await login(loginForm.value)
-    
-    // 將回應傳給 userStore
+    // ✅ 改用 adminLogin，不再用一般 login
+    const response = await adminLogin(loginForm.value)
+
+    // 將回應傳給 userStore（存 token + user info）
     userStore.login(response)
 
-    // 檢查是否為管理員（不區分大小寫）
+    // 後端 adminLogin 已驗證 role，這裡做前端二次確認
     if (response.user?.role?.toUpperCase() !== 'ADMIN') {
       errorMessage.value = '您沒有管理員權限'
       userStore.logout()
@@ -83,10 +83,17 @@ const handleLogin = async () => {
     }
 
     // 登入成功，導向管理後台
-    router.push('/admin/dashboard')
+    router.push({ name: 'activity-management-container' })
   } catch (error) {
     console.error('登入失敗:', error)
-    errorMessage.value = error.response?.data?.message || '登入失敗，請檢查帳號密碼'
+    const status = error.response?.status
+    if (status === 400) {
+      errorMessage.value = error.response?.data?.message || '帳號或密碼錯誤'
+    } else if (status === 403) {
+      errorMessage.value = '您沒有管理員權限'
+    } else {
+      errorMessage.value = '登入失敗，請稍後再試'
+    }
   } finally {
     loading.value = false
   }

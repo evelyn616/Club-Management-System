@@ -9,7 +9,8 @@ export const register = async (registerData) => {
 }
 
 /**
- * 用戶登入
+ * 一般會員登入
+ * POST /api/auth/login
  */
 export const login = async (loginData) => {
   const response = await apiClient.post('/auth/login', loginData)
@@ -17,7 +18,17 @@ export const login = async (loginData) => {
 }
 
 /**
+ * 管理員登入
+ * POST /api/auth/admin/login — 後端會驗證 role 必須為 ADMIN
+ */
+export const adminLogin = async (loginData) => {
+  const response = await apiClient.post('/auth/admin/login', loginData)
+  return response.data
+}
+
+/**
  * 取得當前用戶資訊
+ * GET /api/auth/me
  */
 export const getCurrentUser = async () => {
   const response = await apiClient.get('/auth/me')
