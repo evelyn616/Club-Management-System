@@ -13,10 +13,8 @@
 
     <main class="main-content">
       <div class="container">
-        <div class="club-header">
-          <h1 class="club-title">CLUB</h1>
-        </div>
 
+       
         <div class="hero-section" @mousemove="onMouseMove" @mouseleave="onMouseLeave">
           <!-- 黑白底圖 -->
           <div class="hero-bg hero-bw"></div>
