@@ -2,8 +2,10 @@ package com.danceclub.club_system.controller;
 
 import com.danceclub.club_system.dto.*;
 import com.danceclub.club_system.model.Payment;
+import com.danceclub.club_system.model.Registration;
 import com.danceclub.club_system.model.User;
 import com.danceclub.club_system.model.enums.PaymentStatus;
+import com.danceclub.club_system.repository.RegistrationRepository;
 import com.danceclub.club_system.repository.UserRepository;
 import com.danceclub.club_system.service.EcpayService;
 import com.danceclub.club_system.service.PaymentService;
@@ -31,11 +33,13 @@ public class PaymentController {
     private final EcpayService ecpayService;
     private final PaymentService paymentService;
     private final UserRepository userRepository;
+    private final RegistrationRepository registrationRepository;
 
-    public PaymentController(EcpayService ecpayService, PaymentService paymentService, UserRepository userRepository) {
+    public PaymentController(EcpayService ecpayService, PaymentService paymentService, UserRepository userRepository , RegistrationRepository registrationRepository) {
         this.ecpayService = ecpayService;
         this.paymentService = paymentService;
         this.userRepository = userRepository;
+        this.registrationRepository = registrationRepository;
     }
 
     /**
@@ -294,6 +298,10 @@ public class PaymentController {
                     payment.setPaidAt(LocalDateTime.now());
                     payment.setEcpayTradeNo(tradeNo);
                     payment.setEcpayResponse(params.toString());
+
+                    // 更新報名資料付款狀況
+                    Registration registration = payment.getRegistration();
+                    registration.setPaymentStatus(PaymentStatus.PAID);
                     
                     // 處理不同付款方式的額外資訊
                     if (paymentType != null) {
@@ -313,6 +321,8 @@ public class PaymentController {
                                    ", 付款方式: " + paymentType);
                     
                     paymentService.updatePayment(payment);
+                    registrationRepository.save(registration);
+
                     
                     System.out.println("✓ 付款狀態已更新: Payment ID=" + paymentId);
                     

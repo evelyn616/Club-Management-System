@@ -1,542 +1,385 @@
 <template>
-    <div class="registration-detail-container">
-        <!--返回按鈕-->
-        <button @click="goBack()" class="btn-back">返回</button>
-        <!--活動資訊-->
-        <div v-if="loading" class="loading">載入中...</div>
-        <div v-else-if="activity" class="activity-card">
-            <h2> {{  activity.title }}</h2>
-            <div class="activity-info-grid">
-                <div class="info-item">
-                    <span class="label">活動時間：</span>
-                    <span class="value"> {{ activity.startTime }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="label">截止時間：</span>
-                    <span class="value"> {{ formatDateTime(activity.registrationDeadline) }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="label">地點：</span>
-                    <span class="value"> {{ activity.location }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="label">費用：</span>
-                    <span class="value"> {{ activity.feeAmount }}元</span>
-                </div>
-            </div>
+  <div class="rd-wrap">
 
-        <!--報名進度-->
-        <div class="progress-section">
-            <div class="progress-header">
-                <span>報名進度：</span>
-                <span class="progress-text">{{ registrations.length}} 
-                    <span v-if="activity.maxParticipants"> /{{ activity.maxParticipants }}人</span>
-                </span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" :style="{width: progressPercentage + '%'}" :class="{ 'progress-high': progressPercentage >= 80 }">
-                </div>
-            </div>
+    <!-- ── Navbar ── -->
+    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
+      <div class="nav-inner">
+        <router-link to="/admin/activity-management-container" class="nav-logo">CLUB SYSTEM</router-link>
+        <span class="nav-crumb">ADMIN / 報名名單</span>
+      </div>
+    </nav>
+
+    <!-- ── Loading ── -->
+    <div class="state-wrap" v-if="loading">
+      <div class="loading-bars">
+        <span v-for="i in 5" :key="i" :style="{ animationDelay: (i * 0.1) + 's' }"></span>
+      </div>
+      <p class="mono state-label">LOADING...</p>
+    </div>
+
+    <!-- ── Main ── -->
+    <div class="rd-content" v-else>
+
+      <!-- ── Page Header ── -->
+      <div class="page-header">
+        <div class="header-left">
+          <div class="eyebrow"><span class="eyebrow-line"></span><span class="eyebrow-text">REGISTRATION DETAIL</span></div>
+          <h1 class="page-title">
+            <span class="title-overflow">{{ activity?.title || '報名名單' }}</span>
+          </h1>
         </div>
+        <div class="header-actions">
+          <button class="btn-back" @click="goBack">← 返回總覽</button>
+          <button class="btn-export" @click="exportList">匯出名單 ↓</button>
         </div>
-        
-        <!--名單-->
-        <div class="registrations-section">
-            <div class="registrations-header">
-                <button @click="exportList" class="btn-export">匯出表單</button>
-            </div>
-            <div v-if="loading" class="loading">載入中...</div>
-            <div v-else class="table-container">
-                <table class="registrations-table">
-                    <thead>
-                        <tr>
-                            <th>報名編號</th>
-                            <th>姓名</th>
-                            <th>會員id</th>
-                            <th>報名時間</th>
-                            <th>繳費狀態</th>
-                            <th>操作</th>
-                            
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="(reg, index) in registrations" :key="reg.id">
-                            <td>{{ index + 1 }}</td>
-                            <td>{{ reg.userName || reg.userId }}</td>
-                            <td>{{ reg.userId }}</td>
-                            <td>{{ formatDateTime(reg.registrationTime) }}</td>
-                            <td>
-                                <span class="payment-badge" :class="`payment-${reg.paymentStatus?.toLowerCase()}`">
-                                    {{getPaymentStatusLabel(reg.paymentStatus)}}
-                                </span>
-                            </td>
-                            <td>
-                                <button @click="cancelRegistration(reg)" class="btn-cancel" :disabled="canceling">取消報名</button>
-                                <button v-if="reg.paymentStatus === 'PENDING'" @click ="sendPaymentReminder(reg)" class ="remind" :disable = "sending">提醒繳費</button>
-                            </td>
-                        </tr>
+      </div>
 
-                    </tbody>
-                </table>
-
-                <!--空狀態-->
-                <div v-if="!loading && registrations.length === 0" class="empty-state">
-                    <p>目前還沒有人報名喔~</p>
-                </div>
-            </div>
+      <!-- ── Activity Info Cards ── -->
+      <div class="info-row" v-if="activity">
+        <div class="info-card">
+          <span class="ic-label mono">LOCATION</span>
+          <span class="ic-val">{{ activity.location || '—' }}</span>
         </div>
-        
+        <div class="info-card">
+          <span class="ic-label mono">START</span>
+          <span class="ic-val mono">{{ formatDateTime(activity.startTime) }}</span>
+        </div>
+        <div class="info-card">
+          <span class="ic-label mono">DEADLINE</span>
+          <span class="ic-val mono">{{ formatDateTime(activity.registrationDeadline) }}</span>
+        </div>
+        <div class="info-card" :class="{ 'ic-pink': activity.feeAmount > 0 }">
+          <span class="ic-label mono">FEE</span>
+          <span class="ic-val mono">{{ activity.feeAmount > 0 ? `NT$ ${activity.feeAmount}` : '免費' }}</span>
+        </div>
+      </div>
 
+      <!-- ── Capacity Bar ── -->
+      <div class="capacity-section" v-if="activity">
+        <div class="cap-header">
+          <span class="cap-label mono">REGISTRATION PROGRESS</span>
+          <span class="cap-count mono">
+            <span class="cap-num" :class="{ 'num-warn': progressPercentage >= 80 }">{{ registrations.length }}</span>
+            <span class="cap-sep"> / </span>
+            <span>{{ activity.maxParticipants || '無上限' }}</span>
+            <span v-if="activity.maxParticipants" class="cap-pct"> ({{ progressPercentage }}%)</span>
+          </span>
+        </div>
+        <div class="cap-bar" v-if="activity.maxParticipants">
+          <div class="cap-fill" :class="{ 'fill-warn': progressPercentage >= 80, 'fill-full': progressPercentage >= 100 }"
+               :style="{ width: Math.min(progressPercentage, 100) + '%' }"></div>
+        </div>
+      </div>
+
+      <!-- ── Registration Table ── -->
+      <div class="table-section">
+
+        <!-- Stats pills -->
+        <div class="table-meta">
+          <div class="meta-pill">
+            <span class="mp-num">{{ registrations.length }}</span>
+            <span class="mp-label mono">TOTAL</span>
+          </div>
+          <div class="meta-pill pink">
+            <span class="mp-num">{{ paidCount }}</span>
+            <span class="mp-label mono">PAID</span>
+          </div>
+          <div class="meta-pill warn">
+            <span class="mp-num">{{ pendingCount }}</span>
+            <span class="mp-label mono">PENDING</span>
+          </div>
+        </div>
+
+        <!-- Empty -->
+        <div class="empty-state" v-if="registrations.length === 0">
+          <div class="empty-big">EMPTY</div>
+          <p class="empty-desc">目前還沒有人報名</p>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap" v-else>
+          <table class="reg-table">
+            <thead>
+              <tr>
+                <th class="th-num">#</th>
+                <th>姓名</th>
+                <th>會員 ID</th>
+                <th>報名時間</th>
+                <th class="th-center">繳費狀態</th>
+                <th class="th-center">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(reg, index) in registrations"
+                :key="reg.id"
+                class="reg-row"
+                :style="{ animationDelay: (index * 0.03) + 's' }"
+              >
+                <td class="td-num mono">{{ String(index + 1).padStart(2, '0') }}</td>
+                <td class="td-name">{{ reg.userName || '—' }}</td>
+                <td class="td-id mono">{{ reg.userId }}</td>
+                <td class="td-time mono">{{ formatDateTime(reg.registrationTime) }}</td>
+                <td class="td-center">
+                  <span class="pay-badge" :class="reg.paymentStatus?.toLowerCase()">
+                    {{ getPaymentStatusLabel(reg.paymentStatus) }}
+                  </span>
+                </td>
+                <td class="td-center">
+                  <div class="action-group">
+                    <button
+                      v-if="reg.paymentStatus === 'PENDING'"
+                      class="act-btn remind"
+                      @click="sendPaymentReminder(reg)"
+                      :disabled="sending"
+                    >提醒繳費</button>
+                    <button
+                      class="act-btn cancel"
+                      @click="cancelRegistration(reg)"
+                      :disabled="canceling"
+                    >取消報名</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-footer mono" v-if="registrations.length > 0">
+          SHOWING {{ registrations.length }} REGISTRATIONS
+        </div>
+      </div>
 
     </div>
 
+    <!-- ── Toast ── -->
+    <Teleport to="body">
+      <div v-if="toast.show" class="toast" :class="toast.type">{{ toast.message }}</div>
+    </Teleport>
+
+  </div>
 </template>
+
 <script setup>
-import { activityApi } from '@/api/activity';
-import { registrationApi } from '@/api/registration';
-import { callWithAsyncErrorHandling, computed, onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { activityApi } from '@/api/activity'
+import { registrationApi } from '@/api/registration'
 
+const route = useRoute()
+const router = useRouter()
 
-const route = useRoute();
-const router = useRouter();
+const activity = ref(null)
+const registrations = ref([])
+const loading = ref(false)
+const canceling = ref(false)
+const sending = ref(false)
+const toast = ref({ show: false, message: '', type: '' })
 
-//資料
-const activity = ref(null);
-const registrations = ref([]);
-const loading = ref(false);
-const canceling = ref(false);
-const sending = ref(false);
+const activityId = route.params.activityId
 
-//從路由取得活動id
-const activityId = route.params.activityId;
-
-//載入活動資料
-const loadActivity = async() => {
-    try{
-        
-        const response = await activityApi.getActivityDetails(activityId);
-        activity.value = response.data;
-        console.log('活動資訊：',activity.value);
-    }
-    catch(error){
-        console.log('載入活動失敗',error);
-        alert('載入活動失敗，請稍後在試..');
-    }
+// Navbar scroll
+const navHidden = ref(false)
+let lastY = 0
+const onScroll = () => {
+  const y = window.scrollY
+  navHidden.value = y > lastY && y > 60
+  lastY = y
 }
-
-//載入報名資料
-const loadRegistrations = async () => {
-    try{
-        const response = await registrationApi.getActivityRegistrations(activityId);
-        registrations.value = response.data;
-        console.log('報名資訊：',registrations.value);
-    }
-    catch(error){
-        console.log('載入報名資料失敗',error);
-        alert('載入報名資料失敗，請稍後在試..');
-    }
-}
-
-//載入所有資料
-const loadData = async () => {
-    loading.value = true;
-    try{
-        await Promise.all(
-            [loadActivity(),
-            loadRegistrations()]
-        )
-    }
-    finally{
-        loading.value = false;
-    }
-}
-
-//計算報名進度百分比
-const progressPercentage = computed(() => {
-    if(!activity.value || !activity.value.maxParticipants){
-        return 0;
-    }
-
-    return Math.round((registrations.value.length/activity.value.maxParticipants)*100)
-})
-
-//格式化時間
-const formatDateTime = (dateTime) => {
-   if (!dateTime) return '-';
-
-    const date = new Date(dateTime);
-   //格式化成 2026/01/08 19:00
-   return date.toLocaleString('zh-TW', {
-       year: 'numeric',
-       month: '2-digit',
-       day: '2-digit',
-       hour: '2-digit',
-       minute: '2-digit',
-   });
-}
-
-// 格式化繳費狀態
-const getPaymentStatusLabel = (status) => {
-  const labels = {
-    'NOT_REQUIRED': '無須繳費',
-    'PENDING': '待繳費',
-    'PAID': '已繳費',
-    'CANCELLED': '已取消',
-    'REFUNDED': '已退款',
-    'PARTIAL_REFUNDED': '部分退款'
-  }
-  return labels[status] || status
-}
-
-//返回列表
-const goBack = () => {
-    router.push({name: 'registrations-overview-container'});
-}
-
-//取消報名
-const cancelRegistration = async (registration) => {
-    if (!confirm(`確定要取消 ${registration.userId} 的報名嗎？`)) {
-    return
-  }
-  canceling.value = true;
-  try{
-    await registrationApi.cancel(registration.id);
-    alert('取消報名成功');
-    //重新載入名單
-    await loadRegistrations();
-  }
-  catch(error){
-    console.log('取消報名失敗',error);
-    alert('取消報名失敗')
-
-  }
-  finally{
-    canceling.value = false;
-  }
-
-}
-//提醒繳費
-const sendPaymentReminder = async (registration) => {
-  if (!confirm(`確定要發送繳費提醒給 ${registration.userId}嗎?`)) {
-    return
-    
-  }
-
-  sending.value = true;
-  try {
-    await registrationApi.sendPaymentReminder(registration.id);
-    alert('繳費提醒已發送');
-    
-  } catch (error) {
-    console.error('發送繳費提醒失敗', error);
-    alert('發送失敗，請稍後再試');
-    
-    
-  }finally{
-    sending.value =false;
-  }
-  
-}
-
-
-// 匯出名單（先留空，未來實作）
-const exportList = () => {
-  alert('匯出功能開發中...')
-}
-
 onMounted(() => {
-    loadData();
+  window.addEventListener('scroll', onScroll, { passive: true })
+  loadData()
 })
+onUnmounted(() => window.removeEventListener('scroll', onScroll))
+
+const loadActivity = async () => {
+  const res = await activityApi.getActivityDetails(activityId)
+  activity.value = res.data
+}
+const loadRegistrations = async () => {
+  const res = await registrationApi.getActivityRegistrations(activityId)
+  registrations.value = res.data || []
+}
+const loadData = async () => {
+  loading.value = true
+  try { await Promise.all([loadActivity(), loadRegistrations()]) }
+  catch (e) { console.error('載入失敗:', e) }
+  finally { loading.value = false }
+}
+
+// Computed
+const progressPercentage = computed(() => {
+  if (!activity.value?.maxParticipants) return 0
+  return Math.round((registrations.value.length / activity.value.maxParticipants) * 100)
+})
+const paidCount = computed(() => registrations.value.filter(r => r.paymentStatus === 'PAID').length)
+const pendingCount = computed(() => registrations.value.filter(r => r.paymentStatus === 'PENDING').length)
+
+// Actions
+const goBack = () => router.push({ name: 'registrations-overview-container' })
+const exportList = () => alert('匯出功能開發中...')
+
+const cancelRegistration = async (reg) => {
+  if (!confirm(`確定要取消 ${reg.userName || reg.userId} 的報名嗎？`)) return
+  canceling.value = true
+  try {
+    await registrationApi.cancel(reg.id)
+    await loadRegistrations()
+    showToast('取消報名成功', 'success')
+  } catch (e) {
+    showToast(e.response?.data?.message || '取消失敗', 'error')
+  } finally { canceling.value = false }
+}
+
+const sendPaymentReminder = async (reg) => {
+  if (!confirm(`確定要發送繳費提醒給 ${reg.userName || reg.userId}？`)) return
+  sending.value = true
+  try {
+    await registrationApi.sendPaymentReminder(reg.id)
+    showToast('繳費提醒已發送', 'success')
+  } catch (e) {
+    showToast(e.response?.data?.message || '發送失敗', 'error')
+  } finally { sending.value = false }
+}
+
+// Helpers
+const formatDateTime = (dt) => {
+  if (!dt) return '—'
+  const d = new Date(dt)
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+}
+const getPaymentStatusLabel = (s) =>
+  ({ NOT_REQUIRED: '無須繳費', PENDING: '待繳費', PAID: '已繳費', CANCELLED: '已取消', REFUNDED: '已退款', PARTIAL_REFUNDED: '部分退款' })[s] || s || '—'
+
+let toastTimer = null
+function showToast(msg, type = 'success') {
+  toast.value = { show: true, message: msg, type }
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toast.value.show = false }, 2800)
+}
 </script>
+
 <style scoped>
-.registration-detail-container {
-  padding: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
 
-/* 返回按鈕 */
-.btn-back {
-  padding: 10px 20px;
-  background: #f5f5f5;
-  color: #333;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  margin-bottom: 24px;
-  transition: all 0.2s;
-}
+* { box-sizing: border-box; }
+.rd-wrap { min-height: 100vh; background: #fff; font-family: 'Noto Sans TC', sans-serif; color: #0a0a0a; }
+.mono { font-family: 'Space Mono', monospace; }
 
-.btn-back:hover {
-  background: #e0e0e0;
-  transform: translateX(-4px);
-}
+/* Navbar */
+.navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 1rem 3rem; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.08); transform: translateY(0); transition: transform 0.3s ease; }
+.navbar-hidden { transform: translateY(-100%); }
+.nav-inner { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+.nav-logo { font-family: 'Space Mono', monospace; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.18em; color: #0a0a0a; text-decoration: none; }
+.nav-logo:hover { color: #ff2d6b; }
+.nav-crumb { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.15em; color: #aaa; }
 
-/* 載入狀態 */
-.loading {
-  text-align: center;
-  padding: 60px;
-  font-size: 18px;
-  color: #666;
-}
+/* State */
+.state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; gap: 1rem; }
+.loading-bars { display: flex; gap: 4px; }
+.loading-bars span { display: block; width: 3px; height: 28px; background: #ff2d6b; border-radius: 2px; animation: barPulse 0.8s ease-in-out infinite alternate; }
+@keyframes barPulse { from { transform: scaleY(0.3); opacity: 0.3; } to { transform: scaleY(1); opacity: 1; } }
+.state-label { font-size: 0.68rem; letter-spacing: 0.2em; color: #aaa; margin: 0; }
 
-/* 活動資訊卡片 */
-.activity-card {
-  background: white;
-  padding: 32px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 32px;
-}
+/* Content */
+.rd-content { max-width: 1400px; margin: 0 auto; padding: 8rem 3rem 4rem; }
 
-.activity-card h2 {
-  margin: 0 0 24px 0;
-  color: #333;
-  font-size: 28px;
-}
+/* Header */
+.page-header { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 2rem; margin-bottom: 2rem; border-bottom: 2px solid #0a0a0a; gap: 2rem; flex-wrap: wrap; }
+.eyebrow { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
+.eyebrow-line { display: block; width: 24px; height: 2px; background: #ff2d6b; }
+.eyebrow-text { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.2em; color: #ff2d6b; }
+.page-title { font-family: 'Bebas Neue', sans-serif; font-size: 3.2rem; letter-spacing: 0.06em; line-height: 1.1; margin: 0; max-width: 700px; }
 
-.activity-info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  margin-bottom: 32px;
-}
+.header-actions { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; }
+.btn-back { font-family: 'Space Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em; border: 1px solid #e0e0e0; background: transparent; color: #888; padding: 0.65rem 1.25rem; cursor: pointer; transition: all 0.2s; }
+.btn-back:hover { border-color: #0a0a0a; color: #0a0a0a; }
+.btn-export { font-family: 'Space Mono', monospace; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; background: #0a0a0a; color: #fff; border: none; padding: 0.65rem 1.25rem; cursor: pointer; transition: background 0.2s; }
+.btn-export:hover { background: #ff2d6b; }
 
-.info-item {
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  background: #f9f9f9;
-  border-radius: 8px;
-}
+/* Info cards */
+.info-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: #e8e8e8; border: 1px solid #e8e8e8; margin-bottom: 2rem; }
+.info-card { background: #fff; padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.info-card.ic-pink .ic-val { color: #ff2d6b; font-weight: 700; }
+.ic-label { font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.18em; color: #aaa; }
+.ic-val { font-size: 0.92rem; color: #0a0a0a; }
+.ic-val.mono { font-family: 'Space Mono', monospace; font-size: 0.8rem; }
 
-.info-item .label {
-  font-weight: 600;
-  color: #555;
-  min-width: 120px;
-}
+/* Capacity */
+.capacity-section { margin-bottom: 2.5rem; }
+.cap-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+.cap-label { font-size: 0.6rem; letter-spacing: 0.18em; color: #aaa; }
+.cap-count { font-size: 0.78rem; color: #888; }
+.cap-num { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; line-height: 1; color: #0a0a0a; }
+.cap-num.num-warn { color: #ff2d6b; }
+.cap-sep, .cap-pct { color: #ccc; }
+.cap-bar { height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
+.cap-fill { height: 100%; background: #0a0a0a; border-radius: 3px; transition: width 0.6s cubic-bezier(0.16,1,0.3,1); }
+.cap-fill.fill-warn { background: #f59e0b; }
+.cap-fill.fill-full { background: #ff2d6b; }
 
-.info-item .value {
-  color: #333;
-}
+/* Table section */
+.table-section { }
+.table-meta { display: flex; gap: 1rem; margin-bottom: 1.25rem; }
+.meta-pill { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.6rem 1rem; border: 1px solid #f0f0f0; }
+.meta-pill.pink { border-color: #fecdd3; }
+.meta-pill.warn { border-color: #fde68a; }
+.mp-num { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; line-height: 1; color: #0a0a0a; }
+.meta-pill.pink .mp-num { color: #ff2d6b; }
+.meta-pill.warn .mp-num { color: #d97706; }
+.mp-label { font-size: 0.58rem; letter-spacing: 0.15em; color: #aaa; }
 
-/* 報名進度條 */
-.progress-section {
-  margin-top: 24px;
-}
+.empty-state { text-align: center; padding: 5rem 0; }
+.empty-big { font-family: 'Bebas Neue', sans-serif; font-size: 7rem; color: transparent; -webkit-text-stroke: 1px #eee; line-height: 1; }
+.empty-desc { font-size: 0.85rem; color: #aaa; }
 
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  font-weight: 600;
-  color: #333;
-}
+/* Table */
+.table-wrap { overflow-x: auto; border: 1px solid #e8e8e8; }
+.reg-table { width: 100%; border-collapse: collapse; background: #fff; }
+.reg-table thead tr { background: #0a0a0a; }
+.reg-table th { padding: 0.75rem 1rem; text-align: left; font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.15em; color: #fff; font-weight: 400; white-space: nowrap; }
+.th-num { width: 48px; }
+.th-center { text-align: center !important; }
 
-.progress-text {
-  font-size: 18px;
-  color: #2196f3;
-}
+@keyframes rowFadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.reg-row { border-bottom: 1px solid #f5f5f5; animation: rowFadeUp 0.3s ease both; transition: background 0.15s; }
+.reg-row:hover { background: #fafafa; }
+.reg-row:last-child { border-bottom: none; }
+.reg-table td { padding: 0.9rem 1rem; vertical-align: middle; }
 
-.progress-bar {
-  width: 100%;
-  height: 32px;
-  background: #e0e0e0;
-  border-radius: 16px;
-  overflow: hidden;
-  position: relative;
-}
+.td-num { font-size: 0.68rem; color: #ccc; letter-spacing: 0.1em; }
+.td-name { font-weight: 700; font-size: 0.9rem; }
+.td-id { font-size: 0.72rem; color: #888; letter-spacing: 0.06em; }
+.td-time { font-size: 0.72rem; color: #888; letter-spacing: 0.04em; white-space: nowrap; }
+.td-center { text-align: center; }
 
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #4caf50 0%, #66bb6a 100%);
-  transition: width 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 600;
-}
+.pay-badge { font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.06em; padding: 0.25rem 0.75rem; font-weight: 600; display: inline-block; }
+.pay-badge.paid          { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+.pay-badge.pending       { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+.pay-badge.not_required  { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+.pay-badge.cancelled     { background: #fafafa; color: #aaa; border: 1px solid #e8e8e8; }
+.pay-badge.refunded      { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
 
-.progress-fill.progress-high {
-  background: linear-gradient(90deg, #ff9800 0%, #ffa726 100%);
-}
+.action-group { display: flex; gap: 0.4rem; justify-content: center; }
+.act-btn { font-family: 'Space Mono', monospace; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.06em; padding: 0.35rem 0.75rem; border: 1px solid; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.act-btn.remind { border-color: #f59e0b; color: #92400e; background: #fffbeb; }
+.act-btn.remind:hover:not(:disabled) { background: #f59e0b; color: #fff; border-color: #f59e0b; }
+.act-btn.cancel { border-color: #e0e0e0; color: #aaa; background: transparent; }
+.act-btn.cancel:hover:not(:disabled) { border-color: #dc2626; color: #dc2626; }
+.act-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-/* 報名名單區塊 */
-.registrations-section {
-  background: white;
-  padding: 32px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
+.table-footer { margin-top: 1rem; text-align: right; font-size: 0.6rem; letter-spacing: 0.15em; color: #ccc; }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
+/* Toast */
+.toast { position: fixed; bottom: 2.5rem; left: 50%; transform: translateX(-50%); padding: 0.85rem 2rem; font-family: 'Space Mono', monospace; font-size: 0.72rem; letter-spacing: 0.08em; font-weight: 700; border-radius: 0; z-index: 2000; white-space: nowrap; animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1); }
+.toast.success { background: #0a0a0a; color: #fff; }
+.toast.error   { background: #ff2d6b; color: #fff; }
+@keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
-.section-header h3 {
-  margin: 0;
-  color: #333;
-  font-size: 22px;
-}
-
-.btn-export {
-  padding: 10px 20px;
-  background: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s;
-}
-
-.btn-export:hover {
-  background: #45a049;
-  transform: translateY(-2px);
-}
-
-/* 表格 */
-.table-container {
-  overflow-x: auto;
-}
-
-.registrations-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 800px;
-}
-
-.registrations-table th {
-  background: #f5f5f5;
-  padding: 16px;
-  text-align: center;
-  font-weight: 600;
-  color: #333;
-  border-bottom: 2px solid #ddd;
-  white-space: nowrap;
-}
-
-.registrations-table td {
-  padding: 16px;
-  border-bottom: 1px solid #e0e0e0;
-  color: #555;
-  text-align: center;
-  vertical-align: middle;
-}
-
-.registrations-table tbody tr:hover {
-  background: #f9f9f9;
-}
-
-/* 繳費狀態標籤 */
-.payment-badge {
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  display: inline-block;
-}
-
-.payment-not_required {
-  background: #e8f5e9;
-  color: #2e7d32;
-}
-
-.payment-pending {
-  background: #fff3e0;
-  color: #e65100;
-}
-
-.payment-paid {
-  background: #e3f2fd;
-  color: #1565c0;
-}
-
-.payment-cancelled {
-  background: #fce4ec;
-  color: #c2185b;
-}
-
-.payment-refunded {
-  background: #f3e5f5;
-  color: #7b1fa2;
-}
-
-.payment-partial_refunded {
-  background: #f3e5f5;
-  color: #7b1fa2;
-}
-
-/* 取消報名按鈕 */
-.btn-cancel {
-  padding: 6px 16px;
-  background: #f44336;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s;
-}
-
-.btn-cancel:hover:not(:disabled) {
-  background: #d32f2f;
-  transform: translateY(-2px);
-}
-
-.btn-cancel:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-/* 提醒繳費按鈕 */
-.btn-remind {
-    padding: 6px 16px;
-    background: #ff9800;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s;
-    margin-left: 8px;
-}
-
-.btn-remind:hover:not(:disabled) {
-    background: #f57c00;
-    transform: translateY(-2px);
-}
-
-.btn-remind:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-}
-
-/* 空狀態 */
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #999;
-  font-size: 18px;
-}
-
-/* 響應式設計 */
-@media (max-width: 768px) {
-  .activity-info-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .section-header {
-    flex-direction: column;
-    gap: 16px;
-    align-items: flex-start;
-  }
+@media (max-width: 900px) {
+  .info-row { grid-template-columns: repeat(2, 1fr); }
+  .page-header { flex-direction: column; align-items: flex-start; }
+  .rd-content { padding-left: 1.25rem; padding-right: 1.25rem; }
+  .navbar { padding-left: 1.25rem; padding-right: 1.25rem; }
 }
 </style>

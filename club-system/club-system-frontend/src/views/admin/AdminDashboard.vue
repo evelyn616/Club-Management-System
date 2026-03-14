@@ -50,7 +50,7 @@
             
           </div>
            
-          <div class="feature-card active" @click="navigateTo(' /admin/checkin/dashboard')">
+          <div class="feature-card active" @click="navigateTo('/admin/checkin/dashboard')">
             <div class="card-icon">✅</div>
             <h3>查看點名</h3>
             <p>管理活動簽到記錄</p>

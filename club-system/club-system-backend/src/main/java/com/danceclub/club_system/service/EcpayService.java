@@ -4,6 +4,7 @@ import com.danceclub.club_system.config.EcpayConfig;
 import com.danceclub.club_system.dto.EcpayCheckoutRequest;
 import com.danceclub.club_system.dto.EcpayCheckoutResponse;
 import com.danceclub.club_system.model.Payment;
+import com.danceclub.club_system.model.Registration;
 import com.danceclub.club_system.model.enums.PaymentStatus;
 import com.danceclub.club_system.repository.PaymentRepository;
 import com.danceclub.club_system.repository.RegistrationRepository;
@@ -103,6 +104,7 @@ public class EcpayService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new IllegalArgumentException("Payment not found"));
 
+        Registration registration = payment.getRegistration();
         // 儲存綠界交易編號
         payment.setEcpayTradeNo(tradeNo);
         
@@ -114,7 +116,7 @@ public class EcpayService {
             // 付款成功
             payment.setStatus(PaymentStatus.PAID);
             payment.setPaidAt(LocalDateTime.now());
-            registrationRepository.save(payment.getRegistration());
+            registration.setPaymentStatus(PaymentStatus.PAID);
 
             
             // 處理 ATM 或超商付款的額外資訊
@@ -130,11 +132,13 @@ public class EcpayService {
         } else {
             // 付款失敗
             payment.setStatus(PaymentStatus.CANCELLED);
+            registration.setPaymentStatus(PaymentStatus.CANCELLED);
             payment.setFailureReason("RtnCode: " + rtnCode + ", RtnMsg: " + params.get("RtnMsg"));
             payment.setNote("付款失敗 - MerchantTradeNo: " + merchantTradeNo);
         }
 
         paymentRepository.save(payment);
+        registrationRepository.save(registration);
 
         // 回傳 1|OK 給綠界
         return "1|OK";
