@@ -1,1951 +1,770 @@
 <template>
-    <div class="activity-list-container">
-        <h1>活動列表</h1>
-        
-         
-        <!--搜尋和篩選區-->
-        <div class="search-filter">
-            <!-- 基本搜尋 -->
-             <div class="basic-search">
-                <input v-model="searchKeyword" type="text" placeholder="搜尋活動..." @input="handleSearch" class="search-input" />
-                <button @click="handleSearch" class="search-btn">🔍</button>
+  <div class="al-wrap">
 
-             </div>
-
-          
-            <!-- 進階篩選 -->
-             <div class="filters">
-                <!--活動類型-->
-                <div class="filter-group">
-                    <label for="activityTypeFilter">活動類型:</label>
-                    <select v-model="selectedActivityType" id="activityTypeFilter" @change="handleFilterChange">
-                        <option value="">全部</option>
-                        <option value="REGULAR">社課</option>
-                        <option value="SPECIAL">特殊活動</option>
-                        <option value="TRAINING">團練</option>
-                        <option value="PERFORMANCE">演出</option>
-                        <option value="COMPETITION">比賽</option>
-                    </select>
-                </div>
-                <!--舞風標籤-->
-                <div class="filter-group">
-                    <label for="danceStyleFilter">舞風標籤:</label>
-                    <select v-model="selectedDanceStyle" id="danceStyleFilter" @change="handleFilterChange">
-                        <option value="">全部</option>
-                        <option v-for="style in danceStyles" :key="style" :value="style">{{ style }}</option>
-                    </select>
-                </div>
-                <!--活動狀態篩選-->
-                <div class="filter-group">
-                    <label>活動狀態：</label>
-                    <select v-model="selectedStatus" @change="handleFilterChange">
-                        <option value="">全部</option>
-                        <option value="DRAFT">草稿</option>
-                        <option value="SCHEDULE">預約發布</option>
-                        <option value="PUBLISHED">已發布</option>
-                        <option value="COMPLETED">已完成</option>
-                        <option value="CANCELLED">已取消</option>
-                    </select>
-                </div>
-                
-                <button 
-                    @click="openAdvancedFilters" 
-                    class="btn-advanced-filters"
-                    :class="{ 'has-filters': hasAdvancedFilters }"
-                >
-                    <span class="icon">⚙️</span>
-                    <span>進階篩選</span>
-                    <span v-if="hasAdvancedFilters" class="filter-badge">{{ advancedFilterCount }}</span>
-                </button>
-            <!--清除篩選按鈕-->
-            <button v-if="hasActiveFilters" @click="clearFilters" class="clear-btn">清除篩選</button>
-             </div>
-
-        </div>
-    
-        <p v-if="loading">載入中...</p>
-        
-         
-         <button @click="router.push({ name: 'create-activity-container' })" class="btn-create">
-        建立活動
-      </button>
-
-         
-      <!-- 顯示活動列表 -->
-         <table class="activities-table">
-            <thead>
-                <tr>
-                    <th>活動ID</th>
-                    <th>活動標題</th>
-                    <th>開始時間</th>
-                    <th>結束時間</th>
-                    <th>地點</th>
-                    <th>活動類型</th>
-                    <th>費用</th>
-                    <th>狀態</th>
-                    <th>操作</th>
-
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="activity in filteredActivities" :key="activity.id">
-                    <td>{{ activity.id }}</td>
-                    <td>{{ activity.title }}</td>
-                    <td>{{ formatDateTime(activity.startTime) }}</td>
-                    <td>{{ formatDateTime(activity.endTime) }}</td>
-                    <td>{{ activity.location }}</td>
-                    <td>{{ getActivityTypeLabel(activity.activityType) }}</td>
-                    <td>{{ activity.feeAmount }}</td>
-                    <td><span class="status-badge" :class="activity.status.toLowerCase()">{{ getStatusLabel(activity.status) }}</span></td>
-                    <!--操作按鈕-->
-                    <td class="col-actions">
-                        <div class="action-buttons">
-                        <!-- 草稿:可以編輯、發布、刪除 -->
-                            <template v-if="activity.status === 'DRAFT'">
-                                <button 
-                                @click="updateActivity(activity.id)" class="btn-action btn-edit"title="編輯草稿">
-                                <span class="icon">✏️</span>
-                                <span>編輯</span>
-                                </button>
-                                
-                                <button @click="goToPublish(activity.id)"class="btn-action btn-publish"title="發布活動">
-                                <span class="icon">🚀</span>
-                                <span>發布</span>
-                                </button>
-                                
-                                <button @click="deleteDraft(activity.id, activity.title)" class="btn-action btn-delete"title="刪除草稿"
-                                >
-                                <span class="icon">🗑️</span>
-                                <span>刪除</span>
-                                </button>
-                            </template>
-
-                        <!-- 預約發布狀態 -->
-                            <template v-else-if="activity.status === 'SCHEDULE'">
-                                <button 
-                                    @click="updateActivity(activity.id)" 
-                                    class="btn-action btn-edit"
-                                    title="編輯活動"
-                                >
-                                    <span class="icon">✏️</span>
-                                    <span>編輯</span>
-                                </button>
-                                
-                                <button 
-                                    @click="showCancelScheduledDialog(activity)" 
-                                    class="btn-action btn-cancel"
-                                    title="取消活動"
-                                >
-                                    <span class="icon">❌</span>
-                                    <span>取消預約發布</span>
-                                </button>
-                            </template>
-
-                        <!-- 已發布狀態 -->
-                            <template v-else-if="activity.status === 'PUBLISHED'">
-                                <button 
-                                    @click="updateActivity(activity.id)" 
-                                    class="btn-action btn-edit"
-                                    title="編輯活動"
-                                >
-                                    <span class="icon">✏️</span>
-                                    <span>編輯</span>
-                                </button>
-                                
-                                <button 
-                                    @click="showCancelActivityDialog(activity)" 
-                                    class="btn-action btn-cancel"
-                                    title="取消活動"
-                                >
-                                    <span class="icon">❌</span>
-                                    <span>取消</span>
-                                </button>
-                            </template>
-
-                        
-
-                        
-                        </div>
-                       
-                    </td>
-                </tr>
-            </tbody>
-         </table>
-
-          <!-- ✅ 進階篩選彈出視窗 -->
-        <div v-if="showAdvancedModal" class="modal-overlay" @click="closeAdvancedFilters">
-            <div class="modal-content advanced-filters-modal" @click.stop>
-                <!-- 視窗標題 -->
-                <div class="modal-header">
-                    <h2>⚙️ 進階篩選設定</h2>
-                    <button @click="closeAdvancedFilters" class="btn-close">✕</button>
-                </div>
-
-                <!-- 視窗內容 -->
-                <div class="modal-body">
-                    <!-- 時間篩選區 -->
-                    <div class="filter-section">
-                        <h3 class="section-title">📅 時間篩選</h3>
-                        
-                        <!-- 快速時間範圍 -->
-                        <div class="quick-filters">
-                            <button 
-                                v-for="range in quickTimeRanges" 
-                                :key="range.value"
-                                @click="applyQuickTimeRange(range.value)"
-                                class="quick-filter-btn"
-                                :class="{ active: tempFilters.activeQuickRange === range.value }"
-                            >
-                                {{ range.label }}
-                            </button>
-                        </div>
-
-                        <!-- 自訂日期範圍 -->
-                        <div class="date-range-group">
-                            <div class="date-input-group">
-                                <label>開始日期:</label>
-                                <input 
-                                    type="date" 
-                                    v-model="tempFilters.dateFilter.startDate"
-                                    class="date-input"
-                                />
-                            </div>
-
-                            <div class="date-separator">→</div>
-
-                            <div class="date-input-group">
-                                <label>結束日期:</label>
-                                <input 
-                                    type="date" 
-                                    v-model="tempFilters.dateFilter.endDate"
-                                    :min="tempFilters.dateFilter.startDate"
-                                    class="date-input"
-                                />
-                            </div>
-                        </div>
-
-                        <!-- 日期篩選模式 -->
-                        <div class="date-mode-group">
-                            <label class="mode-label">篩選依據:</label>
-                            <div class="radio-options">
-                                <label class="radio-option">
-                                    <input type="radio" value="startTime" v-model="tempFilters.dateFilterMode" />
-                                    <span>活動開始時間</span>
-                                </label>
-                                <label class="radio-option">
-                                    <input type="radio" value="endTime" v-model="tempFilters.dateFilterMode" />
-                                    <span>活動結束時間</span>
-                                </label>
-                                <label class="radio-option">
-                                    <input type="radio" value="createdAt" v-model="tempFilters.dateFilterMode" />
-                                    <span>創建時間</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 排序方式 -->
-                    <div class="filter-section">
-                        <h3 class="section-title">📊 排序方式</h3>
-                        
-                        <div class="sort-options">
-                            <label class="sort-option">
-                                <input type="radio" value="startTime-desc" v-model="tempFilters.sortOrder" />
-                                <div class="option-content">
-                                    <span class="option-icon">📅↓</span>
-                                    <div class="option-text">
-                                        <span class="option-title">開始時間 (新→舊)</span>
-                                        <span class="option-desc">最近的活動優先</span>
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label class="sort-option">
-                                <input type="radio" value="startTime-asc" v-model="tempFilters.sortOrder" />
-                                <div class="option-content">
-                                    <span class="option-icon">📅↑</span>
-                                    <div class="option-text">
-                                        <span class="option-title">開始時間 (舊→新)</span>
-                                        <span class="option-desc">最早的活動優先</span>
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label class="sort-option">
-                                <input type="radio" value="created-desc" v-model="tempFilters.sortOrder" />
-                                <div class="option-content">
-                                    <span class="option-icon">🆕↓</span>
-                                    <div class="option-text">
-                                        <span class="option-title">創建時間 (新→舊)</span>
-                                        <span class="option-desc">最新創建的優先</span>
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label class="sort-option">
-                                <input type="radio" value="created-asc" v-model="tempFilters.sortOrder" />
-                                <div class="option-content">
-                                    <span class="option-icon">🆕↑</span>
-                                    <div class="option-text">
-                                        <span class="option-title">創建時間 (舊→新)</span>
-                                        <span class="option-desc">最早創建的優先</span>
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label class="sort-option">
-                                <input type="radio" value="title-asc" v-model="tempFilters.sortOrder" />
-                                <div class="option-content">
-                                    <span class="option-icon">🔤</span>
-                                    <div class="option-text">
-                                        <span class="option-title">標題 (A→Z)</span>
-                                        <span class="option-desc">按字母順序排列</span>
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- 其他篩選 -->
-                    <div class="filter-section">
-                        <h3 class="section-title">🎯 其他條件</h3>
-                        
-                        <div class="checkbox-options">
-                            <label class="checkbox-option">
-                                <input type="checkbox" v-model="tempFilters.showFullOnly" />
-                                <span>只顯示已額滿的活動</span>
-                            </label>
-
-                            <label class="checkbox-option">
-                                <input type="checkbox" v-model="tempFilters.showFreeOnly" />
-                                <span>只顯示免費活動</span>
-                            </label>
-
-                            <label class="checkbox-option">
-                                <input type="checkbox" v-model="tempFilters.showWithFeeOnly" />
-                                <span>只顯示收費活動</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 視窗底部按鈕 -->
-                <div class="modal-footer">
-                    <button @click="resetAdvancedFilters" class="btn-reset">
-                        <span class="icon">↺</span>
-                        <span>重置</span>
-                    </button>
-                    <div class="action-buttons-modal">
-                        <button @click="closeAdvancedFilters" class="btn-cancel-modal">取消</button>
-                        <button @click="applyAdvancedFilters" class="btn-apply">
-                            <span class="icon">✓</span>
-                            <span>套用篩選</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-         <!--取消對話框-->
-          <div v-if="showCancelDialog" class="modal-overlay" @click="closeCancelDialog">
-            <div class="dialog-content cancel-dialog" @click.stop>
-                <div class="dialog-header">
-                    <h2>⚠️ 確認取消活動</h2>
-                    <button @click="closeCancelDialog" class="btn-close">✕</button>
-                </div>
-
-                <div class="dialog-body">
-                    <div class="warning-message">
-                        <p class="warning-icon">⚠️</p>
-                        <p class="warning-text">確定要取消以下活動嗎?</p>
-                    </div>
-                
-                    <div class="activity-info-box">
-                        <h3>{{ cancelTargetActivity?.title }}</h3>
-                        <div class="info-row">
-                            <span class="label">📅 開始時間:</span>
-                            <span class="value">{{ formatDateTime(cancelTargetActivity?.startTime) }}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">📍 地點:</span>
-                            <span class="value">{{ cancelTargetActivity?.location }}</span>
-                        </div>
-                        <div class="info-row" v-if="cancelTargetActivity?.currentParticipants">
-                            <span class="label">👥 當前報名人數:</span>
-                            <span class="value">{{ cancelTargetActivity.currentParticipants }} 人</span>
-                        </div>
-                    </div>
-
-                    <div class="cancel-reason-section">
-                        <label for="cancelReason">取消原因 (選填):</label>
-                        <textarea 
-                            id="cancelReason" 
-                            v-model="cancelReason" 
-                            placeholder="請說明活動的取消原因,系統會通知已報名的會員..." 
-                            rows="4" 
-                            class="cancel-reason-input"
-                        ></textarea>
-                    </div>
-
-                    <div class="notice-box">
-                        <p class="notice-title">⚠️ 注意事項:</p>
-                        <ul class="notice-list">
-                            <li>取消後無法復原!</li>
-                            <li>已報名的會員將會收到通知</li>
-                            <li>活動狀態將變成「已取消」</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- ✅ 修正:移到 dialog-content 裡面 -->
-                <div class="dialog-actions">
-                    <button @click="closeCancelDialog" class="btn-secondary" :disabled="isProcessing">
-                        返回
-                    </button>
-                    <!-- ✅ 修正:按鈕內容 -->
-                    <button @click="confirmCancelActivity" class="btn-danger" :disabled="isProcessing">
-                        <span v-if="isProcessing">處理中...</span>
-                        <span v-else>確認取消活動</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-         <!-- 刪除確認對話框 -->
-    <div v-if="showDeleteDialog" class="dialog-overlay" @click="cancelDelete">
-      <div class="dialog-content" @click.stop>
-        <div class="dialog-header">
-          <h3>⚠️ 確認刪除</h3>
-        </div>
-        
-        <div class="dialog-body">
-          <p>確定要刪除草稿活動嗎?</p>
-          <p class="activity-name">「{{ deleteTarget.name }}」</p>
-          <p class="warning">此操作無法復原!</p>
-        </div>
-        
-        <div class="dialog-actions">
-          <button @click="cancelDelete" class="btn-cancel">
-            取消
-          </button>
-          <button @click="confirmDelete" class="btn-confirm-delete">
-            確定刪除
-          </button>
+    <!-- Navbar -->
+    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
+      <div class="nav-container">
+        <router-link to="/admin/dashboard" class="nav-logo">管理後台</router-link>
+        <div class="nav-right">
+          <router-link to="/admin/activity-management-container" class="nav-link">← 活動管理</router-link>
         </div>
       </div>
+    </nav>
+
+    <!-- Header -->
+    <div class="al-header">
+      <div class="header-left">
+        <span class="al-eyebrow">ADMIN / ACTIVITIES</span>
+        <h1 class="al-title">活動列表</h1>
+        <p class="al-count" v-if="!loading">
+          <span class="mono">{{ filteredActivities.length }}</span> / {{ activities.length }} 筆活動
+        </p>
+      </div>
+      <button class="btn-create" @click="router.push({ name: 'create-activity-container' })">
+        ＋ 建立活動
+      </button>
     </div>
-    <!-- 取消預約發布對話框 -->
-<div v-if="showCancelScheduledDialogFlag" class="modal-overlay" @click="closeCancelScheduledDialog">
-    <div class="dialog-content cancel-dialog" @click.stop>
-        <div class="dialog-header">
-            <h2>⚠️ 確認取消預約發布</h2>
-            <button @click="closeCancelScheduledDialog" class="btn-close">✕</button>
-        </div>
-        <div class="dialog-body">
-            <p>確定要把活動「{{ cancelScheduledTarget?.title }}」取消預約發布，回到草稿狀態嗎？</p>
-            <div class="activity-info-box">
-                <h3>{{ cancelScheduledTarget?.title }}</h3>
-                <div class="info-row">
-                    <span class="label">📅 開始時間:</span>
-                    <span class="value">{{ formatDateTime(cancelScheduledTarget?.startTime) }}</span>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <div class="search-wrap">
+        <input v-model="searchKeyword" type="text" placeholder="搜尋活動..." class="search-input" @input="handleSearch" />
+        <span class="search-icon">→</span>
+      </div>
+      <div class="filter-selects">
+        <select v-model="selectedActivityType" class="filter-select" @change="handleFilterChange">
+          <option value="">TYPE: ALL</option>
+          <option value="REGULAR">社課</option>
+          <option value="SPECIAL">特殊活動</option>
+          <option value="TRAINING">團練</option>
+          <option value="PERFORMANCE">演出</option>
+          <option value="COMPETITION">比賽</option>
+        </select>
+        <select v-model="selectedDanceStyle" class="filter-select" @change="handleFilterChange">
+          <option value="">STYLE: ALL</option>
+          <option v-for="style in danceStyles" :key="style" :value="style">{{ style }}</option>
+        </select>
+        <select v-model="selectedStatus" class="filter-select" @change="handleFilterChange">
+          <option value="">STATUS: ALL</option>
+          <option value="DRAFT">草稿</option>
+          <option value="SCHEDULE">預約發布</option>
+          <option value="PUBLISHED">已發布</option>
+          <option value="COMPLETED">已完成</option>
+          <option value="CANCELLED">已取消</option>
+        </select>
+      </div>
+      <div class="filter-right">
+        <button class="filter-btn" :class="{ active: hasAdvancedFilters }" @click="openAdvancedFilters">
+          進階篩選 <span v-if="hasAdvancedFilters" class="filter-badge">{{ advancedFilterCount }}</span>
+        </button>
+        <button v-if="hasActiveFilters" class="clear-btn" @click="clearFilters">CLEAR ×</button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div v-if="loading" class="state-box">
+      <div class="loading-bars">
+        <span v-for="i in 5" :key="i" :style="{ animationDelay: (i * 0.1) + 's' }"></span>
+      </div>
+      <p class="mono">LOADING...</p>
+    </div>
+
+    <!-- Empty -->
+    <div v-else-if="filteredActivities.length === 0" class="state-box">
+      <div class="empty-text">EMPTY</div>
+      <p class="empty-desc">找不到符合條件的活動</p>
+      <button v-if="hasActiveFilters" @click="clearFilters" class="cta-btn">清除篩選 ×</button>
+    </div>
+
+    <!-- Table -->
+    <div v-else class="table-wrap">
+      <table class="al-table">
+        <thead>
+          <tr>
+            <th class="col-id">ID</th>
+            <th class="col-title">標題</th>
+            <th class="col-time">開始時間</th>
+            <th class="col-time">結束時間</th>
+            <th class="col-loc">地點</th>
+            <th class="col-type">類型</th>
+            <th class="col-fee">費用</th>
+            <th class="col-status">狀態</th>
+            <th class="col-actions">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="activity in filteredActivities" :key="activity.id"
+              :class="'row-' + activity.status.toLowerCase()">
+            <td class="col-id mono">{{ activity.id }}</td>
+            <td class="col-title">
+              <span class="activity-title">{{ activity.title }}</span>
+            </td>
+            <td class="col-time mono">{{ formatDateTime(activity.startTime) }}</td>
+            <td class="col-time mono">{{ formatDateTime(activity.endTime) }}</td>
+            <td class="col-loc">{{ activity.location || '—' }}</td>
+            <td class="col-type">
+              <span class="type-tag">{{ getActivityTypeLabel(activity.activityType) }}</span>
+            </td>
+            <td class="col-fee mono">
+              <span v-if="activity.feeAmount > 0" class="fee-amt">NT$ {{ activity.feeAmount }}</span>
+              <span v-else class="fee-free">免費</span>
+            </td>
+            <td class="col-status">
+              <span class="status-badge" :class="'s-' + activity.status.toLowerCase()">
+                {{ getStatusLabel(activity.status) }}
+              </span>
+            </td>
+            <td class="col-actions">
+              <div class="action-group">
+                <!-- 草稿 -->
+                <template v-if="activity.status === 'DRAFT'">
+                  <button class="act-btn edit" @click="updateActivity(activity.id)" title="編輯">編輯</button>
+                  <button class="act-btn publish" @click="goToPublish(activity.id)" title="發布">發布</button>
+                  <button class="act-btn delete" @click="deleteDraft(activity.id, activity.title)" title="刪除">刪除</button>
+                </template>
+                <!-- 預約發布 -->
+                <template v-else-if="activity.status === 'SCHEDULE'">
+                  <button class="act-btn edit" @click="updateActivity(activity.id)">編輯</button>
+                  <button class="act-btn cancel" @click="showCancelScheduledDialog(activity)">取消預約</button>
+                </template>
+                <!-- 已發布 -->
+                <template v-else-if="activity.status === 'PUBLISHED'">
+                  <button class="act-btn edit" @click="updateActivity(activity.id)">編輯</button>
+                  <button class="act-btn cancel" @click="showCancelActivityDialog(activity)">取消</button>
+                </template>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ===== 進階篩選 Modal ===== -->
+    <Teleport to="body">
+      <div v-if="showAdvancedModal" class="modal-overlay" @click.self="closeAdvancedFilters">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h2 class="modal-title">進階篩選</h2>
+            <button class="modal-close" @click="closeAdvancedFilters">×</button>
+          </div>
+          <div class="modal-body">
+
+            <!-- 時間篩選 -->
+            <div class="modal-section">
+              <p class="section-label">TIME RANGE</p>
+              <div class="quick-pills">
+                <button v-for="range in quickTimeRanges" :key="range.value"
+                        class="pill" :class="{ active: tempFilters.activeQuickRange === range.value }"
+                        @click="applyQuickTimeRange(range.value)">
+                  {{ range.label }}
+                </button>
+              </div>
+              <div class="date-row">
+                <div class="date-field">
+                  <label class="field-label">開始日期</label>
+                  <input type="date" v-model="tempFilters.dateFilter.startDate" class="date-input" />
                 </div>
-                <div class="info-row">
-                    <span class="label">📍 地點:</span>
-                    <span class="value">{{ cancelScheduledTarget?.location }}</span>
+                <span class="date-sep">—</span>
+                <div class="date-field">
+                  <label class="field-label">結束日期</label>
+                  <input type="date" v-model="tempFilters.dateFilter.endDate"
+                         :min="tempFilters.dateFilter.startDate" class="date-input" />
                 </div>
+              </div>
+              <div class="radio-row">
+                <label class="radio-label">篩選依據：</label>
+                <label class="radio-opt"><input type="radio" value="startTime" v-model="tempFilters.dateFilterMode" /> 開始時間</label>
+                <label class="radio-opt"><input type="radio" value="endTime" v-model="tempFilters.dateFilterMode" /> 結束時間</label>
+                <label class="radio-opt"><input type="radio" value="createdAt" v-model="tempFilters.dateFilterMode" /> 創建時間</label>
+              </div>
             </div>
+
+            <!-- 排序 -->
+            <div class="modal-section">
+              <p class="section-label">SORT BY</p>
+              <div class="sort-grid">
+                <label v-for="opt in sortOptions" :key="opt.value" class="sort-card"
+                       :class="{ active: tempFilters.sortOrder === opt.value }">
+                  <input type="radio" :value="opt.value" v-model="tempFilters.sortOrder" style="display:none" />
+                  <span class="sort-title">{{ opt.label }}</span>
+                  <span class="sort-desc">{{ opt.desc }}</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 其他條件 -->
+            <div class="modal-section">
+              <p class="section-label">OTHER</p>
+              <div class="check-group">
+                <label class="check-opt"><input type="checkbox" v-model="tempFilters.showFullOnly" /> 只顯示已額滿</label>
+                <label class="check-opt"><input type="checkbox" v-model="tempFilters.showFreeOnly" /> 只顯示免費活動</label>
+                <label class="check-opt"><input type="checkbox" v-model="tempFilters.showWithFeeOnly" /> 只顯示收費活動</label>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="modal-btn reset" @click="resetAdvancedFilters">↺ 重置</button>
+            <div class="modal-footer-right">
+              <button class="modal-btn cancel" @click="closeAdvancedFilters">取消</button>
+              <button class="modal-btn apply" @click="applyAdvancedFilters">套用</button>
+            </div>
+          </div>
         </div>
-        <div class="dialog-actions">
-            <button @click="closeCancelScheduledDialog" class="btn-secondary">返回</button>
-            <button @click="confirmCancelScheduledPublish" class="btn-danger" :disabled="isProcessing">
-                <span v-if="isProcessing">處理中...</span>
-                <span v-else>確認取消預約發布</span>
+      </div>
+    </Teleport>
+
+    <!-- ===== 取消活動 Dialog ===== -->
+    <Teleport to="body">
+      <div v-if="showCancelDialog" class="modal-overlay" @click.self="closeCancelDialog">
+        <div class="dialog-box">
+          <div class="dialog-header">
+            <h2 class="dialog-title">取消活動</h2>
+            <button class="modal-close" @click="closeCancelDialog">×</button>
+          </div>
+          <div class="dialog-body">
+            <p class="dialog-warn">確定要取消以下活動嗎？此操作無法復原。</p>
+            <div class="activity-info-card">
+              <p class="info-name">{{ cancelTargetActivity?.title }}</p>
+              <p class="info-meta mono">{{ formatDateTime(cancelTargetActivity?.startTime) }} · {{ cancelTargetActivity?.location }}</p>
+            </div>
+            <label class="field-label" style="margin-top:1rem;display:block">取消原因（選填）</label>
+            <textarea v-model="cancelReason" class="reason-textarea"
+                      placeholder="請說明取消原因，系統將通知已報名的會員..." rows="3"></textarea>
+            <div class="notice-list">
+              <p>· 取消後無法復原</p>
+              <p>· 已報名的會員將收到通知</p>
+              <p>· 活動狀態將變為「已取消」</p>
+            </div>
+          </div>
+          <div class="dialog-footer">
+            <button class="modal-btn cancel" @click="closeCancelDialog" :disabled="isProcessing">返回</button>
+            <button class="modal-btn danger" @click="confirmCancelActivity" :disabled="isProcessing">
+              {{ isProcessing ? '處理中...' : '確認取消活動' }}
             </button>
+          </div>
         </div>
-    </div>
-</div>
-</div>
-            
-    
+      </div>
+    </Teleport>
+
+    <!-- ===== 取消預約發布 Dialog ===== -->
+    <Teleport to="body">
+      <div v-if="showCancelScheduledDialogFlag" class="modal-overlay" @click.self="closeCancelScheduledDialog">
+        <div class="dialog-box">
+          <div class="dialog-header">
+            <h2 class="dialog-title">取消預約發布</h2>
+            <button class="modal-close" @click="closeCancelScheduledDialog">×</button>
+          </div>
+          <div class="dialog-body">
+            <p class="dialog-warn">確定要取消預約發布，將活動回到草稿狀態嗎？</p>
+            <div class="activity-info-card">
+              <p class="info-name">{{ cancelScheduledTarget?.title }}</p>
+              <p class="info-meta mono">{{ formatDateTime(cancelScheduledTarget?.startTime) }} · {{ cancelScheduledTarget?.location }}</p>
+            </div>
+          </div>
+          <div class="dialog-footer">
+            <button class="modal-btn cancel" @click="closeCancelScheduledDialog">返回</button>
+            <button class="modal-btn danger" @click="confirmCancelScheduledPublish" :disabled="isProcessing">
+              {{ isProcessing ? '處理中...' : '確認取消預約發布' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ===== 刪除草稿 Dialog ===== -->
+    <Teleport to="body">
+      <div v-if="showDeleteDialog" class="modal-overlay" @click.self="cancelDelete">
+        <div class="dialog-box dialog-sm">
+          <div class="dialog-header">
+            <h2 class="dialog-title">刪除草稿</h2>
+            <button class="modal-close" @click="cancelDelete">×</button>
+          </div>
+          <div class="dialog-body">
+            <p class="dialog-warn">確定要刪除以下草稿嗎？此操作無法復原。</p>
+            <div class="activity-info-card">
+              <p class="info-name">「{{ deleteTarget.name }}」</p>
+            </div>
+          </div>
+          <div class="dialog-footer">
+            <button class="modal-btn cancel" @click="cancelDelete">取消</button>
+            <button class="modal-btn danger" @click="confirmDelete">確定刪除</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { activityApi } from '@/api/activity'
 
+const router = useRouter()
+const route = useRoute()
 
-const router = useRouter();
+// ===== Navbar scroll hide =====
+const navHidden = ref(false)
+let lastScrollY = 0
+const handleScroll = () => {
+  const current = window.scrollY
+  navHidden.value = current > lastScrollY && current > 60
+  lastScrollY = current
+}
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  loadActivities()
+  // 支援從 ActivityManagement 帶入 status query
+  if (route.query.status) selectedStatus.value = route.query.status
+})
+onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 
-//建立資料參數
-//狀態
+// ===== State =====
 const activities = ref([])
 const loading = ref(false)
 const isProcessing = ref(false)
-//基本篩選
+
 const searchKeyword = ref('')
-const selectedStatus = ref('');
+const selectedStatus = ref('')
 const selectedActivityType = ref('')
 const selectedDanceStyle = ref('')
-//進階篩選
-const showAdvancedModal = ref(false);
+
+const showAdvancedModal = ref(false)
 const advancedFilters = ref({
-    dateFilter: {
-        startDate: '',
-        endDate: ''
-    },
-    dateFilterMode: 'startTime',
-    sortOrder: 'startTime-desc',
-    activeQuickRange: '',
-    showFullOnly: false,
-    showFreeOnly: false,
-    showWithFeeOnly: false
+  dateFilter: { startDate: '', endDate: '' },
+  dateFilterMode: 'startTime',
+  sortOrder: 'startTime-desc',
+  activeQuickRange: '',
+  showFullOnly: false, showFreeOnly: false, showWithFeeOnly: false
 })
-// ✅ 臨時篩選 (在彈窗中修改)
-const tempFilters = ref({
-    dateFilter: {
-        startDate: '',
-        endDate: ''
-    },
-    dateFilterMode: 'startTime',
-    sortOrder: 'startTime-desc',
-    activeQuickRange: '',
-    showFullOnly: false,
-    showFreeOnly: false,
-    showWithFeeOnly: false
-})
+const tempFilters = ref(JSON.parse(JSON.stringify(advancedFilters.value)))
 
-//快速時間範圍
-const quickTimeRanges =[
-    {value: 'today', label: '今天'},
-    {value: 'tomorrow', label: '明天'},
-    {value: 'nextWeek', label: '下週'},
-    {value: 'thisWeek', label: '本週'},
-    {value: 'thisMonth', label: '本月'},
-    {value: 'nextMonth', label: '下個月'},
-    {value: 'past7days', label: '過去七天'},
-    {value: 'past30days', label: '過去30天'},
+const showDeleteDialog = ref(false)
+const deleteTarget = ref({ id: null, name: '' })
+const showCancelDialog = ref(false)
+const cancelTargetActivity = ref(null)
+const cancelReason = ref('')
+const showCancelScheduledDialogFlag = ref(false)
+const cancelScheduledTarget = ref(null)
+
+// ===== Data =====
+const quickTimeRanges = [
+  { value: 'today', label: '今天' }, { value: 'tomorrow', label: '明天' },
+  { value: 'thisWeek', label: '本週' }, { value: 'nextWeek', label: '下週' },
+  { value: 'thisMonth', label: '本月' }, { value: 'nextMonth', label: '下個月' },
+  { value: 'past7days', label: '過去 7 天' }, { value: 'past30days', label: '過去 30 天' }
 ]
-//刪除
-const showDeleteDialog = ref(false);
-const deleteTarget = ref({id: null, name: ''});
-//取消
-const showCancelDialog = ref(false);
-const cancelTargetActivity = ref(null);
-const cancelReason = ref('');
+const sortOptions = [
+  { value: 'startTime-desc', label: '開始時間 新→舊', desc: '最近的活動優先' },
+  { value: 'startTime-asc',  label: '開始時間 舊→新', desc: '最早的活動優先' },
+  { value: 'created-desc',   label: '創建時間 新→舊', desc: '最新創建的優先' },
+  { value: 'created-asc',    label: '創建時間 舊→新', desc: '最早創建的優先' },
+  { value: 'title-asc',      label: '標題 A→Z',       desc: '按字母順序' }
+]
+const danceStyles = ['Hip Hop','Jazz','Popping','Locking','Breaking','House','Waacking','Voguing','Urban','K-pop','Freestyle']
 
-// 取消預約發布對話框相關
-const showCancelScheduledDialogFlag = ref(false);
-const cancelScheduledTarget = ref(null);
-
-//載入活動資料
+// ===== Load =====
 const loadActivities = async () => {
-    loading.value = true//開始載入
-    try {
-        const response = await activityApi.getAllActivities()
-        activities.value = response.data
-        console.log('活動列表:', activities.value);
-    } catch (error) {
-        console.error('載入活動資料失敗:', error)
-        alert('載入活動資料失敗，請稍後再試。')
-    }
-    finally {
-        loading.value = false//結束載入
-    }
+  loading.value = true
+  try {
+    const response = await activityApi.getAllActivities()
+    activities.value = response.data
+  } catch (error) {
+    console.error('載入活動資料失敗:', error)
+    alert('載入活動資料失敗，請稍後再試。')
+  } finally {
+    loading.value = false
+  }
 }
 
-const showCancelScheduledDialog = (activity) => {
-    cancelScheduledTarget.value = activity;
-    showCancelScheduledDialogFlag.value = true;
-}
-
-const closeCancelScheduledDialog = () => {
-    showCancelScheduledDialogFlag.value = false;
-    cancelScheduledTarget.value = null;
-}
-
-// 確認取消預約發布
-const confirmCancelScheduledPublish = async () => {
-    if (!cancelScheduledTarget.value) return;
-
-    if (!confirm(`確定要取消預約發布「${cancelScheduledTarget.value.title}」嗎？`)) return;
-
-    isProcessing.value = true;
-
-    try {
-        
-        await activityApi.cancelScheduledPublish(cancelScheduledTarget.value.id);
-
-        // 2️⃣ 更新本地列表
-        const activity = activities.value.find(a => a.id === cancelScheduledTarget.value.id);
-        if (activity) {
-            activity.status = 'DRAFT';
-            
-        }
-
-        alert(`✅ 活動「${cancelScheduledTarget.value.title}」已回到草稿狀態`);
-        closeCancelScheduledDialog();
-    } catch (error) {
-        console.error('取消預約發布失敗:', error);
-        alert('❌ 取消預約發布失敗，請稍後再試。');
-    } finally {
-        isProcessing.value = false;
-    }
-}
-
-// ========== 單一操作：取消活動 ==========
-
-const showCancelActivityDialog = (activity) => {
-    cancelTargetActivity.value = activity;
-    cancelReason.value = '';
-    showCancelDialog.value = true
-}
-
-const closeCancelDialog = () => {
-    showCancelDialog.value = false
-    cancelTargetActivity.value = null
-}
-
-const confirmCancelActivity = async () => {
-    if (!cancelTargetActivity.value) return;
-    
-    if(!confirm(`確定要取消活動「${cancelTargetActivity.value.title}」嗎?`)) {
-        return;
-    }
-    isProcessing.value = true
-    
-    try {
-        await activityApi.cancelActivity(cancelTargetActivity.value.id, {
-            reason: cancelReason.value || '管理員取消活動'
-        });
-        alert(`✅ 活動「${cancelTargetActivity.value.title}」已取消！`)
-        
-        // 更新狀態
-        const activity = activities.value.find(a => a.id === cancelTargetActivity.value.id)
-        if (activity) {
-            activity.status = 'CANCELLED';
-            activity.cancelReason = cancelReason.value || '管理員取消活動'
-
-        }
-        
-        closeCancelDialog();
-        
-    } catch (error) {
-        console.error('取消活動失敗:', error)
-        alert('❌ 取消活動失敗，請稍後再試。')
-    } finally {
-        isProcessing.value = false
-    }
-}
-
-
-
-// ========== 導航功能 ==========
-
-//編輯草稿快捷
-const updateActivity = (activityId) => {
-  console.log('編輯草稿 ID:', activityId);
-  router.push(`/admin/update-activity-container/${activityId}`);
-};
-
-//跳轉到發布頁面
-const goToPublish = (activityId) => {
-  console.log('前往發布頁面,活動 ID:', activityId);
-  router.push({
-    name: 'publish-activity-container',
-    params: { activityId }
-  });
-};
-
-
-
-//刪除草稿(顯示提示對話框)
-const deleteDraft = (activityId, activityName) =>{
-    deleteTarget.value = {
-        id: activityId,
-        name: activityName
-    }
-    showDeleteDialog.value = true;
-} 
-
-//取消刪除
-const cancelDelete = () =>{
-    showDeleteDialog.value = false;
-    deleteTarget.value = {
-        id: null,
-        name: ''
-    }
-    
-}
-//確認刪除
-const confirmDelete = async() => {
-    const activityId = deleteTarget.value.id;
-
-    try{
-        console.log('刪除草稿 ID:', activityId);
-        await activityApi.deleteDraftActivity(activityId);
-        alert("草稿已刪除")
-
-        // 從列表中移除
-        activities.value = activities.value.filter(activity => activity.id !== activityId);
-        showDeleteDialog.value = false
-        deleteTarget.value = {
-            id: null,
-            name: ''
-
-        }
-
-    }
-    catch(error){
-        console.log('刪除草稿 ID:',activityId,'失敗');
-        if(error.response?.status === 403){
-            alert("沒有權限刪除此草稿");
-        }
-        else if(error.response?.status === 404){
-            alert("此草稿不存在");
-        }
-        else if(error.response?.status === 400){
-            alert("只能刪除草稿狀態的活動");
-        }
-        else{
-            alert("刪除失敗，請稍後在試..")
-        }
-
-    }
-
-}
-
-//標準化舞風標籤
-const normalizeText = (text) => {
-    if (!text) return '';
-    return text
-        .toLowerCase()
-        .replace(/[\s-_]+/g, '') // 將多個空格替換為單個空格
-        .trim(); // 去除前後空格
-}
-
-// ============ 計算屬性 ============
-
-// 是否有啟用篩選
-const hasActiveFilters = computed(() => {
-    return searchKeyword.value || 
-           selectedStatus.value || 
-           selectedActivityType.value || 
-           selectedDanceStyle.value ||
-           hasAdvancedFilters.value
-})
-
-// ✅ 是否有啟用進階篩選
-const hasAdvancedFilters = computed(() => {
-    return advancedFilters.value.dateFilter.startDate ||
-           advancedFilters.value.dateFilter.endDate ||
-           advancedFilters.value.sortOrder !== 'startTime-desc' ||
-           advancedFilters.value.showFullOnly ||
-           advancedFilters.value.showFreeOnly ||
-           advancedFilters.value.showWithFeeOnly
-})
-
-// ✅ 進階篩選數量
+// ===== Computed =====
+const hasActiveFilters = computed(() =>
+  searchKeyword.value || selectedStatus.value || selectedActivityType.value ||
+  selectedDanceStyle.value || hasAdvancedFilters.value
+)
+const hasAdvancedFilters = computed(() =>
+  advancedFilters.value.dateFilter.startDate || advancedFilters.value.dateFilter.endDate ||
+  advancedFilters.value.sortOrder !== 'startTime-desc' ||
+  advancedFilters.value.showFullOnly || advancedFilters.value.showFreeOnly || advancedFilters.value.showWithFeeOnly
+)
 const advancedFilterCount = computed(() => {
-    let count = 0
-    if (advancedFilters.value.dateFilter.startDate || advancedFilters.value.dateFilter.endDate) count++
-    if (advancedFilters.value.sortOrder !== 'startTime-desc') count++
-    if (advancedFilters.value.showFullOnly) count++
-    if (advancedFilters.value.showFreeOnly) count++
-    if (advancedFilters.value.showWithFeeOnly) count++
-    return count
+  let c = 0
+  if (advancedFilters.value.dateFilter.startDate || advancedFilters.value.dateFilter.endDate) c++
+  if (advancedFilters.value.sortOrder !== 'startTime-desc') c++
+  if (advancedFilters.value.showFullOnly) c++
+  if (advancedFilters.value.showFreeOnly) c++
+  if (advancedFilters.value.showWithFeeOnly) c++
+  return c
 })
 
-//篩選後的活動列表
+const normalizeText = (text) => !text ? '' : text.toLowerCase().replace(/[\s-_]+/g, '').trim()
+
 const filteredActivities = computed(() => {
-    let result = [...activities.value];//複製原始資料
-    const now = new Date();
-
-    //狀態篩選
-    if(selectedStatus.value){
-        result = result.filter(activity => activity.status === selectedStatus.value)
-    }
-
-    //關鍵字搜尋
-    if (searchKeyword.value) {
-        const keyword = normalizeText(searchKeyword.value);
-        result = result.filter(activity =>{
-            const title = normalizeText(activity.title);
-            const desc = normalizeText(activity.description);
-            return title.includes(keyword) || (activity.description && desc.includes(keyword));
-        }
-            
-        );
-    }
-    
-    //活動類型篩選
-    if (selectedActivityType.value) {
-        result = result.filter(activity =>
-            activity.activityType === selectedActivityType.value
-        );
-    }
-
-    //舞風標籤篩選
-    if (selectedDanceStyle.value) {
-        const style = normalizeText(selectedDanceStyle.value);
-        result = result.filter(activity => {
-            const title = normalizeText(activity.title);
-            const desc = normalizeText(activity.description);
-            return title.includes(style) || (activity.description && desc.includes(style));
-        });
-    }
-    //時間範圍篩選
-    if(advancedFilters.value.dateFilter.startDate || advancedFilters.value.endDate){
-        result = result.filter(activity => {
-            let activityDate;
-            switch(advancedFilters.value.dateFilterMode){
-                case 'startTime':
-                    activityDate = activity.startTime;
-                    break;
-                case 'endTime':
-                    activityDate = activity.endTime;
-                    break;
-                case 'createdAt':
-                    activityDate = activity.createdAt;
-                    break;
-                default:
-                    activityDate = activity.startTime;
-            }
-
-            if(!activityDate) return false;
-
-            const targetDate = new Date(activityDate);
-            targetDate.setHours(0, 0, 0, 0);
-
-            if(advancedFilters.value.dateFilter.startDate){
-                const startDate = new Date(advancedFilters.value.dateFilter.startDate);
-                startDate.setHours(0, 0, 0, 0);
-                if(targetDate < startDate) return false;
-            }
-
-            if(advancedFilters.value.dateFilter.endDate){
-                const endDate = new Date(advancedFilters.value.dateFilter.endDate);
-                endDate.setHours(23, 59 ,59, 999);
-                if(targetDate > endDate) return false;
-            }
-
-            return true;
-        });
-    }
-
-    //其他篩選
-    if(advancedFilters.value.showFullOnly){
-        result = result.filter(activity => activity.currentParticipants >= activity.maxParticipants);
-    }
-
-    if(advancedFilters.value.showFreeOnly){
-        result = result.filter(activity => activity.feeAmount === 0)
-    }
-    if(advancedFilters.value.showWithFeeOnly){
-        result = result.filter(activity => activity.feeAmount > 0)
-    }
-
-    result.sort((a, b) => {
-        switch(advancedFilters.value.sortOrder) {
-            case 'startTime-desc':
-                return new Date(b.startTime) - new Date(a.startTime)
-            case 'startTime-asc':
-                return new Date(a.startTime) - new Date(b.startTime)
-            case 'created-desc':
-                return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
-            case 'created-asc':
-                return new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
-            case 'title-asc':
-                return (a.title || '').localeCompare(b.title || '')
-            default:
-                return 0
-        }
+  let result = [...activities.value]
+  if (selectedStatus.value) result = result.filter(a => a.status === selectedStatus.value)
+  if (searchKeyword.value) {
+    const kw = normalizeText(searchKeyword.value)
+    result = result.filter(a => normalizeText(a.title).includes(kw) || (a.description && normalizeText(a.description).includes(kw)))
+  }
+  if (selectedActivityType.value) result = result.filter(a => a.activityType === selectedActivityType.value)
+  if (selectedDanceStyle.value) {
+    const style = normalizeText(selectedDanceStyle.value)
+    result = result.filter(a => normalizeText(a.title).includes(style) || (a.description && normalizeText(a.description).includes(style)))
+  }
+  if (advancedFilters.value.dateFilter.startDate || advancedFilters.value.dateFilter.endDate) {
+    result = result.filter(a => {
+      const dateField = { startTime: a.startTime, endTime: a.endTime, createdAt: a.createdAt }[advancedFilters.value.dateFilterMode] || a.startTime
+      if (!dateField) return false
+      const d = new Date(dateField); d.setHours(0,0,0,0)
+      if (advancedFilters.value.dateFilter.startDate) {
+        const s = new Date(advancedFilters.value.dateFilter.startDate); s.setHours(0,0,0,0)
+        if (d < s) return false
+      }
+      if (advancedFilters.value.dateFilter.endDate) {
+        const e = new Date(advancedFilters.value.dateFilter.endDate); e.setHours(23,59,59,999)
+        if (d > e) return false
+      }
+      return true
     })
-    
-
-    return result;
-});
-// ============ 進階篩選功能 ============
-
-// ✅ 開啟進階篩選視窗
-const openAdvancedFilters = () => {
-    tempFilters.value = JSON.parse(JSON.stringify(advancedFilters.value))
-    showAdvancedModal.value = true
-}
-
-// ✅ 關閉進階篩選視窗
-const closeAdvancedFilters = () => {
-    showAdvancedModal.value = false
-}
-
-// ✅ 套用進階篩選
-const applyAdvancedFilters = () => {
-    advancedFilters.value = JSON.parse(JSON.stringify(tempFilters.value))
-    showAdvancedModal.value = false
-    handleFilterChange()
-}
-// ✅ 重置進階篩選
-const resetAdvancedFilters = () => {
-    tempFilters.value = {
-        dateFilter: { startDate: '', endDate: '' },
-        dateFilterMode: 'startTime',
-        sortOrder: 'startTime-desc',
-        activeQuickRange: '',
-        showFullOnly: false,
-        showFreeOnly: false,
-        showWithFeeOnly: false,
+  }
+  if (advancedFilters.value.showFullOnly) result = result.filter(a => a.currentParticipants >= a.maxParticipants)
+  if (advancedFilters.value.showFreeOnly) result = result.filter(a => a.feeAmount === 0)
+  if (advancedFilters.value.showWithFeeOnly) result = result.filter(a => a.feeAmount > 0)
+  result.sort((a, b) => {
+    switch (advancedFilters.value.sortOrder) {
+      case 'startTime-desc': return new Date(b.startTime) - new Date(a.startTime)
+      case 'startTime-asc':  return new Date(a.startTime) - new Date(b.startTime)
+      case 'created-desc':   return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+      case 'created-asc':    return new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+      case 'title-asc':      return (a.title || '').localeCompare(b.title || '')
+      default: return 0
     }
-}
-
-// ✅ 快速時間範圍選擇
-const applyQuickTimeRange = (rangeValue) => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
-    tempFilters.value.activeQuickRange = rangeValue
-
-    switch (rangeValue) {
-        case 'today': {
-            const todayStr = today.toISOString().split('T')[0]
-            tempFilters.value.dateFilter.startDate = todayStr
-            tempFilters.value.dateFilter.endDate = todayStr
-            break
-        }
-        case 'tomorrow': {
-            const tomorrow = new Date(today)
-            tomorrow.setDate(today.getDate() + 1)
-            const tomorrowStr = tomorrow.toISOString().split('T')[0]
-            tempFilters.value.dateFilter.startDate = tomorrowStr
-            tempFilters.value.dateFilter.endDate = tomorrowStr
-            break
-        }
-        case 'thisWeek': {
-            const weekStart = new Date(today)
-            weekStart.setDate(today.getDate() - today.getDay())
-            const weekEnd = new Date(weekStart)
-            weekEnd.setDate(weekStart.getDate() + 6)
-            tempFilters.value.dateFilter.startDate = weekStart.toISOString().split('T')[0]
-            tempFilters.value.dateFilter.endDate = weekEnd.toISOString().split('T')[0]
-            break
-        }
-        case 'nextWeek': {
-            const nextWeekStart = new Date(today)
-            nextWeekStart.setDate(today.getDate() + (7 - today.getDay()))
-            const nextWeekEnd = new Date(nextWeekStart)
-            nextWeekEnd.setDate(nextWeekStart.getDate() + 6)
-            tempFilters.value.dateFilter.startDate = nextWeekStart.toISOString().split('T')[0]
-            tempFilters.value.dateFilter.endDate = nextWeekEnd.toISOString().split('T')[0]
-            break
-        }
-        case 'thisMonth': {
-            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-            const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-            tempFilters.value.dateFilter.startDate = monthStart.toISOString().split('T')[0]
-            tempFilters.value.dateFilter.endDate = monthEnd.toISOString().split('T')[0]
-            break
-        }
-        case 'nextMonth': {
-            const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1)
-            const nextMonthEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0)
-            tempFilters.value.dateFilter.startDate = nextMonthStart.toISOString().split('T')[0]
-            tempFilters.value.dateFilter.endDate = nextMonthEnd.toISOString().split('T')[0]
-            break
-        }
-        case 'past7days': {
-            const past7 = new Date(today)
-            past7.setDate(today.getDate() - 7)
-            tempFilters.value.dateFilter.startDate = past7.toISOString().split('T')[0]
-            tempFilters.value.dateFilter.endDate = today.toISOString().split('T')[0]
-            break
-        }
-        case 'past30days': {
-            const past30 = new Date(today)
-            past30.setDate(today.getDate() - 30)
-            tempFilters.value.dateFilter.startDate = past30.toISOString().split('T')[0]
-            tempFilters.value.dateFilter.endDate = today.toISOString().split('T')[0]
-            break
-        }
-    }
-}
-
-const handleFilterChange = () => {
-    console.log('🎯 篩選條件已變更');
-};
-
-const handleSearch = () => {
-    console.log('🔍 搜尋:', searchKeyword.value);
-};
-
-const clearDateFilter = () => {
-    advancedFilters.value.dateFilter.startDate = ''
-    advancedFilters.value.dateFilter.endDate = ''
-    advancedFilters.value.activeQuickRange = ''
-}
-
-const clearFilters = () => {
-    searchKeyword.value = '';
-    selectedStatus.value = '';
-    selectedActivityType.value = '';
-    selectedDanceStyle.value = '';
-    advancedFilters.value = {
-        dateFilter: { startDate: '', endDate: '' },
-        dateFilterMode: 'startTime',
-        sortOrder: 'startTime-desc',
-        activeQuickRange: '',
-        showFullOnly: false,
-        showFreeOnly: false,
-        showWithFeeOnly: false,
-    }
-    console.log('✅ 清除所有篩選');
-};
-
-//格式化活動類型
-const getActivityTypeLabel = (type) => {
-    const labels = {
-        'REGULAR': '社課',
-        'SPECIAL': '特殊活動',
-        'TRAINING': '團練',
-        'PERFORMANCE': '演出',
-        'COMPETITION': '比賽'
-    }
-    return labels[type] || type;
-}
-
-//舞風類型
-const danceStyles = [
-    'Hip Hop',
-    'Jazz',
-    'Popping',
-    'Locking',
-    'Breaking',
-    'House',
-    'Waacking',
-    'Voguing',
-    'Urban',
-    'K-pop',
-    'Freestyle'
-];
-
-//格式化狀態
-const getStatusLabel = (status) => {
-    const labels = {
-        'DRAFT': '草稿',
-        'PUBLISHED': '已發布',
-        'COMPLETED': '已完成',
-        'CANCELLED': '已取消',
-        'SCHEDULE' : '已預約'
-    }
-    return labels[status] || status;
-}
-//格式化時間
-const formatDateTime = (dateTime) => {
-   if (!dateTime) return '-';
-
-    const date = new Date(dateTime);
-   //格式化成 2026/01/08 19:00
-   return date.toLocaleString('zh-TW', {
-       year: 'numeric',
-       month: '2-digit',
-       day: '2-digit',
-       hour: '2-digit',
-       minute: '2-digit',
-   });
-}
-
-
-onMounted(() => {
-    loadActivities();
+  })
+  return result
 })
+
+// ===== Helpers =====
+const getActivityTypeLabel = (type) =>
+  ({ REGULAR:'社課', SPECIAL:'特殊活動', TRAINING:'團練', PERFORMANCE:'演出', COMPETITION:'比賽' })[type] || type
+const getStatusLabel = (status) =>
+  ({ DRAFT:'草稿', PUBLISHED:'已發布', COMPLETED:'已完成', CANCELLED:'已取消', SCHEDULE:'已預約' })[status] || status
+const formatDateTime = (dt) => {
+  if (!dt) return '—'
+  return new Date(dt).toLocaleString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+}
+
+// ===== Filters =====
+const handleSearch = () => {}
+const handleFilterChange = () => {}
+const clearFilters = () => {
+  searchKeyword.value = ''; selectedStatus.value = ''; selectedActivityType.value = ''; selectedDanceStyle.value = ''
+  advancedFilters.value = { dateFilter:{startDate:'',endDate:''}, dateFilterMode:'startTime', sortOrder:'startTime-desc', activeQuickRange:'', showFullOnly:false, showFreeOnly:false, showWithFeeOnly:false }
+}
+const openAdvancedFilters = () => { tempFilters.value = JSON.parse(JSON.stringify(advancedFilters.value)); showAdvancedModal.value = true }
+const closeAdvancedFilters = () => { showAdvancedModal.value = false }
+const applyAdvancedFilters = () => { advancedFilters.value = JSON.parse(JSON.stringify(tempFilters.value)); showAdvancedModal.value = false }
+const resetAdvancedFilters = () => {
+  tempFilters.value = { dateFilter:{startDate:'',endDate:''}, dateFilterMode:'startTime', sortOrder:'startTime-desc', activeQuickRange:'', showFullOnly:false, showFreeOnly:false, showWithFeeOnly:false }
+}
+
+const applyQuickTimeRange = (rangeValue) => {
+  const today = new Date(); today.setHours(0,0,0,0)
+  tempFilters.value.activeQuickRange = rangeValue
+  const fmt = (d) => d.toISOString().split('T')[0]
+  switch (rangeValue) {
+    case 'today': tempFilters.value.dateFilter = { startDate: fmt(today), endDate: fmt(today) }; break
+    case 'tomorrow': { const t = new Date(today); t.setDate(t.getDate()+1); tempFilters.value.dateFilter = { startDate: fmt(t), endDate: fmt(t) }; break }
+    case 'thisWeek': { const s = new Date(today); s.setDate(today.getDate()-today.getDay()); const e = new Date(s); e.setDate(s.getDate()+6); tempFilters.value.dateFilter = { startDate: fmt(s), endDate: fmt(e) }; break }
+    case 'nextWeek': { const s = new Date(today); s.setDate(today.getDate()+(7-today.getDay())); const e = new Date(s); e.setDate(s.getDate()+6); tempFilters.value.dateFilter = { startDate: fmt(s), endDate: fmt(e) }; break }
+    case 'thisMonth': { const s = new Date(today.getFullYear(),today.getMonth(),1); const e = new Date(today.getFullYear(),today.getMonth()+1,0); tempFilters.value.dateFilter = { startDate: fmt(s), endDate: fmt(e) }; break }
+    case 'nextMonth': { const s = new Date(today.getFullYear(),today.getMonth()+1,1); const e = new Date(today.getFullYear(),today.getMonth()+2,0); tempFilters.value.dateFilter = { startDate: fmt(s), endDate: fmt(e) }; break }
+    case 'past7days': { const s = new Date(today); s.setDate(today.getDate()-7); tempFilters.value.dateFilter = { startDate: fmt(s), endDate: fmt(today) }; break }
+    case 'past30days': { const s = new Date(today); s.setDate(today.getDate()-30); tempFilters.value.dateFilter = { startDate: fmt(s), endDate: fmt(today) }; break }
+  }
+}
+
+// ===== Actions =====
+const updateActivity = (id) => router.push(`/admin/update-activity-container/${id}`)
+const goToPublish = (id) => router.push({ name: 'publish-activity-container', params: { activityId: id } })
+
+const deleteDraft = (id, name) => { deleteTarget.value = { id, name }; showDeleteDialog.value = true }
+const cancelDelete = () => { showDeleteDialog.value = false; deleteTarget.value = { id: null, name: '' } }
+const confirmDelete = async () => {
+  try {
+    await activityApi.deleteDraftActivity(deleteTarget.value.id)
+    activities.value = activities.value.filter(a => a.id !== deleteTarget.value.id)
+    showDeleteDialog.value = false; deleteTarget.value = { id: null, name: '' }
+  } catch (e) {
+    const s = e.response?.status
+    alert(s === 403 ? '沒有權限刪除' : s === 404 ? '草稿不存在' : s === 400 ? '只能刪除草稿狀態的活動' : '刪除失敗，請稍後再試')
+  }
+}
+
+const showCancelActivityDialog = (activity) => { cancelTargetActivity.value = activity; cancelReason.value = ''; showCancelDialog.value = true }
+const closeCancelDialog = () => { showCancelDialog.value = false; cancelTargetActivity.value = null }
+const confirmCancelActivity = async () => {
+  if (!cancelTargetActivity.value) return
+  isProcessing.value = true
+  try {
+    await activityApi.cancelActivity(cancelTargetActivity.value.id, { reason: cancelReason.value || '管理員取消活動' })
+    const a = activities.value.find(a => a.id === cancelTargetActivity.value.id)
+    if (a) { a.status = 'CANCELLED'; a.cancelReason = cancelReason.value }
+    closeCancelDialog()
+  } catch (e) {
+    alert('取消活動失敗，請稍後再試')
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+const showCancelScheduledDialog = (activity) => { cancelScheduledTarget.value = activity; showCancelScheduledDialogFlag.value = true }
+const closeCancelScheduledDialog = () => { showCancelScheduledDialogFlag.value = false; cancelScheduledTarget.value = null }
+const confirmCancelScheduledPublish = async () => {
+  if (!cancelScheduledTarget.value) return
+  isProcessing.value = true
+  try {
+    await activityApi.cancelScheduledPublish(cancelScheduledTarget.value.id)
+    const a = activities.value.find(a => a.id === cancelScheduledTarget.value.id)
+    if (a) a.status = 'DRAFT'
+    closeCancelScheduledDialog()
+  } catch (e) {
+    alert('取消預約發布失敗，請稍後再試')
+  } finally {
+    isProcessing.value = false
+  }
+}
 </script>
 
-
 <style scoped>
-.activity-list-page {
-    padding: 20px;
-}
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
 
-/* ========== 表格樣式 ========== */
-.activities-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-    margin-top: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    border-radius: 8px;
-    overflow: hidden;
+/* ===== Base ===== */
+.al-wrap {
+  min-height: 100vh;
+  background: #fff;
+  font-family: 'Noto Sans TC', sans-serif;
+  color: #0a0a0a;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 5.5rem 2rem 4rem;
 }
+.mono { font-family: 'Space Mono', monospace; }
 
-.activities-table th {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 16px 12px;
-    text-align: left;
-    font-weight: 600;
-    font-size: 14px;
+/* ===== Navbar ===== */
+.navbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 1rem 0;
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  transform: translateY(0); transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
 }
+.navbar-hidden { transform: translateY(-100%); }
+.nav-container { max-width: 1400px; margin: 0 auto; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center; }
+.nav-logo {  font-size: 1.25rem; font-weight: 600; color: #1a1a1a; margin: 0; }
+.nav-logo:hover { color: #ff2d6b; }
+.nav-right { display: flex; gap: 1.5rem; align-items: center; }
+.nav-link { font-family: 'Space Mono', monospace; font-size: 0.75rem; letter-spacing: 0.08em; color: #666; text-decoration: none; transition: color 0.2s; }
+.nav-link:hover { color: #ff2d6b; }
 
-.activities-table td {
-    padding: 16px 12px;
-    border-bottom: 1px solid #f0f0f0;
-    font-size: 14px;
+/* ===== Header ===== */
+.al-header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid #0a0a0a;
+  flex-wrap: wrap; gap: 1rem;
 }
-
-.activities-table tbody tr:hover {
-    background: #f8f9ff;
-}
-
-.activities-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-/* ========== 狀態標籤 ========== */
-.status-badge {
-    display: inline-block;
-    padding: 6px 12px;
-    border-radius: 16px;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.status-badge.draft {
-    background: #9e9e9e;
-    color: white;
-}
-
-.status-badge.schedule {
-    background: #ff9800;
-    color: white;
-}
-
-.status-badge.published {
-    background: #4caf50;
-    color: white;
-}
-
-.status-badge.cancelled {
-    background: #f44336;
-    color: white;
-}
-
-.status-badge.completed {
-    background: #607d8b;
-    color: white;
-}
+.al-eyebrow { display: block; font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.2em; color: #ff2d6b; font-weight: 700; margin-bottom: 0.4rem; }
+.al-title { font-family: 'Bebas Neue', sans-serif; font-size: 3.5rem; line-height: 0.95; margin: 0 0 0.5rem; letter-spacing: 0.02em; }
+.al-count { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: #aaa; margin: 0; letter-spacing: 0.08em; }
+.al-count .mono { color: #0a0a0a; font-size: 0.8rem; }
 
 .btn-create {
-    padding: 12px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    margin-bottom: 20px;
+  background: #0a0a0a; color: #fff; border: none;
+  padding: 0.65rem 1.4rem; font-family: 'Space Mono', monospace;
+  font-size: 0.9rem; letter-spacing: 0.08em; cursor: pointer; transition: background 0.2s;
 }
+.btn-create:hover { background: #ff2d6b; }
 
-.btn-create:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+/* ===== Filter Bar ===== */
+.filter-bar {
+  display: flex; align-items: center; gap: 0.75rem;
+  margin-bottom: 2rem; flex-wrap: wrap;
 }
-
-/* ========== 對話框基礎樣式 (彈出視窗遮罩) ========== */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-/* ========== 對話框容器 ========== */
-.dialog-content {
-    background: white;
-    border-radius: 16px;
-    width: 90%;
-    max-width: 500px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    animation: slideUp 0.3s ease-out;
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* ========== 對話框標題 ========== */
-.dialog-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 24px;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.dialog-header h2,
-.dialog-header h3 {
-    margin: 0;
-    font-size: 20px;
-    color: #333;
-}
-
-/* 關閉按鈕 */
-.btn-close {
-    background: none;
-    border: none;
-    font-size: 28px;
-    cursor: pointer;
-    color: #999;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    transition: all 0.2s;
-}
-
-.btn-close:hover {
-    background: #f5f5f5;
-    color: #333;
-}
-
-/* ========== 對話框內容 ========== */
-.dialog-body {
-    padding: 24px;
-}
-
-/* ========== 警告訊息區 ========== */
-.warning-message {
-    text-align: center;
-    margin-bottom: 24px;
-}
-
-.warning-icon {
-    font-size: 48px;
-    margin: 0 0 12px 0;
-}
-
-.warning-text {
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
-    margin: 0;
-}
-
-/* ========== 活動資訊框 ========== */
-.activity-info-box {
-    background: #f5f7fa;
-    padding: 16px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-.activity-info-box h3 {
-    margin: 0 0 12px 0;
-    color: #333;
-}
-
-/* 活動名稱 (刪除對話框專用) */
-.activity-name {
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
-    margin: 0 0 8px 0;
-}
-
-/* 警告通知 */
-.warning-notice {
-    color: #f44336;
-    font-weight: 600;
-    font-size: 14px;
-    margin: 0;
-}
-
-/* 舊的 warning 樣式 (保留向下相容) */
-.warning {
-    color: #f44336;
-    font-weight: 600;
-    text-align: center;
-    margin-top: 16px;
-}
-
-/* ========== 取消活動對話框專用 ========== */
-.cancel-dialog {
-    max-width: 600px;
-}
-
-.info-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 8px;
-    font-size: 14px;
-}
-
-.info-row .label {
-    color: #666;
-    min-width: 120px;
-    font-weight: 500;
-}
-
-.info-row .value {
-    color: #333;
-    font-weight: 600;
-}
-
-.cancel-reason-section {
-    margin: 20px 0;
-}
-
-.cancel-reason-section label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: #333;
-    font-size: 14px;
-}
-
-.cancel-reason-input {
-    width: 100%;
-    padding: 12px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-family: inherit;
-    font-size: 14px;
-    resize: vertical;
-    transition: border-color 0.2s;
-}
-
-.cancel-reason-input:focus {
-    outline: none;
-    border-color: #f44336;
-}
-
-.cancel-reason-input::placeholder {
-    color: #999;
-}
-
-/* ========== 注意事項框 ========== */
-.notice-box {
-    background-color: #fff3e0;
-    padding: 16px;
-    border-radius: 8px;
-    border-left: 4px solid #ff9800;
-}
-
-.notice-title {
-    margin: 0 0 8px 0;
-    font-weight: 600;
-    color: #e65100;
-    font-size: 14px;
-}
-
-.notice-list {
-    margin: 0;
-    padding-left: 20px;
-}
-
-.notice-list li {
-    margin-bottom: 4px;
-    color: #666;
-    font-size: 13px;
-}
-
-/* ========== 對話框按鈕區 ========== */
-.dialog-actions {
-    display: flex;
-    gap: 12px;
-    padding: 16px 24px;
-    border-top: 1px solid #f0f0f0;
-    justify-content: flex-end;
-}
-
-/* 按鈕樣式 */
-.btn-secondary,
-.btn-danger,
-.btn-cancel,
-.btn-confirm-delete {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-/* 次要按鈕 */
-.btn-secondary,
-.btn-cancel {
-    background: #f5f5f5;
-    color: #333;
-}
-
-.btn-secondary:hover:not(:disabled),
-.btn-cancel:hover {
-    background: #e0e0e0;
-}
-
-/* 危險按鈕 */
-.btn-danger,
-.btn-confirm-delete {
-    background: #f44336;
-    color: white;
-}
-
-.btn-danger:hover:not(:disabled),
-.btn-confirm-delete:hover {
-    background: #d32f2f;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
-}
-
-.btn-danger:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* ========== 操作按鈕樣式 ========== */
-.col-actions {
-    min-width: 180px;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.btn-action {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 8px 12px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.btn-edit {
-    background: #e8f5e9;
-    color: #388e3c;
-}
-
-.btn-edit:hover {
-    background: #4caf50;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
-}
-
-.btn-publish {
-    background: #f3e5f5;
-    color: #7b1fa2;
-}
-
-.btn-publish:hover {
-    background: #9c27b0;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(156, 39, 176, 0.3);
-}
-
-.btn-delete {
-    background: #ffebee;
-    color: #c62828;
-}
-
-.btn-delete:hover {
-    background: #f44336;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
-}
-
-.btn-action.btn-cancel {
-    background: #fff3e0;
-    color: #e65100;
-}
-
-.btn-action.btn-cancel:hover {
-    background: #ff9800;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(255, 152, 0, 0.3);
-}
-
-.btn-disabled {
-    background: #f5f5f5;
-    color: #9e9e9e;
-    cursor: not-allowed;
-}
-
-/* ========== 搜尋篩選區樣式 ========== */
-.search-filter {
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    margin-bottom: 20px;
-    width: 100%;
-}
-
-.basic-search {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
+.search-wrap { position: relative; width: 220px; flex-shrink: 0; }
 .search-input {
-    flex: 1;
-    padding: 12px 16px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 15px;
-    transition: border-color 0.2s;
+  width: 100%; padding: 0.6rem 2rem 0.6rem 0.9rem;
+  border: 1px solid #0a0a0a; border-radius: 0;
+  font-family: 'Space Mono', monospace; font-size: 0.9rem; letter-spacing: 0.04em;
+  background: #fff; color: #0a0a0a; outline: none; transition: border-color 0.2s; box-sizing: border-box;
 }
+.search-input:focus { border-color: #ff2d6b; }
+.search-input::placeholder { color: #bbb; }
+.search-icon { position: absolute; right: 0.7rem; top: 50%; transform: translateY(-50%); color: #bbb; font-size: 0.8rem; pointer-events: none; }
 
-.search-input:focus {
-    outline: none;
-    border-color: #667eea;
+.filter-selects { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.filter-select {
+  padding: 0.55rem 0.9rem; border: 1px solid #e0e0e0; background: #fff; color: #555;
+  font-family: 'Space Mono', monospace; font-size: 0.9rem; letter-spacing: 0.04em;
+  border-radius: 0; outline: none; cursor: pointer; transition: border-color 0.2s;
 }
+.filter-select:focus { border-color: #0a0a0a; }
 
-.search-btn {
-    padding: 12px 24px;
-    background: #667eea;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
+.filter-right { display: flex; gap: 0.6rem; align-items: center; margin-left: auto; }
+.filter-btn {
+  background: #fff; border: 1px solid #e0e0e0; color: #555;
+  padding: 0.55rem 1rem; font-family: 'Space Mono', monospace;
+  font-size: 0.9rem; letter-spacing: 0.06em; cursor: pointer; border-radius: 0; transition: all 0.2s; display: flex; align-items: center; gap: 0.4rem;
 }
-
-.search-btn:hover {
-    background: #5568d3;
-    transform: translateY(-1px);
-}
-
-.filters {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.filter-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.filter-group label {
-    font-size: 14px;
-    color: #666;
-    font-weight: 500;
-}
-
-.filter-group select {
-    padding: 8px 12px;
-    border: 2px solid #e0e0e0;
-    border-radius: 6px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: border-color 0.2s;
-}
-
-.filter-group select:focus {
-    outline: none;
-    border-color: #667eea;
-}
-
-/* ========== 進階篩選按鈕 ========== */
-.btn-advanced-filters {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    background: white;
-    border: 2px solid #e0e0e0;
-    border-radius: 6px;
-    color: #666;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-}
-
-.btn-advanced-filters:hover {
-    border-color: #667eea;
-    color: #667eea;
-    transform: translateY(-1px);
-}
-
-.btn-advanced-filters.has-filters {
-    background: #667eea;
-    border-color: #667eea;
-    color: white;
-}
-
-.btn-advanced-filters.has-filters:hover {
-    background: #5568d3;
-    border-color: #5568d3;
-}
-
-.filter-badge {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    background: #f44336;
-    color: white;
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 700;
-}
-
-/* 清除篩選按鈕 */
+.filter-btn:hover, .filter-btn.active { border-color: #0a0a0a; color: #0a0a0a; }
+.filter-badge { background: #ff2d6b; color: #fff; border-radius: 50%; width: 16px; height: 16px; font-size: 0.6rem; display: flex; align-items: center; justify-content: center; }
 .clear-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    background: #ffebee;
-    border: 1px solid #f44336;
-    border-radius: 6px;
-    color: #c62828;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
+  background: transparent; border: 1px solid #ff2d6b; color: #ff2d6b;
+  padding: 0.5rem 0.9rem; font-family: 'Space Mono', monospace;
+  font-size: 0.9rem; letter-spacing: 0.08em; cursor: pointer; transition: all 0.2s;
 }
+.clear-btn:hover { background: #ff2d6b; color: #fff; }
 
-.clear-btn:hover {
-    background: #f44336;
-    color: white;
-    transform: translateY(-1px);
+/* ===== State ===== */
+.state-box { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 40vh; gap: 0.75rem; }
+.loading-bars { display: flex; gap: 4px; }
+.loading-bars span { display: block; width: 3px; height: 28px; background: #ff2d6b; border-radius: 2px; animation: barPulse 0.8s ease-in-out infinite alternate; }
+@keyframes barPulse { from { transform: scaleY(0.3); opacity: 0.3; } to { transform: scaleY(1); opacity: 1; } }
+.empty-text { font-family: 'Bebas Neue', sans-serif; font-size: 7rem; color: transparent; -webkit-text-stroke: 1px #e0e0e0; line-height: 1; }
+.empty-desc { font-size: 0.85rem; color: #aaa; margin: 0; }
+.cta-btn { background: #ff2d6b; color: #fff; border: none; padding: 0.65rem 1.5rem; font-family: 'Space Mono', monospace; font-size: 0.72rem; cursor: pointer; }
+
+/* ===== Table ===== */
+.table-wrap { overflow-x: auto; border: 1px solid #e0e0e0; }
+.al-table { width: 100%; border-collapse: collapse; background: #fff; }
+.al-table thead tr { background: #0a0a0a; }
+.al-table th {
+  padding: 0.75rem 0.9rem; text-align: left;
+  font-family: 'Space Mono', monospace; font-size: 0.8rem;
+  letter-spacing: 0.12em; color: #fff; font-weight: 400; white-space: nowrap;
 }
-
-/* ========== 進階篩選彈出視窗 ========== */
-.advanced-filters-modal {
-    width: 90%;
-    max-width: 720px;
-    background: #ffffff;
-    border-radius: 20px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
-    animation: modalSlideUp 0.35s ease;
-    overflow: hidden;
+.al-table tbody tr {
+  border-bottom: 1px solid #f0f0f0; transition: background 0.15s;
 }
+.al-table tbody tr:hover { background: #fafafa; }
+.al-table td { padding: 0.85rem 0.9rem; font-size: 0.8rem; color: #333; vertical-align: middle; }
 
-@keyframes modalSlideUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px) scale(0.98);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+/* row status tint */
+.row-cancelled td { color: #bbb; }
+.row-completed td { color: #555; }
+
+.col-id { width: 50px; font-size: 0.8rem !important; color: #ccc !important; }
+.col-title { min-width: 180px; }
+.activity-title { font-weight: 600; color: #0a0a0a; }
+.col-time { white-space: nowrap; font-size: 0.8rem !important; color: #666 !important; }
+.col-loc { font-size: 0.78rem !important; color: #888 !important; }
+.col-type { white-space: nowrap; }
+.type-tag { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.08em; color: #888; border: 1px solid #e0e0e0; padding: 0.15rem 0.45rem; }
+.col-fee { white-space: nowrap; }
+.fee-amt { font-family: 'Space Mono', monospace; font-size: 0.72rem; color: #ff2d6b; font-weight: 700; }
+.fee-free { font-family: 'Space Mono', monospace; font-size: 0.68rem; color: #bbb; }
+.col-status { white-space: nowrap; }
+.status-badge { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.08em; padding: 0.2rem 0.55rem; }
+.s-draft     { background: #f5f5f5; color: #888; }
+.s-published { background: #e8f5e9; color: #2e7d32; }
+.s-completed { background: #e3f2fd; color: #1565c0; }
+.s-cancelled { background: #ffebee; color: #c62828; }
+.s-schedule  { background: #fff3e0; color: #e65100; }
+
+.col-actions { width: 200px; }
+.action-group { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.act-btn {
+  padding: 0.3rem 0.65rem; font-family: 'Space Mono', monospace;
+  font-size: 0.7rem; letter-spacing: 0.06em; border: 1px solid; cursor: pointer; transition: all 0.15s; background: transparent;
 }
+.act-btn.edit   { border-color: #0a0a0a; color: #0a0a0a; }
+.act-btn.edit:hover { background: #0a0a0a; color: #fff; }
+.act-btn.publish { border-color: #2e7d32; color: #2e7d32; }
+.act-btn.publish:hover { background: #2e7d32; color: #fff; }
+.act-btn.cancel { border-color: #e65100; color: #e65100; }
+.act-btn.cancel:hover { background: #e65100; color: #fff; }
+.act-btn.delete { border-color: #c62828; color: #c62828; }
+.act-btn.delete:hover { background: #c62828; color: #fff; }
 
-/* ========== 進階篩選 Header ========== */
-.advanced-filters-modal .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 24px;
-    border-bottom: 1px solid #f0f0f0;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: #fff;
+/* ===== Modal shared ===== */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; z-index: 200;
 }
-
-.advanced-filters-modal .modal-header h2 {
-    font-size: 18px;
-    font-weight: 700;
-    margin: 0;
+.modal-box {
+  background: #fff; width: 560px; max-width: 95vw;
+  max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
 }
-
-.advanced-filters-modal .btn-close {
-    color: #fff;
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1.25rem 1.5rem; border-bottom: 1px solid #e0e0e0;
 }
+.modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.05em; margin: 0; }
+.modal-close { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #aaa; line-height: 1; }
+.modal-close:hover { color: #0a0a0a; }
+.modal-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
+.modal-footer { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-top: 1px solid #e0e0e0; }
+.modal-footer-right { display: flex; gap: 0.6rem; }
 
-.advanced-filters-modal .btn-close:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
+.modal-btn { padding: 0.55rem 1.2rem; font-family: 'Space Mono', monospace; font-size: 0.72rem; letter-spacing: 0.06em; cursor: pointer; border: 1px solid; transition: all 0.15s; }
+.modal-btn.reset  { border-color: #e0e0e0; color: #555; background: #fff; }
+.modal-btn.reset:hover { background: #f5f5f5; }
+.modal-btn.cancel { border-color: #e0e0e0; color: #555; background: #fff; }
+.modal-btn.cancel:hover { background: #f5f5f5; }
+.modal-btn.apply  { border-color: #0a0a0a; color: #fff; background: #0a0a0a; }
+.modal-btn.apply:hover { background: #ff2d6b; border-color: #ff2d6b; }
+.modal-btn.danger { border-color: #c62828; color: #fff; background: #c62828; }
+.modal-btn.danger:hover { background: #b71c1c; border-color: #b71c1c; }
+.modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ========== 進階篩選 Body ========== */
-.advanced-filters-modal .modal-body {
-    padding: 24px;
-    max-height: 65vh;
-    overflow-y: auto;
-}
+/* ===== Advanced filter modal content ===== */
+.modal-section { margin-bottom: 1.75rem; }
+.section-label { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.2em; color: #ff2d6b; font-weight: 700; margin-bottom: 0.75rem; }
+.quick-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+.pill { padding: 0.3rem 0.75rem; border: 1px solid #e0e0e0; background: #fff; font-family: 'Space Mono', monospace; font-size: 0.65rem; cursor: pointer; transition: all 0.15s; }
+.pill:hover { border-color: #0a0a0a; }
+.pill.active { background: #0a0a0a; border-color: #0a0a0a; color: #fff; }
+.date-row { display: flex; align-items: flex-end; gap: 0.75rem; margin-bottom: 1rem; }
+.date-field { flex: 1; }
+.field-label { display: block; font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; color: #aaa; margin-bottom: 0.35rem; }
+.date-input { width: 100%; padding: 0.55rem 0.75rem; border: 1px solid #e0e0e0; border-radius: 0; font-size: 0.82rem; outline: none; box-sizing: border-box; }
+.date-input:focus { border-color: #0a0a0a; }
+.date-sep { color: #ccc; padding-bottom: 0.3rem; }
+.radio-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.radio-label { font-family: 'Space Mono', monospace; font-size: 0.65rem; color: #888; }
+.radio-opt { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; cursor: pointer; }
+.sort-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.sort-card { display: flex; flex-direction: column; padding: 0.75rem; border: 1px solid #e0e0e0; cursor: pointer; transition: all 0.15s; }
+.sort-card:hover { border-color: #0a0a0a; }
+.sort-card.active { border-color: #0a0a0a; background: #0a0a0a; }
+.sort-title { font-family: 'Space Mono', monospace; font-size: 0.68rem; font-weight: 700; }
+.sort-desc { font-size: 0.7rem; color: #aaa; margin-top: 0.2rem; }
+.sort-card.active .sort-title, .sort-card.active .sort-desc { color: #fff; }
+.check-group { display: flex; flex-direction: column; gap: 0.6rem; }
+.check-opt { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; cursor: pointer; }
 
-/* ========== 區塊共用樣式 ========== */
-.filter-section {
-    margin-bottom: 28px;
-}
+/* ===== Dialog ===== */
+.dialog-box { background: #fff; width: 480px; max-width: 95vw; }
+.dialog-sm { width: 380px; }
+.dialog-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 2px solid #0a0a0a; }
+.dialog-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.05em; margin: 0; }
+.dialog-body { padding: 1.5rem; }
+.dialog-footer { display: flex; justify-content: flex-end; gap: 0.6rem; padding: 1rem 1.5rem; border-top: 1px solid #e0e0e0; }
+.dialog-warn { font-size: 0.85rem; color: #555; margin: 0 0 1rem; }
+.activity-info-card { background: #f5f5f5; border-left: 3px solid #0a0a0a; padding: 0.85rem 1rem; }
+.info-name { font-weight: 700; font-size: 0.95rem; margin: 0 0 0.3rem; }
+.info-meta { font-size: 0.72rem; color: #888; margin: 0; }
+.reason-textarea { width: 100%; padding: 0.65rem 0.8rem; border: 1px solid #e0e0e0; font-family: 'Noto Sans TC', sans-serif; font-size: 0.85rem; resize: vertical; outline: none; box-sizing: border-box; margin-top: 0.35rem; }
+.reason-textarea:focus { border-color: #0a0a0a; }
+.notice-list { margin-top: 1rem; padding: 0.75rem 1rem; background: #fff3e0; font-size: 0.78rem; color: #e65100; }
+.notice-list p { margin: 0.2rem 0; }
 
-.section-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: #333;
-    margin-bottom: 12px;
-}
-
-/* ========== 快速時間按鈕 ========== */
-.quick-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 16px;
-}
-
-.quick-filter-btn {
-    padding: 8px 14px;
-    border-radius: 999px;
-    border: 2px solid #e0e0e0;
-    background: #fff;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.quick-filter-btn:hover {
-    border-color: #667eea;
-    color: #667eea;
-}
-
-.quick-filter-btn.active {
-    background: #667eea;
-    border-color: #667eea;
-    color: #fff;
-}
-
-/* ========== 日期區間 ========== */
-.date-range-group {
-    display: flex;
-    align-items: flex-end;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.date-input-group {
-    flex: 1;
-}
-
-.date-input-group label {
-    display: block;
-    font-size: 13px;
-    color: #666;
-    margin-bottom: 6px;
-}
-
-.date-input {
-    width: 100%;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 2px solid #e0e0e0;
-    font-size: 14px;
-}
-
-.date-input:focus {
-    outline: none;
-    border-color: #667eea;
-}
-
-.date-separator {
-    font-size: 18px;
-    color: #999;
-    padding-bottom: 8px;
-}
-
-/* ========== 日期篩選模式 ========== */
-.date-mode-group {
-    margin-top: 12px;
-}
-
-.mode-label {
-    display: block;
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-
-.radio-options {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-}
-
-.radio-option {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-    cursor: pointer;
-}
-
-/* ========== 排序選項 ========== */
-.sort-options {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 12px;
-}
-
-.sort-option {
-    display: block;
-    border: 2px solid #e0e0e0;
-    border-radius: 12px;
-    padding: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.sort-option:hover {
-    border-color: #667eea;
-    background: #f5f7ff;
-}
-
-.sort-option input {
-    display: none;
-}
-
-.sort-option input:checked + .option-content {
-    background: #667eea;
-    color: #fff;
-}
-
-.option-content {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    border-radius: 10px;
-    padding: 10px;
-}
-
-.option-icon {
-    font-size: 22px;
-}
-
-.option-title {
-    font-weight: 700;
-}
-
-.option-desc {
-    font-size: 12px;
-    opacity: 0.85;
-}
-
-/* ========== Checkbox 區 ========== */
-.checkbox-options {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.checkbox-option {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    cursor: pointer;
-}
-
-/* ========== 進階篩選 Footer ========== */
-.advanced-filters-modal .modal-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px;
-    border-top: 1px solid #f0f0f0;
-    background: #fafafa;
-}
-
-.btn-reset {
-    background: #f5f5f5;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.btn-reset:hover {
-    background: #e0e0e0;
-}
-
-.action-buttons-modal {
-    display: flex;
-    gap: 12px;
-}
-
-.btn-cancel-modal {
-    background: #f5f5f5;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.btn-apply {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.btn-apply:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-}
-
-/* ========== 刪除對話框特殊動畫 ========== */
-.delete-dialog .warning-icon {
-    animation: shake 0.5s ease-in-out;
-}
-
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-10px); }
-    75% { transform: translateX(10px); }
-}
-
-.delete-dialog .activity-info-box {
-    background: linear-gradient(135deg, #ffebee, #ffcdd2);
-    border: 2px solid #f44336;
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .al-wrap { padding: 5rem 1rem 3rem; }
+  .al-title { font-size: 2.5rem; }
+  .filter-bar { flex-direction: column; align-items: flex-start; }
+  .filter-right { margin-left: 0; }
+  .sort-grid { grid-template-columns: 1fr; }
 }
 </style>

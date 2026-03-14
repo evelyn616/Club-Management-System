@@ -1,739 +1,324 @@
 <template>
-  <div class="draft-box-container">
-    <!-- 頁面標題 -->
+  <div class="db-wrap">
+
+    <!-- ── Navbar ── -->
+    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
+      <div class="nav-inner">
+        <router-link to="/admin/activity-management-container" class="nav-logo">CLUB SYSTEM</router-link>
+        <span class="nav-crumb">ADMIN / <span class="nav-accent">草稿箱</span></span>
+      </div>
+    </nav>
+
+    <!-- ── Header ── -->
     <div class="page-header">
-      <div class="header-content">
-        <h1>📝 草稿箱</h1>
-        <p class="subtitle">管理您的草稿活動 (共 {{ draftActivities.length }} 個草稿)</p>
+      <div class="header-left">
+        <div class="eyebrow"><span class="eyebrow-line"></span><span class="eyebrow-text">DRAFT BOX</span></div>
+        <h1 class="page-title">草稿<span class="title-accent">箱</span></h1>
+        <p class="page-sub" v-if="!loading">
+          共 <span class="sub-num">{{ draftActivities.length }}</span> 個草稿活動
+        </p>
       </div>
-      <button @click="createActivity" class="btn-create">
-         創建新活動
+      <button class="btn-create" @click="router.push({ name: 'create-activity-container' })">
+        ＋ 建立新活動
       </button>
     </div>
 
-    <!-- Loading 狀態 -->
-    <div v-if="loading" class="loading-container">
-      <div class="loading-spinner"></div>
-      <p>載入中...</p>
+    <!-- ── Loading ── -->
+    <div class="state-wrap" v-if="loading">
+      <div class="loading-bars">
+        <span v-for="i in 5" :key="i" :style="{ animationDelay: (i * 0.1) + 's' }"></span>
+      </div>
+      <p class="mono state-label">LOADING...</p>
     </div>
 
-    <!-- 草稿列表 -->
-    <div v-else-if="draftActivities.length > 0" class="draft-table-container">
-      <table class="draft-table">
-        <thead>
-          <tr>
-            <th class="col-title">活動標題</th>
-            <th class="col-type">類型</th>
-            <th class="col-time">開始時間</th>
-            <th class="col-location">地點</th>
-            <th class="col-created">創建時間</th>
-            <th class="col-actions">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr 
-            v-for="draft in draftActivities" 
-            :key="draft.id"
-            class="draft-row"
-          >
-            <!-- 活動標題 -->
-            <td class="col-title">
-              <div class="title-content">
-                <h3 class="draft-title">{{ draft.title }}</h3>
-                <p class="draft-description" v-if="draft.description">
-                  {{ draft.description }}
-                </p>
-              </div>
-            </td>
+    <!-- ── Empty ── -->
+    <div class="state-wrap" v-else-if="draftActivities.length === 0">
+      <div class="empty-big">EMPTY</div>
+      <p class="empty-desc">草稿箱是空的，去建立第一個活動吧</p>
+      <button class="cta-btn" @click="router.push({ name: 'create-activity-container' })">
+        ＋ 建立活動
+      </button>
+    </div>
 
-            <!-- 活動類型 -->
-            <td class="col-type">
-              <span class="type-badge" :class="`type-${draft.activityType?.toLowerCase()}`">
-                {{ getActivityTypeLabel(draft.activityType) }}
-              </span>
-            </td>
-
-            <!-- 開始時間 -->
-            <td class="col-time">
-              <div class="time-info">
-                <span class="time-primary">{{ formatDateTime(draft.startTime) }}</span>
+    <!-- ── Table ── -->
+    <div class="table-section" v-else>
+      <div class="table-wrap">
+        <table class="draft-table">
+          <thead>
+            <tr>
+              <th class="th-num">#</th>
+              <th>活動標題</th>
+              <th>類型</th>
+              <th>開始時間</th>
+              <th>地點</th>
+              <th>建立時間</th>
+              <th class="th-center">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(draft, index) in draftActivities"
+              :key="draft.id"
+              class="draft-row"
+              :style="{ animationDelay: (index * 0.04) + 's' }"
+            >
+              <td class="td-num mono">{{ String(index + 1).padStart(2, '0') }}</td>
+              <td class="td-title">
+                <span class="draft-title">{{ draft.title }}</span>
+                <span class="draft-desc" v-if="draft.description">{{ draft.description }}</span>
+              </td>
+              <td>
+                <span class="type-tag">{{ getActivityTypeLabel(draft.activityType) }}</span>
+              </td>
+              <td class="mono td-time">{{ formatDateTime(draft.startTime) }}</td>
+              <td class="td-loc">{{ draft.location || '—' }}</td>
+              <td class="mono td-time">{{ formatDateTime(draft.createdAt) }}</td>
+              <td class="td-actions">
+                <div class="action-group">
+                  <button class="act-btn edit" @click="updateActivity(draft.id)">編輯</button>
+                  <button class="act-btn publish" @click="goToPublish(draft.id)">發布</button>
+                  <button class="act-btn delete" @click="deleteDraft(draft.id, draft.title)">刪除</button>
                 </div>
-            </td>
-
-            <!-- 地點 -->
-            <td class="col-location">
-              <span class="location-text">{{ draft.location }}</span>
-            </td>
-
-            <!-- 創建時間 -->
-            <td class="col-created">
-              <div class="created-info">
-                <span class="created-time">{{ formatDateTime(draft.createdAt) }}</span>
-                <span class="updated-time" v-if="draft.updatedAt !== draft.createdAt">
-                  更新: {{ formatDateTime(draft.updatedAt) }}
-                </span>
-              </div>
-            </td>
-
-            <!-- 操作按鈕 -->
-            <td class="col-actions">
-              <div class="action-buttons">
-                <button 
-                  @click="updateActivity(draft.id)" class="btn-action btn-edit"title="編輯草稿">
-                  <span class="icon">✏️</span>
-                  <span>編輯</span>
-                </button>
-                
-                <button @click="goToPublish(draft.id)"class="btn-action btn-publish"title="發布活動">
-                  <span class="icon">🚀</span>
-                  <span>發布</span>
-                </button>
-                
-                <button @click="deleteDraft(draft.id, draft.title)" class="btn-action btn-delete"title="刪除草稿"
-                >
-                  <span class="icon">🗑️</span>
-                  <span>刪除</span>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-footer mono">SHOWING {{ draftActivities.length }} DRAFTS</div>
     </div>
 
-    <!-- 空狀態 -->
-    <div v-else class="empty-state">
-      <div class="empty-icon">📭</div>
-      <h2>草稿箱是空的</h2>
-      <p>您還沒有任何草稿活動</p>
-      <button @click="createNewActivity" class="btn-primary">
-        ➕ 創建第一個活動
-      </button>
-    </div>
-
-    <!-- 刪除確認對話框 -->
-    <div v-if="showDeleteDialog" class="dialog-overlay" @click="cancelDelete">
-      <div class="dialog-content" @click.stop>
-        <div class="dialog-header">
-          <h3>⚠️ 確認刪除</h3>
-        </div>
-        
-        <div class="dialog-body">
-          <p>確定要刪除草稿活動嗎?</p>
-          <p class="activity-name">「{{ deleteTarget.name }}」</p>
-          <p class="warning">此操作無法復原!</p>
-        </div>
-        
-        <div class="dialog-actions">
-          <button @click="cancelDelete" class="btn-cancel">
-            取消
-          </button>
-          <button @click="confirmDelete" class="btn-confirm-delete">
-            確定刪除
-          </button>
+    <!-- ── Delete Dialog ── -->
+    <Teleport to="body">
+      <div v-if="showDeleteDialog" class="modal-overlay" @click.self="cancelDelete">
+        <div class="dialog-box">
+          <div class="dialog-header">
+            <h2 class="dialog-title">確認刪除</h2>
+            <button class="dialog-close" @click="cancelDelete">×</button>
+          </div>
+          <div class="dialog-body">
+            <p class="dialog-msg">確定要永久刪除以下草稿嗎？此操作無法復原。</p>
+            <div class="dialog-target">
+              <span class="target-label mono">DRAFT</span>
+              <span class="target-name">{{ deleteTarget.name }}</span>
+            </div>
+          </div>
+          <div class="dialog-footer">
+            <button class="modal-btn cancel" @click="cancelDelete">取消</button>
+            <button class="modal-btn danger" @click="confirmDelete" :disabled="deleting">
+              {{ deleting ? '刪除中...' : '確定刪除' }}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
+
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { activityApi } from '@/api/activity'
 
-import { onMounted, ref, stop } from 'vue';
-import { useRouter } from 'vue-router';
-import { activityApi } from '@/api/activity';
+const router = useRouter()
 
-//router
-const router = useRouter();
+const loading = ref(false)
+const draftActivities = ref([])
+const showDeleteDialog = ref(false)
+const deleteTarget = ref({ id: null, name: '' })
+const deleting = ref(false)
 
-//設定變數
-const loading = ref(false);
-const draftActivities = ref([]);
-const showDeleteDialog = ref(false);
-const deleteTarget = ref({id: null, name: ''});
-
-//載入草稿活動
-const loadDraftActivities = async() =>{
-    loading.value = true;
-    try{
-        const response = await activityApi.getDraftActivities();
-        draftActivities.value = response.data;
-        console.log("顯示草稿列表：",draftActivities);
-        console.log(`總共${draftActivities.value.length}個活動`)
-    }
-    catch(error){
-        console.log("載入草稿錯誤", error);
-        alert("載入草稿失敗，請稍後在試");
-    }
-    finally{
-        loading.value = false;
-    }
-    ;
+// Navbar scroll
+const navHidden = ref(false)
+let lastY = 0
+const onScroll = () => {
+  const y = window.scrollY
+  navHidden.value = y > lastY && y > 60
+  lastY = y
 }
-
-//創建新活動快捷
-const createActivity = () => {
-    router.push({name: 'create-activity-container'})
-}
-
-//編輯草稿快捷
-const updateActivity = (activityId) => {
-  console.log('編輯草稿 ID:', activityId);
-  router.push(`/admin/update-activity-container/${activityId}`);
-};
-
-//跳轉到發布頁面
-const goToPublish = (activityId) => {
-  console.log('前往發布頁面,活動 ID:', activityId);
-  router.push({
-    name: 'publish-activity-container',
-    params: { activityId }
-  });
-};
-
-//刪除草稿(顯示提示對話框)
-const deleteDraft = (activityId, activityName) =>{
-    deleteTarget.value = {
-        id: activityId,
-        name: activityName
-    }
-    showDeleteDialog.value = true;
-} 
-
-//取消刪除
-const cancelDelete = () =>{
-    showDeleteDialog.value = false;
-    deleteTarget.value = {
-        id: null,
-        name: ''
-    }
-    
-}
-//確認刪除
-const confirmDelete = async() => {
-    const activityId = deleteTarget.value.id;
-
-    try{
-        console.log('刪除草稿 ID:', activityId);
-        await activityApi.deleteDraftActivity(activityId);
-        alert("草稿已刪除")
-
-        // 從列表中移除
-        draftActivities.value = draftActivities.value.filter(draft => draft.id !== activityId);
-        showDeleteDialog.value = false
-        deleteTarget.value = {
-            id: null,
-            name: ''
-
-        }
-
-    }
-    catch(error){
-        console.log('刪除草稿 ID:',activityId,'失敗');
-        if(error.response?.status === 403){
-            alert("沒有權限刪除此草稿");
-        }
-        else if(error.response?.status === 404){
-            alert("此草稿不存在");
-        }
-        else if(error.response?.status === 400){
-            alert("只能刪除草稿狀態的活動");
-        }
-        else{
-            alert("刪除失敗，請稍後在試..")
-        }
-
-    }
-
-}
-// 格式化活動類型
-const getActivityTypeLabel = (type) => {
-    const labels = {
-        'REGULAR': '社課',
-        'SPECIAL': '特殊活動',
-        'TRAINING': '團練',
-        'PERFORMANCE': '演出',
-        'COMPETITION': '比賽'
-    }
-    return labels[type] || type
-}
-// 格式化時間
-const formatDateTime = (dateTime) => {
-    if (!dateTime) return '-'
-    const date = new Date(dateTime)
-    return date.toLocaleString('zh-TW', {
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-    })
-}
-
-//初始狀態
 onMounted(() => {
-    loadDraftActivities();
-}) ;
+  window.addEventListener('scroll', onScroll, { passive: true })
+  loadDraftActivities()
+})
+onUnmounted(() => window.removeEventListener('scroll', onScroll))
 
+const loadDraftActivities = async () => {
+  loading.value = true
+  try {
+    const response = await activityApi.getDraftActivities()
+    draftActivities.value = response.data
+  } catch (e) {
+    console.error('載入草稿失敗:', e)
+    alert('載入草稿失敗，請稍後再試')
+  } finally {
+    loading.value = false
+  }
+}
 
+const updateActivity = (id) => router.push(`/admin/update-activity-container/${id}`)
+const goToPublish = (id) => router.push({ name: 'publish-activity-container', params: { activityId: id } })
+
+const deleteDraft = (id, name) => {
+  deleteTarget.value = { id, name }
+  showDeleteDialog.value = true
+}
+const cancelDelete = () => {
+  showDeleteDialog.value = false
+  deleteTarget.value = { id: null, name: '' }
+}
+const confirmDelete = async () => {
+  deleting.value = true
+  try {
+    await activityApi.deleteDraftActivity(deleteTarget.value.id)
+    draftActivities.value = draftActivities.value.filter(d => d.id !== deleteTarget.value.id)
+    showDeleteDialog.value = false
+    deleteTarget.value = { id: null, name: '' }
+  } catch (e) {
+    const s = e.response?.status
+    alert(s === 403 ? '沒有權限刪除此草稿'
+      : s === 404 ? '此草稿不存在'
+      : s === 400 ? '只能刪除草稿狀態的活動'
+      : '刪除失敗，請稍後再試')
+  } finally {
+    deleting.value = false
+  }
+}
+
+const getActivityTypeLabel = (t) =>
+  ({ REGULAR: '社課', SPECIAL: '特殊活動', TRAINING: '團練', PERFORMANCE: '演出', COMPETITION: '比賽' })[t] || t || '—'
+
+const formatDateTime = (dt) => {
+  if (!dt) return '—'
+  const d = new Date(dt)
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+}
 </script>
 
 <style scoped>
-.draft-box-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 40px;
-}
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
 
-/* ============ 頁面標題 ============ */
+* { box-sizing: border-box; }
+.db-wrap { min-height: 100vh; background: #fff; font-family: 'Noto Sans TC', sans-serif; color: #0a0a0a; }
+.mono { font-family: 'Space Mono', monospace; }
+
+/* Navbar */
+.navbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 1rem 3rem; background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.08);
+  transform: translateY(0); transition: transform 0.3s ease;
+}
+.navbar-hidden { transform: translateY(-100%); }
+.nav-inner { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+.nav-logo { font-family: 'Space Mono', monospace; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.18em; color: #0a0a0a; text-decoration: none; }
+.nav-logo:hover { color: #ff2d6b; }
+.nav-crumb { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.15em; color: #aaa; }
+.nav-accent { color: #ff2d6b; }
+
+/* Header */
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 32px;
+  max-width: 1400px; margin: 0 auto;
+  padding: 8rem 3rem 2.5rem;
+  display: flex; justify-content: space-between; align-items: flex-end;
+  border-bottom: 2px solid #0a0a0a;
 }
-
-.header-content h1 {
-  font-size: 32px;
-  margin-bottom: 8px;
-  color: #333;
-}
-
-.subtitle {
-  color: #666;
-  font-size: 15px;
-}
+.eyebrow { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
+.eyebrow-line { display: block; width: 24px; height: 2px; background: #ff2d6b; }
+.eyebrow-text { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.2em; color: #ff2d6b; }
+.page-title { font-family: 'Bebas Neue', sans-serif; font-size: 4rem; letter-spacing: 0.06em; line-height: 1; margin: 0; }
+.title-accent { color: #ff2d6b; }
+.page-sub { font-size: 0.82rem; color: #888; margin: 0.4rem 0 0; }
+.sub-num { font-family: 'Space Mono', monospace; font-weight: 700; color: #ff2d6b; }
 
 .btn-create {
-  padding: 14px 28px;
-  background: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 500;
-  transition: all 0.3s;
-  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
-  margin-right: -80%;
+  background: #0a0a0a; color: #fff; border: none;
+  font-family: 'Space Mono', monospace; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+  padding: 0.75rem 1.75rem; cursor: pointer; transition: background 0.2s;
+  align-self: flex-end; margin-bottom: 0.25rem;
 }
+.btn-create:hover { background: #ff2d6b; }
 
-.btn-create:hover {
-  background: #45a049;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-}
+/* States */
+.state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; gap: 1rem; }
+.loading-bars { display: flex; gap: 4px; }
+.loading-bars span { display: block; width: 3px; height: 28px; background: #ff2d6b; border-radius: 2px; animation: barPulse 0.8s ease-in-out infinite alternate; }
+@keyframes barPulse { from { transform: scaleY(0.3); opacity: 0.3; } to { transform: scaleY(1); opacity: 1; } }
+.state-label { font-size: 0.68rem; letter-spacing: 0.2em; color: #aaa; margin: 0; }
+.empty-big { font-family: 'Bebas Neue', sans-serif; font-size: 8rem; color: transparent; -webkit-text-stroke: 1px #eee; line-height: 1; }
+.empty-desc { font-size: 0.85rem; color: #aaa; text-align: center; margin: 0; }
+.cta-btn { background: #0a0a0a; color: #fff; border: none; font-family: 'Space Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em; padding: 0.7rem 1.5rem; cursor: pointer; transition: background 0.2s; }
+.cta-btn:hover { background: #ff2d6b; }
 
-/* ============ Loading ============ */
-.loading-container {
-  text-align: center;
-  padding: 80px 20px;
-}
+/* Table */
+.table-section { max-width: 1400px; margin: 0 auto; padding: 2.5rem 3rem 4rem; }
+.table-wrap { overflow-x: auto; border: 1px solid #e8e8e8; }
+.draft-table { width: 100%; border-collapse: collapse; background: #fff; }
 
-.loading-spinner {
-  width: 60px;
-  height: 60px;
-  border: 5px solid #f3f3f3;
-  border-top: 5px solid #4CAF50;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 20px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* ============ 表格容器 ============ */
-.draft-table-container {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  margin-left:auto; 
-  margin-right:auto;
-  border: 1px solid #e8e8e8;
-  width: 180%;
-}
-
-/* ============ 表格 ============ */
-.draft-table {
-  
-  border-collapse: collapse;
-  margin-left:auto; 
-  margin-right:auto;
-}
-
-.draft-table thead {
-  background: linear-gradient(to bottom, #f8f9fa, #f0f1f3);
-  border-bottom: 2px solid #e0e0e0;
-}
-
+.draft-table thead tr { background: #0a0a0a; }
 .draft-table th {
-  padding: 18px 16px;
-  text-align: left;
-  font-weight: 600;
-  color: #333;
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  padding: 0.75rem 1rem; text-align: left;
+  font-family: 'Space Mono', monospace; font-size: 0.58rem;
+  letter-spacing: 0.15em; color: #fff; font-weight: 400; white-space: nowrap;
+}
+.th-num { width: 48px; }
+.th-center { text-align: center !important; }
+
+@keyframes rowFadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.draft-row { border-bottom: 1px solid #f5f5f5; animation: rowFadeUp 0.35s ease both; transition: background 0.15s; }
+.draft-row:hover { background: #fafafa; }
+.draft-row:last-child { border-bottom: none; }
+.draft-table td { padding: 1rem 1rem; vertical-align: middle; }
+
+.td-num { font-size: 0.68rem; color: #ccc; letter-spacing: 0.1em; }
+.td-title { display: flex; flex-direction: column; gap: 3px; }
+.draft-title { font-weight: 700; font-size: 0.95rem; }
+.draft-desc { font-size: 0.75rem; color: #aaa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
+.td-time { font-size: 0.72rem; color: #888; letter-spacing: 0.04em; white-space: nowrap; }
+.td-loc { font-size: 0.82rem; color: #666; }
+
+.type-tag {
+  font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.08em;
+  background: #f5f5f5; color: #555; padding: 0.25rem 0.75rem;
 }
 
-.draft-table tbody tr {
-  border-bottom: 1px solid #f0f0f0;
-  transition: all 0.2s;
+.td-actions { text-align: center; }
+.action-group { display: flex; gap: 0.4rem; justify-content: center; flex-wrap: wrap; }
+.act-btn {
+  font-family: 'Space Mono', monospace; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em;
+  padding: 0.4rem 0.85rem; border: 1px solid; cursor: pointer; transition: all 0.15s; white-space: nowrap;
 }
+.act-btn.edit    { border-color: #0a0a0a; background: transparent; color: #0a0a0a; }
+.act-btn.edit:hover    { background: #0a0a0a; color: #fff; }
+.act-btn.publish { border-color: #ff2d6b; background: transparent; color: #ff2d6b; }
+.act-btn.publish:hover { background: #ff2d6b; color: #fff; }
+.act-btn.delete  { border-color: #e0e0e0; background: transparent; color: #aaa; }
+.act-btn.delete:hover  { border-color: #dc2626; color: #dc2626; }
 
-.draft-table tbody tr:hover {
-  background: #f8fff9;
-  box-shadow: inset 0 0 0 1px #4CAF50;
-}
+.table-footer { margin-top: 1rem; text-align: right; font-size: 0.6rem; letter-spacing: 0.15em; color: #ccc; }
 
-.draft-table tbody tr:last-child {
-  border-bottom: none;
-}
+/* Dialog */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(6px); z-index: 200; display: flex; align-items: center; justify-content: center; }
+.dialog-box { background: #fff; width: 400px; max-width: 90vw; }
+.dialog-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid #f0f0f0; }
+.dialog-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.06em; margin: 0; }
+.dialog-close { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #aaa; }
+.dialog-close:hover { color: #0a0a0a; }
+.dialog-body { padding: 1.5rem; }
+.dialog-msg { font-size: 0.88rem; color: #666; margin: 0 0 1rem; }
+.dialog-target { background: #fafafa; border-left: 3px solid #dc2626; padding: 0.75rem 1rem; }
+.target-label { font-size: 0.58rem; letter-spacing: 0.15em; color: #aaa; display: block; margin-bottom: 4px; }
+.target-name { font-weight: 700; font-size: 0.95rem; }
+.dialog-footer { display: flex; gap: 0.75rem; padding: 1rem 1.5rem; border-top: 1px solid #f0f0f0; justify-content: flex-end; }
+.modal-btn { font-family: 'Space Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em; padding: 0.6rem 1.25rem; cursor: pointer; border: none; transition: all 0.2s; }
+.modal-btn.cancel { background: #f5f5f5; color: #555; }
+.modal-btn.cancel:hover { background: #e8e8e8; }
+.modal-btn.danger { background: #dc2626; color: #fff; }
+.modal-btn.danger:hover:not(:disabled) { background: #b91c1c; }
+.modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.draft-table td {
-  padding: 20px 16px;
-  vertical-align: middle;
-}
-
-/* ============ 欄位樣式 ============ */
-
-/* 標題欄 */
-.col-title {
-  width: 30%;
-}
-
-.title-content {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.draft-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  line-height: 1.4;
-}
-
-.draft-description {
-  font-size: 13px;
-  color: #666;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* 類型欄 */
-.col-type {
-  width: 10%;
-}
-
-.type-badge {
-  display: inline-block;
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.type-badge.type-regular {
-  background: #e3f2fd;
-  color: #1976d2;
-}
-
-.type-badge.type-special {
-  background: #f3e5f5;
-  color: #7b1fa2;
-}
-
-.type-badge.type-training {
-  background: #fff3e0;
-  color: #f57c00;
-}
-
-.type-badge.type-performance {
-  background: #fce4ec;
-  color: #c2185b;
-}
-
-.type-badge.type-competition {
-  background: #e8f5e9;
-  color: #388e3c;
-}
-
-/* 時間欄 */
-.col-time {
-  width: 12%;
-}
-
-.time-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.time-primary {
-  font-size: 14px;
-  color: #333;
-  font-weight: 500;
-}
-
-.time-secondary {
-  font-size: 12px;
-  color: #999;
-}
-
-/* 地點欄 */
-.col-location {
-  width: 12%;
-}
-
-.location-text {
-  font-size: 14px;
-  color: #666;
-}
-
-/* 創建時間欄 */
-.col-created {
-  width: 13%;
-}
-
-.created-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.created-time {
-  font-size: 13px;
-  color: #666;
-}
-
-.updated-time {
-  font-size: 11px;
-  color: #999;
-}
-
-/* 操作欄 */
-.col-actions {
-  width: 23%;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-action {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.btn-action .icon {
-  font-size: 15px;
-}
-
-.btn-edit {
-  background: #e3f2fd;
-  color: #1976d2;
-}
-
-.btn-edit:hover {
-  background: #2196F3;
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
-}
-
-.btn-publish {
-  background: #e8f5e9;
-  color: #388e3c;
-}
-
-.btn-publish:hover {
-  background: #4CAF50;
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
-}
-
-.btn-delete {
-  background: #ffebee;
-  color: #d32f2f;
-}
-
-.btn-delete:hover {
-  background: #f44336;
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
-}
-
-/* ============ 空狀態 ============ */
-.empty-state {
-  text-align: center;
-  padding: 100px 40px;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e8e8e8;
-}
-
-.empty-icon {
-  font-size: 100px;
-  margin-bottom: 24px;
-  opacity: 0.5;
-}
-
-.empty-state h2 {
-  font-size: 28px;
-  color: #333;
-  margin-bottom: 12px;
-}
-
-.empty-state p {
-  font-size: 18px;
-  color: #666;
-  margin-bottom: 40px;
-}
-
-.btn-primary {
-  padding: 16px 40px;
-  background: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 18px;
-  font-weight: 500;
-  transition: all 0.3s;
-  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
-}
-
-.btn-primary:hover {
-  background: #45a049;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
-}
-
-/* ============ 刪除確認對話框 ============ */
-.dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
-}
-
-.dialog-content {
-  background: white;
-  border-radius: 16px;
-  padding: 32px;
-  width: 480px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  animation: dialogFadeIn 0.3s ease-out;
-}
-
-@keyframes dialogFadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.dialog-header h3 {
-  font-size: 24px;
-  margin-bottom: 8px;
-  color: #333;
-}
-
-.dialog-body {
-  margin-bottom: 32px;
-}
-
-.dialog-body p {
-  margin-bottom: 12px;
-  color: #666;
-  font-size: 16px;
-  line-height: 1.6;
-}
-
-.activity-name {
-  font-weight: 600;
-  color: #333;
-  font-size: 18px;
-  padding: 12px;
-  background: #f8f8f8;
-  border-radius: 6px;
-  margin: 16px 0;
-}
-
-.warning {
-  color: #d32f2f;
-  font-weight: 600;
-  margin-top: 16px;
-  font-size: 15px;
-}
-
-.dialog-actions {
-  display: flex;
-  gap: 16px;
-  justify-content: flex-end;
-}
-
-.btn-cancel,
-.btn-confirm-delete {
-  padding: 12px 32px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn-cancel {
-  background: #f0f0f0;
-  color: #333;
-}
-
-.btn-cancel:hover {
-  background: #e0e0e0;
-}
-
-.btn-confirm-delete {
-  background: #d32f2f;
-  color: white;
-}
-
-.btn-confirm-delete:hover {
-  background: #c62828;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
+@media (max-width: 768px) {
+  .page-header { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
+  .page-header, .table-section { padding-left: 1.25rem; padding-right: 1.25rem; }
+  .navbar { padding-left: 1.25rem; padding-right: 1.25rem; }
 }
 </style>

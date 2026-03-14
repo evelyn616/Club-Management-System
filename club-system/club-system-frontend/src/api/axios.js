@@ -10,22 +10,38 @@ const apiClient = axios.create({
     timeout: 10000,
 });
 
-//api請求攔截器
-apiClient.interceptors.request.use((config)=> {
-    const userStore = useUserStore();
-    if(userStore.token){
-        config.headers.Authorization = `Bearer ${userStore.token}`;
+// ====== Request Interceptor：自動帶 JWT token ======
+apiClient.interceptors.request.use(
+    (config) => {
+        // 從 localStorage 取 token（不依賴 store，避免 Pinia 初始化時序問題）
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+ 
+// ====== Response Interceptor：401 自動登出 ======
+apiClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            // Token 過期或無效 → 清除登入狀態
+            localStorage.removeItem('token');
+ 
+            const path = window.location.pathname;
+            const isAdminPath = path.startsWith('/admin');
+            const isAlreadyOnLogin = path.includes('/login');
+ 
+            // 避免在登入頁本身觸發無限跳轉
+            if (!isAlreadyOnLogin) {
+                // admin 路徑導向管理員登入，其餘導向一般登入
+                window.location.href = isAdminPath ? '/admin/login' : '/login';
+            }
+        }
+        return Promise.reject(error);
     }
-    return config;
-}
-)
-
-//回應攔截器，讓token失效時清除狀態
-apiClient.interceptors.response.use((response) => response,(error) => {
-    if(error.response?.status === 401){
-        const userStore = useUserStore();
-        userStore.logout();
-    }
-    return Promise.reject(error);
-})
+);
 export default apiClient;

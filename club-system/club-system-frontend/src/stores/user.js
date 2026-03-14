@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
-//暫時寫死userId，userName，isLoggedIn等資訊
+
 export const useUserStore = defineStore("user", () => {
 
     const userId = ref(null);
@@ -17,6 +17,9 @@ export const useUserStore = defineStore("user", () => {
         userName.value = jwtResponse.user.name;
         userRole.value = jwtResponse.user.role;
         isLoggedIn.value = true;
+        localStorage.setItem('userId', jwtResponse.user.id);
+        localStorage.setItem('userName', jwtResponse.user.name);
+        localStorage.setItem('userRole', jwtResponse.user.role);
         localStorage.setItem('token',jwtResponse.token);
     }
 
@@ -31,34 +34,16 @@ export const useUserStore = defineStore("user", () => {
 
     }
 
-    //重新載入頁面時，若還攜帶token就自動還員登入狀態
-    async function restoreFromStorage(){
-        const saveToken = localStorage.getItem('token');
-        if(saveToken){
-            token.value = saveToken;
-            isLoggedIn.value = true;
-
-            try{
-                const response = await fetch('http://localhost:8080/api/auth/me',{
-                    headers: {
-                        'Authorization': `Bearer ${saveToken}`
-                    }
-                });
-                if(response.ok){
-                    const userData = await response.json();
-                    userId.value = userData.id;
-                    userName.value = userData.name;
-                    userRole.value = userData.role;
-                }
-            }
-            catch(error){
-                console.error('還原用戶資訊失敗:', error);
-            // 如果失敗就清掉 token
-            logout();
-            }
-        }
-
+    function restoreFromStorage() {
+    const savedToken = localStorage.getItem('token');
+    if (savedToken) {
+        token.value = savedToken;
+        isLoggedIn.value = true;
+        userId.value = localStorage.getItem('userId') || null;
+        userName.value = localStorage.getItem('userName') || null;
+        userRole.value = localStorage.getItem('userRole') || null;
     }
+}
 
     return{
         userId,

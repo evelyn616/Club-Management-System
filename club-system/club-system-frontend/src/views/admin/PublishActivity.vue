@@ -1,994 +1,735 @@
 <template>
-  <div class="publish-activity-container">
-    <!-- Loading 狀態 -->
-    <div v-if="loading" class="loading-container">
-      <div class="loading-spinner"></div>
-      <p>載入中...</p>
+  <div class="pa-wrap">
+
+    <!-- ── Navbar ── -->
+    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
+      <div class="nav-inner">
+        <router-link to="/admin/activity-management-container" class="nav-logo">CLUB SYSTEM</router-link>
+        <span class="nav-crumb">ADMIN / <span class="nav-crumb-active">發布設定</span></span>
+      </div>
+    </nav>
+
+    <!-- ── Loading ── -->
+    <div v-if="loading" class="state-wrap">
+      <div class="loading-bars">
+        <span v-for="i in 5" :key="i" :style="{ animationDelay: (i * 0.1) + 's' }"></span>
+      </div>
+      <p class="mono">LOADING...</p>
     </div>
 
-    <!-- 主要內容 -->
-    <div v-else class="publish-content">
-      <!-- 標題 -->
-      <div class="page-header">
-        <h1>📢 {{ pageTitle }}</h1>
-        <p class="subtitle">{{ pageSubtitle }}</p>
-      </div>
+    <!-- ══════════════════════════════════════
+         BATCH MODE（無 activityId）
+    ══════════════════════════════════════ -->
+    <div v-else-if="!activityId" class="pa-content">
 
-      <!-- 活動選擇區域 (只有獨立進入時顯示) -->
-      <div v-if="!fromRoute && (!hasSelection || batchMode)" class="activity-selector-card">
-        <div class="card-header">
-          <h2>選擇要發布的活動</h2>
-          <div class="mode-toggle">
-            <label>
-              <input type="checkbox" v-model="batchMode" />
-              啟用批量選擇
-            </label>
-          </div>
+      <div class="pa-header">
+        <div class="header-left">
+          <div class="eyebrow"><span class="eyebrow-line"></span><span class="eyebrow-text">BATCH PUBLISH</span></div>
+          <h1 class="pa-title">批量<span class="title-accent">發布</span></h1>
+          <p class="pa-subtitle">選取草稿活動，一次完成發布設定</p>
         </div>
-
-        <!-- 草稿活動列表 -->
-        <div v-if="draftActivities.length > 0" class="draft-list">
-          <!-- 批量模式工具欄 -->
-          <div v-if="batchMode" class="batch-toolbar">
-            <span class="selected-count">
-              已選擇 {{ selectedActivityId.size }} 個
-            </span>
-            <button @click="toggleSelectAll" class="btn-select-all">
-              {{ isAllSelected ? '取消全選' : '全選' }}
-            </button>
+        <div class="header-right" v-if="draftActivities.length > 0">
+          <div class="selection-badge">
+            <span class="sel-num">{{ selectedIds.size }}</span>
+            <span class="sel-label">已選取</span>
           </div>
-
-          <!-- 活動列表 -->
-          <div 
-            v-for="draft in draftActivities" 
-            :key="draft.id" 
-            class="draft-item" 
-            :class="{ 
-              selected: isSelected(draft.id),
-              'batch-mode': batchMode 
-            }" 
-            @click="handleActivitiesClick(draft.id)"
-          >
-            <!-- 批量模式的複選框 -->
-            <div v-if="batchMode" class="checkbox-wrapper">
-              <input 
-                type="checkbox"
-                :checked="selectedActivityId.has(draft.id)"
-                @click.stop="toggleSelection(draft.id)"
-              />
-            </div>
-
-            <!-- 活動資訊 -->
-            <div class="draft-info">
-              <h3>{{ draft.title }}</h3>
-              <div class="meta">
-                <span>📅 {{ formatDateTime(draft.startTime) }}</span>
-                <span>📍 {{ draft.location }}</span>
-                <span class="type-badge">{{ getActivityTypeLabel(draft.activityType) }}</span>
-              </div>
-            </div>
-
-            <!-- 單一模式的選擇按鈕 -->
-            <button v-if="!batchMode" class="btn-select" @click.stop="handleActivitiesClick(draft.id)">
-              {{ selectedActivityId.has(draft.id) ? '✓ 已選擇' : '選擇此活動' }}
-            </button>
-          </div>
-        </div>
-
-        <!-- 沒有草稿活動 -->
-        <div v-else class="empty-state">
-          <p>📭 目前沒有任何草稿喔~</p>
-          <button @click="router.push({ name: 'create-activity-container' })" class="btn-primary">
-            點我創建新活動!
+          <button class="select-all-btn" @click="toggleSelectAll">
+            {{ selectedIds.size === draftActivities.length ? '取消全選' : '全選' }}
           </button>
         </div>
       </div>
 
-      <!-- 活動預覽與發布設定 (有選擇活動後顯示) -->
-      <div v-if="hasSelection" class="publish-section">
-        <!-- 單一活動預覽 (單一模式) -->
-        <div v-if="currentMode === 'single' && currentActivity" class="activity-preview-card">
-          <div class="card-header">
-            <h2>📋 活動預覽</h2>
-            <div class="header-actions">
-              <span class="status-badge" :class="`status-${currentActivity.status?.toLowerCase()}`">
-                {{ getStatusLabel(currentActivity.status) }}
+      <!-- 無草稿 -->
+      <div v-if="draftActivities.length === 0" class="batch-empty">
+        <div class="empty-big">EMPTY</div>
+        <p class="empty-desc">目前沒有草稿活動可以發布</p>
+        <button class="cta-btn" @click="router.push({ name: 'create-activity-container' })">＋ 建立新活動</button>
+      </div>
+
+      <!-- 草稿列表 + 選項 -->
+      <div v-else class="batch-layout">
+
+        <!-- 左：草稿選擇 -->
+        <div class="batch-list">
+          <p class="section-label">DRAFT ACTIVITIES — {{ draftActivities.length }} 個草稿</p>
+          <div
+            v-for="(act, index) in draftActivities"
+            :key="act.id"
+            class="draft-card"
+            :class="{ selected: selectedIds.has(act.id) }"
+            :style="{ animationDelay: (index * 0.05) + 's' }"
+            @click="toggleSelect(act.id)"
+          >
+            <div class="draft-check">
+              <div class="check-box" :class="{ checked: selectedIds.has(act.id) }">
+                <span v-if="selectedIds.has(act.id)">✓</span>
+              </div>
+            </div>
+            <div class="draft-info">
+              <span class="draft-title">{{ act.title }}</span>
+              <span class="draft-meta mono">
+                {{ getActivityTypeLabel(act.activityType) }}
+                <span v-if="act.startTime"> · {{ formatDateTime(act.startTime) }}</span>
+                <span v-if="act.location"> · {{ act.location }}</span>
               </span>
-              <button v-if="!fromRoute" @click="clearSelection" class="btn-text">
-                ← 重新選擇
-              </button>
+            </div>
+            <div class="draft-fee mono" :class="{ free: !(act.feeAmount > 0) }">
+              {{ act.feeAmount > 0 ? `NT$ ${act.feeAmount}` : '免費' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- 右：發布選項（有選取才顯示） -->
+        <div class="batch-options" v-if="selectedIds.size > 0">
+          <p class="section-label">PUBLISH METHOD</p>
+
+          <div class="publish-options">
+            <div class="option-card" :class="{ active: publishType === 'immediate' }" @click="publishType = 'immediate'">
+              <div class="option-top">
+                <div class="option-radio"><div class="radio-inner" :class="{ checked: publishType === 'immediate' }"></div></div>
+                <div class="option-text">
+                  <span class="option-title">立即發布</span>
+                  <span class="option-desc">所選活動立即對外開放</span>
+                </div>
+                <span class="option-icon">⚡</span>
+              </div>
+            </div>
+            <div class="option-card" :class="{ active: publishType === 'scheduled' }" @click="publishType = 'scheduled'">
+              <div class="option-top">
+                <div class="option-radio"><div class="radio-inner" :class="{ checked: publishType === 'scheduled' }"></div></div>
+                <div class="option-text">
+                  <span class="option-title">預約發布</span>
+                  <span class="option-desc">指定時間自動發布</span>
+                </div>
+                <span class="option-icon">⏰</span>
+              </div>
             </div>
           </div>
 
-          <div class="activity-info">
-            <div class="info-row">
-              <span class="label">活動標題:</span>
-              <span class="value">{{ currentActivity.title }}</span>
+          <!-- 預約時間 -->
+          <div v-if="publishType === 'scheduled'" class="schedule-inputs">
+            <div class="field">
+              <label class="field-label">日期</label>
+              <input type="date" v-model="scheduledDate" :min="minDate" class="field-input" />
             </div>
-            <div class="info-row">
-              <span class="label">活動描述:</span>
-              <span class="value">{{ currentActivity.description }}</span>
+            <div class="field">
+              <label class="field-label">時間</label>
+              <input type="time" v-model="scheduledTime" class="field-input" />
             </div>
-            <div class="info-row">
-              <span class="label">活動地點:</span>
-              <span class="value">{{ currentActivity.location }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">活動類型:</span>
-              <span class="value">{{ getActivityTypeLabel(currentActivity.activityType) }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">開始時間:</span>
-              <span class="value">{{ formatDateTime(currentActivity.startTime) }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">結束時間:</span>
-              <span class="value">{{ formatDateTime(currentActivity.endTime) }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">報名截止時間:</span>
-              <span class="value">{{ formatDateTime(currentActivity.registrationDeadline) }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">費用金額:</span>
-              <span class="value">NT$ {{ currentActivity.feeAmount }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">最大參與人數:</span>
-              <span class="value">{{ currentActivity.maxParticipants || '無上限' }}</span>
+            <div v-if="scheduledDate && scheduledTime" class="schedule-preview" :class="{ valid: isScheduleValid, invalid: !isScheduleValid }">
+              <span>{{ isScheduleValid ? '✓' : '✕' }}</span>
+              <span class="mono">{{ formatSchedulePreview }}</span>
+              <span v-if="!isScheduleValid" class="warn-text">必須是未來時間</span>
             </div>
           </div>
 
-          <div class="action-buttons" v-if="fromRoute">
-            <button @click="goBack" class="btn-secondary">
-              ✏️ 返回編輯
+          <!-- 批量結果 -->
+          <div v-if="batchResult" class="batch-result">
+            <div class="result-row success" v-if="batchResult.success > 0">✓ {{ batchResult.success }} 個活動發布成功</div>
+            <div class="result-row fail" v-if="batchResult.failed > 0">
+              ✕ {{ batchResult.failed }} 個失敗
+              <div v-for="e in batchResult.errors" :key="e.id" class="error-item mono">· {{ e.title }}：{{ e.message }}</div>
+            </div>
+          </div>
+
+          <!-- 確認按鈕 -->
+          <div class="batch-actions">
+            <button class="btn-outline" @click="clearSelection">清除選取</button>
+            <button
+              class="btn-publish"
+              :disabled="isPublishing || (publishType === 'scheduled' && !isScheduleValid)"
+              @click="confirmBatchPublish"
+            >
+              {{ isPublishing
+                ? `發布中 ${publishedCount}/${selectedIds.size}...`
+                : `發布 ${selectedIds.size} 個活動 →` }}
             </button>
           </div>
         </div>
 
-        <!-- 批量活動列表預覽 (批量模式) -->
-        <div v-if="currentMode === 'batch'" class="batch-preview-card">
-          <div class="card-header">
-            <h2>📦 批量發布預覽</h2>
-            <div class="header-actions">
-              <span class="count-badge">
-                {{ selectedActivityId.size }} 個活動
-              </span>
-              <button @click="clearSelection" class="btn-text">
-                ← 重新選擇
-              </button>
-            </div>
-          </div>
-
-          <div class="selected-activities-list">
-            <div 
-              v-for="activity in selectedActivities" 
-              :key="activity.id"
-              class="selected-activity-item"
-            >
-              <div class="item-info">
-                <h4>{{ activity.title }}</h4>
-                <span class="meta">{{ formatDateTime(activity.startTime) }}</span>
-              </div>
-              <button @click="removeFromSelection(activity.id)" class="btn-remove">
-                ✕
-              </button>
-            </div>
-          </div>
+        <!-- 尚未選取提示 -->
+        <div class="batch-hint" v-else>
+          <div class="hint-arrow">←</div>
+          <p class="mono">點選左側草稿活動以開始設定發布</p>
         </div>
 
-        <!-- 發布選項 -->
-        <div class="publish-options-card">
-          <div class="card-header">
-            <h2>⚙️ 選擇發布方式</h2>
-            <p class="hint" v-if="currentMode === 'batch'">
-              所有活動將使用相同的發布設定
-            </p>
-          </div>
+      </div>
+    </div>
 
-          <div class="publish-type-selector">
-            <!-- 立即發布選項 -->
-            <div 
-              class="option-card" 
-              :class="{ active: publishType === 'immediate' }" 
-              @click="publishType = 'immediate'"
-            >
-              <div class="option-header">
-                <input 
-                  type="radio" 
-                  id="immediate" 
-                  value="immediate" 
-                  v-model="publishType" 
-                />
-                <label for="immediate">
-                  <span class="icon">⚡</span>
-                  <span class="title">立即發布</span>
-                </label>
-              </div>
-              <p class="description">
-                {{ currentMode === 'batch' ? '所有活動立即發布' : '活動將會立即對外發布,並開放報名' }}
-              </p>
-            </div>
+    <!-- ══════════════════════════════════════
+         SINGLE MODE ERROR（有 activityId 但載入失敗）
+    ══════════════════════════════════════ -->
+    <div v-else-if="activityId && !activity && !loading" class="state-wrap">
+      <div class="empty-text">ERROR</div>
+      <p class="empty-desc">{{ errorMsg || '無法載入活動資訊' }}</p>
+      <button class="cta-btn" @click="router.push({ name: 'activity-list-container' })">← 返回活動列表</button>
+    </div>
 
-            <!-- 預約發布選項 -->
-            <div 
-              class="option-card" 
-              :class="{ active: publishType === 'scheduled' }" 
-              @click="publishType = 'scheduled'"
-            >
-              <div class="option-header">
-                <input 
-                  type="radio" 
-                  id="scheduled" 
-                  value="scheduled" 
-                  v-model="publishType" 
-                />
-                <label for="scheduled">
-                  <span class="icon">⏰</span>
-                  <span class="title">預約發布</span>
-                </label>
-              </div>
-              <p class="description">
-                {{ currentMode === 'batch' ? '統一設定發布時間' : '選擇未來的日期與時間來發布活動' }}
-              </p>
+    <!-- ══════════════════════════════════════
+         SINGLE MODE（有 activityId，載入成功）
+    ══════════════════════════════════════ -->
+    <div v-else-if="activity" class="pa-content">
 
-              <!-- 預約時間選擇 -->
-              <div v-if="publishType === 'scheduled'" class="schedule-settings">
-                <div class="input-group">
-                  <label for="scheduleDate">預約發布日期:</label>
-                  <input 
-                    type="date" 
-                    id="scheduleDate" 
-                    v-model="scheduleDate" 
-                    :min="minDate" 
-                    required
-                  />
+      <div class="pa-header">
+        <div class="header-left">
+          <div class="eyebrow"><span class="eyebrow-line"></span><span class="eyebrow-text">PUBLISH SETTINGS</span></div>
+          <h1 class="pa-title">發布<span class="title-accent">設定</span></h1>
+        </div>
+        <span class="status-badge" :class="'s-' + activity.status?.toLowerCase()">
+          {{ getStatusLabel(activity.status) }}
+        </span>
+      </div>
+
+      <div class="pa-layout">
+
+        <!-- 左：選項 -->
+        <div class="pa-main">
+          <section class="pa-section">
+            <p class="section-label">SELECT PUBLISH METHOD</p>
+            <div class="publish-options">
+              <div class="option-card" :class="{ active: publishType === 'immediate' }" @click="publishType = 'immediate'">
+                <div class="option-top">
+                  <div class="option-radio"><div class="radio-inner" :class="{ checked: publishType === 'immediate' }"></div></div>
+                  <div class="option-text">
+                    <span class="option-title">立即發布</span>
+                    <span class="option-desc">活動將立即對外開放，並開始接受報名</span>
+                  </div>
+                  <span class="option-icon">⚡</span>
                 </div>
-
-                <div class="input-group">
-                  <label for="scheduleTime">預約發布時間:</label>
-                  <input 
-                    type="time" 
-                    id="scheduleTime" 
-                    v-model="scheduleTime" 
-                    required 
-                  />
+              </div>
+              <div class="option-card" :class="{ active: publishType === 'scheduled' }" @click="publishType = 'scheduled'">
+                <div class="option-top">
+                  <div class="option-radio"><div class="radio-inner" :class="{ checked: publishType === 'scheduled' }"></div></div>
+                  <div class="option-text">
+                    <span class="option-title">預約發布</span>
+                    <span class="option-desc">選擇未來時間，屆時自動發布活動</span>
+                  </div>
+                  <span class="option-icon">⏰</span>
                 </div>
-
-                <!-- 預約時間預覽 -->
-                <div v-if="scheduleDate && scheduleTime" class="schedule-preview">
-                  <div 
-                    class="preview-item" 
-                    :class="{ valid: isScheduleValid, invalid: !isScheduleValid }"
-                  >
-                    <span class="icon">{{ isScheduleValid ? '✅' : '❌' }}</span>
-                    <div class="text">
-                      <p class="label">預約發布時間</p>
-                      <p class="value">{{ formatScheduleDateTime }}</p>
-                      <p v-if="!isScheduleValid" class="error">
-                        ⚠️ 發布時間必須是未來的時間
-                      </p>
+                <div v-if="publishType === 'scheduled'" class="schedule-body">
+                  <div class="schedule-inputs">
+                    <div class="field">
+                      <label class="field-label">日期</label>
+                      <input type="date" v-model="scheduledDate" :min="minDate" class="field-input" />
+                    </div>
+                    <div class="field">
+                      <label class="field-label">時間</label>
+                      <input type="time" v-model="scheduledTime" class="field-input" />
+                    </div>
+                  </div>
+                  <div v-if="scheduledDate && scheduledTime" class="schedule-preview" :class="{ valid: isScheduleValid, invalid: !isScheduleValid }">
+                    <span class="preview-icon">{{ isScheduleValid ? '✓' : '✕' }}</span>
+                    <div>
+                      <p class="preview-time">{{ formatSchedulePreview }}</p>
+                      <p v-if="!isScheduleValid" class="preview-warn">發布時間必須是未來的時間</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+          </section>
+
+          <div class="pa-actions">
+            <button class="btn-outline" @click="saveDraft" :disabled="isPublishing">儲存為草稿</button>
+            <div class="actions-right">
+              <button class="btn-edit" @click="goToEdit">← 返回編輯</button>
+              <button v-if="publishType === 'immediate'" class="btn-publish" @click="confirmPublish" :disabled="isPublishing">
+                {{ isPublishing ? '發布中...' : '確認立即發布 →' }}
+              </button>
+              <button v-else class="btn-publish" @click="confirmSchedulePublish" :disabled="isPublishing || !isScheduleValid">
+                {{ isPublishing ? '設定中...' : '確認預約發布 →' }}
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- 批量發布進度 -->
-        <div v-if="isPublishing && currentMode === 'batch'" class="publish-progress-card">
-          <h3>📊 發布進度</h3>
-          <div class="progress-bar">
-            <div 
-              class="progress-fill" 
-              :style="{ width: `${publishProgress}%` }"
-            ></div>
+        <!-- 右：預覽 -->
+        <aside class="pa-sidebar">
+          <p class="section-label">ACTIVITY PREVIEW</p>
+          <div class="preview-cover" :style="coverStyle">
+            <span v-if="!activity.coverImageUrl" class="cover-placeholder">NO IMAGE</span>
+            <div class="cover-overlay"><span class="cover-type">{{ getActivityTypeLabel(activity.activityType) }}</span></div>
           </div>
-          <p class="progress-text">
-            {{ publishedCount }} / {{ selectedActivityId.size }} 個活動已發布
-          </p>
-        </div>
+          <div class="preview-info">
+            <p class="info-title">{{ activity.title }}</p>
+            <div class="info-grid">
+              <div class="info-row"><span class="info-label">地點</span><span class="info-val">{{ activity.location || '—' }}</span></div>
+              <div class="info-row"><span class="info-label">開始</span><span class="info-val mono">{{ formatDateTime(activity.startTime) }}</span></div>
+              <div class="info-row"><span class="info-label">結束</span><span class="info-val mono">{{ formatDateTime(activity.endTime) }}</span></div>
+              <div class="info-row"><span class="info-label">截止</span><span class="info-val mono">{{ formatDateTime(activity.registrationDeadline) }}</span></div>
+              <div class="info-row"><span class="info-label">人數</span><span class="info-val mono">{{ activity.maxParticipants || '無上限' }}</span></div>
+              <div class="info-row">
+                <span class="info-label">費用</span>
+                <span class="info-val mono" :class="{ 'val-pink': activity.feeAmount > 0 }">
+                  {{ activity.feeAmount > 0 ? `NT$ ${activity.feeAmount}` : '免費' }}
+                </span>
+              </div>
+            </div>
+            <p v-if="activity.description" class="info-desc">{{ activity.description }}</p>
+          </div>
+        </aside>
 
-        <!-- 操作按鈕 -->
-        <div class="action-section">
-          <div class="button-group">
-            <button 
-              @click="saveDraft" 
-              class="btn-outline" 
-              :disabled="isPublishing"
-            >
-              💾 保持為草稿
-            </button>
+      </div>
+    </div>
 
-            <button 
-              v-if="publishType === 'immediate'" 
-              @click="confirmPublish" 
-              class="btn-primary" 
-              :disabled="isPublishing"
-            >
-              <span v-if="isPublishing">發布中...</span>
-              <span v-else>
-                🚀 確認立即發布{{ currentMode === 'batch' ? ` (${selectedActivityId.size} 個)` : '' }}
-              </span>
-            </button>
-
-            <button 
-              v-else 
-              @click="confirmSchedulePublish" 
-              class="btn-primary" 
-              :disabled="isPublishing || !isScheduleValid"
-            >
-              <span v-if="isPublishing">設定中...</span>
-              <span v-else>
-                ⏰ 確認預約發布{{ currentMode === 'batch' ? ` (${selectedActivityId.size} 個)` : '' }}
-              </span>
+    <!-- ── Confirm Dialog（單一模式） ── -->
+    <Teleport to="body">
+      <div v-if="showConfirmDialog" class="modal-overlay" @click.self="showConfirmDialog = false">
+        <div class="dialog-box">
+          <div class="dialog-header">
+            <h2 class="dialog-title">{{ dialogTitle }}</h2>
+            <button class="dialog-close" @click="showConfirmDialog = false">×</button>
+          </div>
+          <div class="dialog-body">
+            <p class="dialog-msg">{{ dialogMsg }}</p>
+            <div class="dialog-activity">
+              <p class="d-act-title">{{ activity?.title }}</p>
+              <p class="d-act-meta mono" v-if="publishType === 'scheduled'">預定發布：{{ formatSchedulePreview }}</p>
+            </div>
+          </div>
+          <div class="dialog-footer">
+            <button class="modal-btn cancel" @click="showConfirmDialog = false" :disabled="isPublishing">取消</button>
+            <button class="modal-btn confirm" @click="executeAction" :disabled="isPublishing">
+              {{ isPublishing ? '處理中...' : '確認' }}
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
-    <!-- 批量發布結果對話框 -->
-    <div v-if="showBatchResult" class="dialog-overlay" @click="closeBatchResult">
-      <div class="dialog-content" @click.stop>
-        <div class="dialog-header">
-          <h2>📊 批量發布結果</h2>
-        </div>
-
-        <div class="dialog-body">
-          <div class="result-summary">
-            <div class="success-count">
-              ✅ 成功: {{ batchResult.success }} 個
-            </div>
-            <div v-if="batchResult.failed > 0" class="fail-count">
-              ❌ 失敗: {{ batchResult.failed }} 個
-            </div>
-          </div>
-
-          <!-- 失敗詳情 -->
-          <div v-if="batchResult.errors && batchResult.errors.length > 0" class="error-details">
-  <h4>失敗原因:</h4>
-  <ul>
-    <li v-for="error in batchResult.errors" :key="error.id">
-      {{ error.title }}: {{ error.message }}
-    </li>
-  </ul>
-</div>
-        </div>
-
-        <div class="dialog-actions">
-          <button @click="closeBatchResult" class="btn-primary">
-            {{ batchResult.failed === 0 ? '完成' : '知道了' }}
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
-
 <script setup>
-    import { onMounted, ref ,computed} from 'vue';
-    import { activityApi } from '@/api/activity';
-    import { useRoute, useRouter } from 'vue-router';
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { activityApi } from '@/api/activity'
+
+const router = useRouter()
+const route = useRoute()
 
 
-    
-    
-    const router = useRouter();
-    const route = useRoute();
+const activityId = route.params.activityId
 
-    //判斷是否為其他頁面帶入的id
-    const fromRoute = computed(()=> route.params.activityId)
+// ── 共用狀態 ──
+const loading = ref(false)
+const isPublishing = ref(false)
+const publishType = ref('immediate')
+const scheduledDate = ref('')
+const scheduledTime = ref('')
+const errorMsg = ref('')
 
-    //資料狀態
-    const loading = ref(false);
-    const draftActivities = ref([]);
-    const currentActivity = ref(null);
+// ── 單一模式 ──
+const activity = ref(null)
+const showConfirmDialog = ref(false)
+const dialogTitle = ref('')
+const dialogMsg = ref('')
+let pendingAction = null
 
-    //發布狀態
-    const isPublishing = ref(false);
-    const publishedCount = ref(0);
-    const showBatchResult = ref(false);
-    const batchResult = ref({ success: 0, failed: 0, errors: []});
-    
-    
-    //選中的活動id(來自route或是管理員選擇的)
-    const selectedActivityId = ref(new Set());
+// ── 批量模式 ──
+const draftActivities = ref([])
+const selectedIdsSet = ref(new Set())
+const publishedCount = ref(0)
+const batchResult = ref(null)
 
-    //批量模式開關(只有不帶有其他id值才能使用)
-    const batchMode = ref(false);
-    
+// 用 computed 讓 selectedIds.size 是響應式的
+const selectedIds = computed(() => selectedIdsSet.value)
 
-    //發布選項
-    const publishType = ref('immediate'); //立即發布 or 預約發布(immediate / scheduled)
-    const scheduleTime = ref(''); //預約發布時間
-    const scheduleDate = ref(''); //預約發布日期
+const toggleSelect = (id) => {
+  const s = new Set(selectedIdsSet.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  selectedIdsSet.value = s
+}
 
-    //當前模式辨別
-    const currentMode = computed(() => {
-        //如果有從其他葉面帶入id，進入單一發布
-        if(fromRoute.value) return 'single';
-        
-        //單獨進入，沒有帶值，則依照選擇數量判斷是否切換模式
-        if(selectedActivityId.value.size > 1) return 'batch';
-        if(selectedActivityId.value.size === 1) return 'single';
-
-        return null;
-    });
-
-    //是否有選擇活動
-    const hasSelection = computed(() => {
-        return selectedActivityId.value.size > 0;
-    });
-
-    const pageTitle = computed(() => {
-  if (currentMode.value === 'batch') {
-    return '📦 批量發布活動';
+const toggleSelectAll = () => {
+  if (selectedIdsSet.value.size === draftActivities.value.length) {
+    selectedIdsSet.value = new Set()
+  } else {
+    selectedIdsSet.value = new Set(draftActivities.value.map(a => a.id))
   }
-  return '📢 發布活動設定';
-});
+}
 
-const pageSubtitle = computed(() => {
-  if (currentMode.value === 'batch') {
-    return `同時發布 ${selectedActivityId.value.size} 個活動`;
+const clearSelection = () => { selectedIdsSet.value = new Set() }
+
+// ── Navbar ──
+const navHidden = ref(false)
+let lastY = 0
+const onScroll = () => {
+  const y = window.scrollY
+  navHidden.value = y > lastY && y > 60
+  lastY = y
+}
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true })
+  if (activityId) loadActivity()
+  else loadDraftActivities()
+})
+onUnmounted(() => window.removeEventListener('scroll', onScroll))
+
+// ── 載入單一活動 ──
+const loadActivity = async () => {
+  loading.value = true
+  try {
+    const response = await activityApi.getActivityDetails(activityId)
+    activity.value = response.data
+    if (activity.value.status !== 'DRAFT') {
+      alert('此活動已發布，無需重複設定')
+      router.push({ name: 'activity-list-container' })
+    }
+  } catch (e) {
+    const s = e.response?.status
+    errorMsg.value = s === 404 ? `找不到活動（ID: ${activityId}）`
+      : s === 403 ? '沒有權限查看此活動'
+      : s === 401 ? '登入已過期，請重新登入'
+      : `載入失敗（${s ?? '網路錯誤'}）`
+    activity.value = null
+    console.error('載入活動失敗:', e)
+  } finally {
+    loading.value = false
   }
-  return '設定活動的發布方式';
-});
+}
 
-    //載入草稿活動
-    const loadDraftActivities = async () => {
-        loading.value = true;
-        try{
-            const response = await activityApi.getAllActivities();//只顯示草稿
-            draftActivities.value = response.data.filter(act => act.status === 'DRAFT')
-            console.log('草稿活動列表',draftActivities.value);
+// ── 載入草稿列表 ──
+const loadDraftActivities = async () => {
+  loading.value = true
+  try {
+    const response = await activityApi.getDraftActivities()
+    draftActivities.value = response.data
+  } catch (e) {
+    console.error('載入草稿失敗:', e)
+    draftActivities.value = []
+  } finally {
+    loading.value = false
+  }
+}
 
-        }
-        catch(error){
-            console.log('載入草稿活動失敗：',error)
-            alert('載入活動列表失敗，請稍後再試')
-        }
-        finally{
-            loading.value = false;
-        }
-    }
-    //已選擇的活動
-    const selectedActivities =computed(() => {
-      return draftActivities.value.filter(act => selectedActivityId.value.has(act.id));
-    });
+// ── 批量發布 ──
+const confirmBatchPublish = async () => {
+  const count = selectedIdsSet.value.size
+  if (count === 0) return
+  const method = publishType.value === 'immediate' ? '立即發布' : `預約發布（${formatSchedulePreview.value}）`
+  if (!confirm(`確定要將 ${count} 個活動進行「${method}」嗎？`)) return
 
-    //是否全選
-    const isAllSelected = computed(() => {
-      return draftActivities.value.length > 0 && selectedActivityId.value.size === draftActivities.value.length;
-    });
+  isPublishing.value = true
+  publishedCount.value = 0
+  batchResult.value = { success: 0, failed: 0, errors: [] }
 
-   
-
-    //載入活動詳情
-    const loadActivityDetails = async (activityId) => {
-        loading.value = true;
-        try {
-            const response = await activityApi.getActivityDetails(activityId);
-            currentActivity.value = response.data;
-            console.log('活動詳情載入成功:', currentActivity.value);
-
-            // 如果活動不是草稿狀態，跳回列表
-        if (currentActivity.value.status !== 'DRAFT') {
-            alert('⚠️ 此活動已經發布過了')
-            if(fromRoute.value){
-                router.push('/admin/activity-list-container')
-            }
-            else{
-                clearSelection();
-            }
-            router.push('/admin/activities')
-        }
-        } catch (error) {
-            console.error('載入活動詳情失敗:', error);
-            alert('載入活動詳情失敗，請稍後再試');
-        } finally {
-            loading.value = false;
-        }
-    };
-
-    //最小日期
-    const minDate = computed(() => {
-        const today = new Date();
-        return today.toISOString().split('T')[0];
-    })
-
-    //預約時間格式化
-    const formatScheduleDateTime = computed(() => {
-        if(!scheduleDate.value || !scheduleTime.value){
-            
-            return null;
-        }
-        const date = new Date(`${scheduleDate.value}T${scheduleTime.value}`);
-        return date.toLocaleDateString('zh-TW', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    });
-
-    //驗證預約時間是否有效
-    const isScheduleValid = computed(() => {
-        if(!scheduleDate.value || !scheduleTime.value){
-            return false;
-        }
-        const scheduleDateTime = new Date(`${scheduleDate.value}T${scheduleTime.value}`);
-        const now = new Date();
-        return scheduleDateTime > now;
-    })
-
-    //活動點擊
-    const handleActivitiesClick = (activityId) => {
-      //批量
-      if(batchMode.value){
-        toggleSelection(activityId);
+  const ids = Array.from(selectedIdsSet.value)
+  for (const id of ids) {
+    try {
+      if (publishType.value === 'immediate') {
+        await activityApi.publishActivity(id)
+      } else {
+        const publishAt = new Date(`${scheduledDate.value}T${scheduledTime.value}`).toISOString()
+        await activityApi.schedulePublishActivity(id, { publishAt })
       }
-      else{
-        //單一模式
-        selectedActivityId.value.clear();
-        selectedActivityId.value.add(activityId);
-        loadActivityDetails(activityId);
-      }
-    };
-
-    //切換選擇狀態狀態
-    const toggleSelection = (activityId) => {
-      //取消選擇
-      if(selectedActivityId.value.has(activityId)){
-        selectedActivityId.value.delete(activityId);
-
-        //如果取消選擇後，沒有選取到任何一個活動
-        if(selectedActivityId.value.size === 0){
-          currentActivity.value = null;
-        }
-      }
-      //選取活動
-      else{
-        selectedActivityId.value.add(activityId);
-
-        //如果是單一模式，會載入活動詳情
-        if(!batchMode.value){
-          loadActivityDetails(activityId);
-        }
-      }
-    };
-
-    //判斷活動是否被選中
-    const isSelected = (activityId) => {
-      return selectedActivityId.value.has(activityId);
-    };
-
-    //從選擇中刪除
-    const removeFromSelection = (activityId) => {
-      selectedActivityId.value.delete(activityId);
-      if(selectedActivityId.value.size === 0){
-        currentActivity.value =null;
-      }
-    };
-
-    //全選/全取消
-    const toggleSelectAll = () => {
-      //全取消
-      if(isAllSelected.value) {
-        selectedActivityId.value.clear();
-        }
-      //全選
-      else{
-        draftActivities.value.forEach(act => {
-          selectedActivityId.value.add(act.id);
-        });
-      }
-    };
-
-    //清除選擇
-    const clearSelection = () => {
-        selectedActivityId.value.clear();
-        currentActivity.value = null;
-        publishType.value = 'immediate';
-        scheduleDate.value = '';
-        scheduleTime.value = '';
-
+      batchResult.value.success++
+    } catch (e) {
+      batchResult.value.failed++
+      const act = draftActivities.value.find(a => a.id === id)
+      batchResult.value.errors.push({
+        id,
+        title: act?.title || `活動 ${id}`,
+        message: e.response?.data?.message || `HTTP ${e.response?.status ?? '錯誤'}`
+      })
     }
-    // 批量發布等待的進度條
-    const publishProgress = computed (() =>{
-      if(selectedActivityId.value.size === 0) return 0;
-      return Math.round((publishedCount.value/selectedActivityId.value.size)*100);
-    })
+    publishedCount.value++
+  }
 
+  isPublishing.value = false
+  await loadDraftActivities()
+  selectedIdsSet.value = new Set()
 
-    //立即發布設定
-    const confirmPublish = async () => {
+  if (batchResult.value.failed === 0) {
+    alert(`✓ ${batchResult.value.success} 個活動全部發布成功！`)
+    batchResult.value = null
+  }
+}
 
-      const activityCount = selectedActivityId.value.size;
-      const activityText = currentMode.value === 'batch' ? `${activityCount}個活動` : currentActivity.value?.title;
+// ── Computed ──
+const minDate = computed(() => new Date().toISOString().split('T')[0])
 
-        if(!confirm(`確定要立即發布-${activityText}-活動嗎？`)){
-            return;
-        }
+const isScheduleValid = computed(() => {
+  if (!scheduledDate.value || !scheduledTime.value) return false
+  return new Date(`${scheduledDate.value}T${scheduledTime.value}`) > new Date()
+})
 
-        isPublishing.value = true;
-        try {
-          if(currentMode.value === 'batch'){
-            //批量發布
-            await handleBatchPublish();
-          }
-          else{
-            const activityId = Array.from(selectedActivityId.value)[0];
-            await activityApi.publishActivity(activityId);
-            alert(`活動-${currentActivity.value.title}-已成功發布`);
-          };
-            
-            
-            if(fromRoute.value){
-                router.push('/admin/activity-list-container');
-            }
-            else{
-                //重新載入列表並清除選擇
-                await loadDraftActivities();
-                clearSelection();
-            }
-        } catch (error) {
-            console.error('發布活動失敗:', error);
-            if (error.response?.status === 400) {
-            alert('❌ 發布失敗：活動資料不完整，請檢查必填欄位。')
-        } else if (error.response?.status === 409) {
-            alert('❌ 此活動已經發布過了。')
-            router.push('/admin/activity-list-container');
+const formatSchedulePreview = computed(() => {
+  if (!scheduledDate.value || !scheduledTime.value) return ''
+  const d = new Date(`${scheduledDate.value}T${scheduledTime.value}`)
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} (${days[d.getDay()]}) ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+})
 
-        } else {
-            alert('❌ 發布失敗，請稍後再試。')
-        }
-            
-        }
-        finally {
-            isPublishing.value = false;
-        }
-    }
+const coverStyle = computed(() => {
+  if (activity.value?.coverImageUrl) {
+    return { backgroundImage: `url(${activity.value.coverImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  }
+  return {}
+})
 
-    //預約發布設定
-    const confirmSchedulePublish = async () => {
-        if(!isScheduleValid.value){
-            alert('預約發布時間無效，請選擇未來的日期與時間');
-            return;
-        }
+// ── Helpers ──
+const getStatusLabel = (s) =>
+  ({ DRAFT:'草稿', PUBLISHED:'已發布', COMPLETED:'已完成', CANCELLED:'已取消', SCHEDULED:'已預約', ONGOING:'進行中' })[s] || s
 
-        const scheduleDateTime = new Date(`${scheduleDate.value}T${scheduleTime.value}`);
-        const displayTime = formatScheduleDateTime.value;
-        const activityCount = selectedActivityId.value.size;
-        const activityText = currentMode.value === 'batch' ? `${activityCount}個活動` : currentActivity.value?.title;
+const getActivityTypeLabel = (t) =>
+  ({ REGULAR:'社課', SPECIAL:'特別活動', TRAINING:'團練', PERFORMANCE:'演出', COMPETITION:'比賽' })[t] || t
 
-        if(!confirm(`確定要預約發布-${activityText}-活動於${displayTime}嗎？`)){
-            return;
-        }
+const formatDateTime = (dt) => {
+  if (!dt) return '—'
+  const d = new Date(dt)
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} (${days[d.getDay()]}) ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+}
 
-        isPublishing.value = true;
-        try {
-          if(currentMode.value === 'batch'){
-            //批量預約發布
-            handleBatchSchedulePublish();
-          }
-          else{
-            const activityId = Array.from(selectedActivityId.value)[0];
-            await activityApi.schedulePublishActivity(activityId, {
-                publishedAt: scheduleDateTime.toISOString()
-            });
-            alert(`活動-${currentActivity.value.title}-已成功預約發布於${displayTime}`);
-          }
-            
-            if(fromRoute.value){
-                router.push('admin/activity-list-container');
-            }
-            else{
-                await loadDraftActivities();
-                clearSelection();
-            }
-        } catch (error) {
-            console.error('預約發布活動失敗:', error);
-            alert('預約發布活動失敗，請稍後再試');
-            isPublishing.value = false;
-        }
-    }
+// ── 單一模式 Actions ──
+const confirmPublish = () => {
+  dialogTitle.value = '確認立即發布'
+  dialogMsg.value = '活動將立即對外公開，並開始接受報名，確定嗎？'
+  pendingAction = executePublish
+  showConfirmDialog.value = true
+}
 
-    //批量立即發布
-    const handleBatchPublish = async () => {
-      publishedCount.value = 0;
-      batchResult.value = {success: 0, failed: 0, error: []};
+const confirmSchedulePublish = () => {
+  if (!isScheduleValid.value) return
+  dialogTitle.value = '確認預約發布'
+  dialogMsg.value = '確定在以下時間自動發布此活動嗎？'
+  pendingAction = executeSchedulePublish
+  showConfirmDialog.value = true
+}
 
-      for(const activityId of selectedActivityId.value){
-        try{
-          await activityApi.publishActivity(activityId);
-          batchResult.value.success++;
-        }
-        catch(error){
-          console.error(`發布活動${activityId}失敗`,error);
-          batchResult.value.failed++;
+const executeAction = () => { if (pendingAction) pendingAction() }
 
-        const activity = draftActivities.value.find(a => a.id === activityId);
-        batchResult.value.errors.push({
-          id: activityId,
-          title: activity?.title || `活動${activityId}`,
-          message: error.response?.data?.message || '發布失敗'
-        })
-        }
-        publishedCount.value++;
-      }
-      showBatchResult.value = true;
-      await loadDraftActivities();
-      selectedActivityId.value.clear();
-    };
+const executePublish = async () => {
+  isPublishing.value = true
+  try {
+    await activityApi.publishActivity(activityId)
+    showConfirmDialog.value = false
+    alert(`活動「${activity.value.title}」已成功發布！`)
+    router.push({ name: 'activity-list-container' })
+  } catch (e) {
+    const s = e.response?.status
+    alert(s === 400 ? '發布失敗：活動資料不完整，請檢查必填欄位'
+      : s === 409 ? '此活動已發布過了'
+      : `發布失敗（${s ?? '網路錯誤'}），請稍後再試`)
+  } finally {
+    isPublishing.value = false
+  }
+}
 
-    //批量預約發布
-    const handleBatchSchedulePublish = async () => {
-      publishedCount.value = 0;
-      batchResult.value = {success: 0, failed: 0, error: []};
+const executeSchedulePublish = async () => {
+  isPublishing.value = true
+  try {
+    const publishAt = new Date(`${scheduledDate.value}T${scheduledTime.value}`).toISOString()
+    await activityApi.schedulePublishActivity(activityId, { publishAt })
+    showConfirmDialog.value = false
+    alert(`活動「${activity.value.title}」已預約於 ${formatSchedulePreview.value} 發布！`)
+    router.push({ name: 'activity-list-container' })
+  } catch (e) {
+    alert(`預約發布失敗（${e.response?.status ?? '網路錯誤'}），請稍後再試`)
+  } finally {
+    isPublishing.value = false
+  }
+}
 
-      const scheduleDateTime = new Date(`${scheduleDate.value}T${scheduleTime.value}`);
+const saveDraft = () => {
+  alert(`活動「${activity.value.title}」已保留為草稿`)
+  router.push({ name: 'activity-list-container' })
+}
 
-      for(const activityId of selectedActivityId.value){
-        try{
-          await activityApi.schedulePublishActivity(activityId, {
-            publishedAt: scheduleDateTime.toISOString()
-          });
-          batchResult.value.success++;
-        }
-        catch(error){
-          console.log(`預約發布內容${activityId}失敗`,error);
-          batchResult.value.failed++;
-
-          const activity =draftActivities.value.find(a => a.id === activityId);
-          batchResult.value.errors.push({
-            id: activityId,
-            title: activity?.title || `活動${activityId}`,
-            message: error.response?.data?.message || '發布失敗'
-          })
-        }
-        publishedCount.value++;
-      }
-      showBatchResult.value = true;
-      await loadDraftActivities();
-      selectedActivityId.value.clear();
-
-    }
-
-    //關閉批量結果對話框後
-    const closeBatchResult = () => {
-      showBatchResult.value = false;
-      if(batchResult.value.failed === 0){
-        router.push({name: 'activity-list-container'})
-      }
-    };
-
-    //保存為草稿
-    const saveDraft = () => {
-        
-        alert(`活動-${currentActivity.value.title}-已保存為草稿`);
-        if(fromRoute.value){
-                router.push( {name: 'activity-list-container'});
-        }
-        else{
-            clearSelection();
-        }
-    }
-
-    //返回編輯
-    const goBack = () => {
-    const activityId = Array.from(selectedActivityId.value)[0];
-    router.push(`/admin/update-activity-container/${activityId}`)
-    }
-    //格式化活動狀態
-    const getStatusLabel = (status) => {
-        const labels = {
-            'DRAFT': '草稿',
-            'SCHEDULED': '預約發布',
-            'PUBLISHED': '已發布',
-            'CANCELLED': '已取消'
-        }
-        return labels[status] || status
-    }
-    // 格式化活動類型
-    const getActivityTypeLabel = (type) => {
-        const labels = {
-            'REGULAR': '社課',
-            'SPECIAL': '特殊活動',
-            'TRAINING': '團練',
-            'PERFORMANCE': '演出',
-            'COMPETITION': '比賽'
-        }
-        return labels[type] || type
-    }
-
-    // 格式化時間
-    const formatDateTime = (dateTime) => {
-        if (!dateTime) return '-'
-        const date = new Date(dateTime)
-        return date.toLocaleString('zh-TW', {
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-        })
-    }
-
-    onMounted(async() => {
-        if(fromRoute.value) {
-            //從其他頁面帶id進來
-            selectedActivityId.value.add(route.params.activityId);
-            await loadActivityDetails(route.params.activityId);
-
-        }
-        else{
-            await loadDraftActivities();
-        }
-    });
+const goToEdit = () => {
+  router.push(`/admin/update-activity-container/${activityId}`)
+}
 </script>
 
 <style scoped>
-.publish-activity-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-}
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
 
-.page-header {
-  margin-bottom: 30px;
-}
+* { box-sizing: border-box; }
+.pa-wrap { min-height: 100vh; background: #fff; font-family: 'Noto Sans TC', sans-serif; color: #0a0a0a; }
+.mono { font-family: 'Space Mono', monospace; }
 
-.page-header h1 {
-  font-size: 28px;
-  margin-bottom: 8px;
+/* ── Navbar ── */
+.navbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 1rem 3rem; background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.08);
+  transform: translateY(0); transition: transform 0.3s ease;
 }
+.navbar-hidden { transform: translateY(-100%); }
+.nav-inner { max-width: 1300px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+.nav-logo { font-family: 'Space Mono', monospace; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.18em; color: #0a0a0a; text-decoration: none; }
+.nav-logo:hover { color: #ff2d6b; }
+.nav-crumb { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.15em; color: #aaa; }
+.nav-crumb-active { color: #ff2d6b; }
 
-.subtitle {
-  color: #666;
-  font-size: 14px;
-}
+/* ── Content ── */
+.pa-content { max-width: 1300px; margin: 0 auto; padding: 8rem 3rem 4rem; }
 
-/* 活動選擇器 */
-.activity-selector-card {
-  background: white;
-  padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  margin-bottom: 24px;
+/* ── Header ── */
+.pa-header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  padding-bottom: 2rem; margin-bottom: 2.5rem;
+  border-bottom: 2px solid #0a0a0a;
 }
+.eyebrow { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
+.eyebrow-line { display: block; width: 24px; height: 2px; background: #ff2d6b; }
+.eyebrow-text { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.2em; color: #ff2d6b; }
+.pa-title { font-family: 'Bebas Neue', sans-serif; font-size: 4rem; letter-spacing: 0.06em; line-height: 1; margin: 0; }
+.title-accent { color: #ff2d6b; }
+.pa-subtitle { font-size: 0.85rem; color: #888; margin: 0.5rem 0 0; }
+.header-right { display: flex; align-items: center; gap: 1rem; padding-bottom: 0.25rem; }
+.selection-badge { display: flex; flex-direction: column; align-items: center; }
+.sel-num { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; line-height: 1; color: #ff2d6b; }
+.sel-label { font-family: 'Space Mono', monospace; font-size: 0.55rem; letter-spacing: 0.15em; color: #aaa; }
+.select-all-btn {
+  font-family: 'Space Mono', monospace; font-size: 0.65rem; letter-spacing: 0.1em;
+  border: 1px solid #0a0a0a; background: transparent; padding: 0.5rem 1rem; cursor: pointer; transition: all 0.2s;
+}
+.select-all-btn:hover { background: #0a0a0a; color: #fff; }
+.status-badge {
+  font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.1em;
+  padding: 0.35rem 0.9rem; font-weight: 600;
+}
+.s-draft { background: #f5f5f5; color: #888; }
+.s-published { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.s-completed { background: #fafafa; color: #aaa; }
+.s-cancelled { background: #fff1f2; color: #be123c; }
+.s-scheduled { background: #fefce8; color: #a16207; }
 
-.draft-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 20px;
-}
+/* ── States ── */
+.state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; gap: 0.75rem; }
+.loading-bars { display: flex; gap: 4px; }
+.loading-bars span { display: block; width: 3px; height: 28px; background: #ff2d6b; border-radius: 2px; animation: barPulse 0.8s ease-in-out infinite alternate; }
+@keyframes barPulse { from { transform: scaleY(0.3); opacity: 0.3; } to { transform: scaleY(1); opacity: 1; } }
+.empty-text { font-family: 'Bebas Neue', sans-serif; font-size: 6rem; color: transparent; -webkit-text-stroke: 1px #e0e0e0; line-height: 1; }
+.empty-desc { font-size: 0.85rem; color: #aaa; text-align: center; }
 
-.draft-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
+/* ── Batch ── */
+.batch-empty { text-align: center; padding: 5rem 0; }
+.empty-big { font-family: 'Bebas Neue', sans-serif; font-size: 8rem; color: transparent; -webkit-text-stroke: 1px #eee; line-height: 1; }
+.batch-layout { display: grid; grid-template-columns: 1fr 360px; gap: 3rem; align-items: start; }
+.section-label { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.18em; color: #aaa; text-transform: uppercase; margin: 0 0 1rem; }
 
-.draft-item:hover {
-  border-color: #4CAF50;
-  background: #f8fff9;
+@keyframes draftFadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.draft-card {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1rem 1.25rem; border: 1px solid #f0f0f0;
+  margin-bottom: 0.5rem; cursor: pointer;
+  animation: draftFadeUp 0.35s ease both;
+  transition: border-color 0.2s, background 0.2s;
 }
+.draft-card:hover { border-color: #0a0a0a; background: #fafafa; }
+.draft-card.selected { border-color: #ff2d6b; background: #fff5f7; }
+.check-box {
+  width: 20px; height: 20px; border: 1.5px solid #ccc;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; flex-shrink: 0; transition: all 0.15s;
+}
+.check-box.checked { border-color: #ff2d6b; background: #ff2d6b; color: #fff; }
+.draft-info { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.draft-title { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.draft-meta { font-size: 0.68rem; color: #999; letter-spacing: 0.04em; }
+.draft-fee { font-size: 0.72rem; color: #888; flex-shrink: 0; }
+.draft-fee.free { color: #16a34a; }
 
-.draft-item.selected {
-  border-color: #4CAF50;
-  background: #e8f5e9;
-}
+.batch-options { position: sticky; top: 6rem; }
+.batch-hint { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; text-align: center; color: #ccc; }
+.hint-arrow { font-family: 'Bebas Neue', sans-serif; font-size: 5rem; line-height: 1; color: #eee; margin-bottom: 0.5rem; }
 
-.draft-info h3 {
-  font-size: 18px;
-  margin-bottom: 8px;
-}
+/* ── Publish options ── */
+.publish-options { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
+.option-card { border: 1px solid #e8e8e8; cursor: pointer; transition: border-color 0.2s; }
+.option-card.active { border-color: #0a0a0a; }
+.option-top { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; }
+.option-radio { width: 18px; height: 18px; border: 1.5px solid #ccc; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.radio-inner { width: 8px; height: 8px; border-radius: 50%; background: transparent; transition: background 0.15s; }
+.radio-inner.checked { background: #0a0a0a; }
+.option-card.active .option-radio { border-color: #0a0a0a; }
+.option-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.option-title { font-weight: 700; font-size: 0.9rem; }
+.option-desc { font-size: 0.78rem; color: #888; }
+.option-icon { font-size: 1.2rem; }
 
-.meta {
-  display: flex;
-  gap: 16px;
-  font-size: 14px;
-  color: #666;
-}
+/* schedule */
+.schedule-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem; }
+.schedule-body { padding: 1rem 1.25rem 1.25rem; border-top: 1px solid #f0f0f0; }
+.field { display: flex; flex-direction: column; gap: 0.35rem; }
+.field-label { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; color: #aaa; }
+.field-input { border: 1px solid #e0e0e0; padding: 0.55rem 0.75rem; font-family: 'Space Mono', monospace; font-size: 0.78rem; outline: none; transition: border-color 0.2s; background: #fff; color: #0a0a0a; }
+.field-input:focus { border-color: #0a0a0a; }
+.schedule-preview { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.75rem; padding: 0.65rem 0.9rem; font-size: 0.72rem; }
+.schedule-preview.valid { background: #f0fdf4; color: #15803d; }
+.schedule-preview.invalid { background: #fff1f2; color: #be123c; }
+.preview-icon { flex-shrink: 0; }
+.preview-time { margin: 0; font-family: 'Space Mono', monospace; font-size: 0.7rem; }
+.preview-warn { margin: 2px 0 0; font-size: 0.65rem; opacity: 0.8; }
+.warn-text { font-size: 0.62rem; font-family: 'Space Mono', monospace; }
 
-.type-badge {
-  background: #e3f2fd;
-  color: #1976d2;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-}
+/* batch result */
+.batch-result { margin-bottom: 1rem; }
+.result-row { padding: 0.75rem 1rem; font-size: 0.82rem; margin-bottom: 0.5rem; }
+.result-row.success { background: #f0fdf4; color: #15803d; border-left: 3px solid #16a34a; }
+.result-row.fail { background: #fff1f2; color: #be123c; border-left: 3px solid #dc2626; }
+.error-item { font-size: 0.7rem; margin-top: 4px; opacity: 0.85; }
 
-.btn-select {
-  padding: 8px 16px;
-  background: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  white-space: nowrap;
-}
+/* actions */
+.batch-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+.pa-section { margin-bottom: 1.5rem; }
+.pa-layout { display: grid; grid-template-columns: 1fr 320px; gap: 3rem; }
+.pa-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #f0f0f0; }
+.actions-right { display: flex; gap: 0.75rem; }
 
-.empty-state {
-  text-align: center;
-  padding: 40px;
-  color: #999;
-}
+.btn-outline { border: 1px solid #ccc; background: transparent; font-family: 'Space Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em; padding: 0.65rem 1.25rem; cursor: pointer; transition: all 0.2s; }
+.btn-outline:hover { border-color: #0a0a0a; }
+.btn-edit { border: 1px solid #e0e0e0; background: transparent; font-family: 'Space Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em; padding: 0.65rem 1.25rem; cursor: pointer; color: #888; transition: all 0.2s; }
+.btn-edit:hover { color: #0a0a0a; border-color: #0a0a0a; }
+.btn-publish { background: #0a0a0a; color: #fff; border: none; font-family: 'Space Mono', monospace; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; padding: 0.75rem 1.75rem; cursor: pointer; transition: background 0.2s; flex: 1; }
+.btn-publish:hover:not(:disabled) { background: #ff2d6b; }
+.btn-publish:disabled { opacity: 0.45; cursor: not-allowed; }
+.cta-btn { background: #0a0a0a; color: #fff; border: none; font-family: 'Space Mono', monospace; font-size: 0.72rem; letter-spacing: 0.08em; padding: 0.75rem 1.75rem; cursor: pointer; margin-top: 1rem; transition: background 0.2s; }
+.cta-btn:hover { background: #ff2d6b; }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
+/* ── Preview (single mode) ── */
+.preview-cover { height: 180px; background: #f5f5f5; display: flex; align-items: flex-end; position: relative; overflow: hidden; margin-bottom: 1.25rem; }
+.cover-placeholder { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-family: 'Space Mono', monospace; font-size: 0.7rem; letter-spacing: 0.2em; color: #ccc; }
+.cover-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.5); }
+.cover-type { font-family: 'Space Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; color: rgba(255,255,255,0.8); }
+.info-title { font-weight: 700; font-size: 1rem; margin: 0 0 1rem; line-height: 1.4; }
+.info-grid { display: flex; flex-direction: column; gap: 0.5rem; border-top: 1px solid #f0f0f0; padding-top: 0.75rem; }
+.info-row { display: flex; gap: 0.75rem; }
+.info-label { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; color: #aaa; width: 48px; flex-shrink: 0; margin-top: 2px; }
+.info-val { font-size: 0.82rem; }
+.info-val.mono { font-family: 'Space Mono', monospace; font-size: 0.72rem; }
+.val-pink { color: #ff2d6b; font-weight: 700; }
+.info-desc { font-size: 0.82rem; color: #666; line-height: 1.6; margin-top: 0.75rem; border-top: 1px solid #f0f0f0; padding-top: 0.75rem; }
 
-.btn-text {
-  background: none;
-  border: none;
-  color: #1976d2;
-  cursor: pointer;
-  padding: 4px 8px;
-}
+/* ── Dialog ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: flex; align-items: center; justify-content: center; }
+.dialog-box { background: #fff; width: 420px; max-width: 90vw; }
+.dialog-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid #f0f0f0; }
+.dialog-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.06em; margin: 0; }
+.dialog-close { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #aaa; }
+.dialog-close:hover { color: #0a0a0a; }
+.dialog-body { padding: 1.5rem; }
+.dialog-msg { font-size: 0.88rem; color: #555; margin: 0 0 1rem; }
+.dialog-activity { background: #fafafa; padding: 0.75rem 1rem; border-left: 3px solid #ff2d6b; }
+.d-act-title { font-weight: 700; font-size: 0.9rem; margin: 0 0 4px; }
+.d-act-meta { font-family: 'Space Mono', monospace; font-size: 0.68rem; color: #888; margin: 0; }
+.dialog-footer { display: flex; gap: 0.75rem; padding: 1rem 1.5rem; border-top: 1px solid #f0f0f0; justify-content: flex-end; }
+.modal-btn { font-family: 'Space Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em; padding: 0.6rem 1.25rem; cursor: pointer; border: none; transition: all 0.2s; }
+.modal-btn.cancel { background: #f5f5f5; color: #555; }
+.modal-btn.cancel:hover { background: #e8e8e8; }
+.modal-btn.confirm { background: #0a0a0a; color: #fff; }
+.modal-btn.confirm:hover:not(:disabled) { background: #ff2d6b; }
+.modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.btn-text:hover {
-  text-decoration: underline;
+/* ── Responsive ── */
+@media (max-width: 960px) {
+  .pa-layout, .batch-layout { grid-template-columns: 1fr; }
+  .batch-options { position: static; }
+  .pa-content { padding-left: 1.5rem; padding-right: 1.5rem; }
+  .navbar { padding-left: 1.5rem; padding-right: 1.5rem; }
 }
-.batch-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #f5f7fa;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-}
-.batch-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #f5f7fa;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-}
-.option-card {
-  border: 2px solid #e0e0e0;
-  border-radius: 10px;
-  padding: 16px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.option-card:hover {
-  border-color: #4CAF50;
-  background: #f8fff9;
-}
-
-.option-card.active {
-  border-color: #4CAF50;
-  background: #e8f5e9;
-}
-.progress-bar {
-  height: 10px;
-  background: #eee;
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #4CAF50, #81C784);
-  transition: width 0.3s ease;
-}
-
-
-/* 其他樣式保持不變 ... */
 </style>

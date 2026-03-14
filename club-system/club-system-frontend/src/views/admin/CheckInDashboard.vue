@@ -1,554 +1,700 @@
 <template>
-  <div class="dashboard-container">
-    <!-- Header -->
-    <div class="header">
-      <div class="header-left">
+  <div class="ci-wrap">
+
+    <!-- ── Navbar ── -->
+    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
+      <div class="nav-inner">
         <button class="back-btn" @click="$router.back()">← 返回</button>
-        <div>
-          <h1>簽到管理中心</h1>
-          <p class="subtitle">{{ currentActivity?.title || '請選擇活動' }}</p>
-        </div>
+        <span class="nav-logo">CLUB SYSTEM</span>
+        <span class="nav-crumb">ADMIN / <span class="nav-accent">簽到管理</span></span>
       </div>
-      <div class="header-right">
+    </nav>
+
+    <!-- ── Page Header ── -->
+    <div class="page-header">
+      <div class="header-left">
+        <div class="eyebrow">
+          <span class="eyebrow-line"></span>
+          <span class="eyebrow-text">CHECK-IN DASHBOARD</span>
+        </div>
+        <h1 class="page-title">
+          簽到<span class="title-accent">管理</span>
+        </h1>
+        <p class="page-sub" v-if="currentActivity">{{ currentActivity.title }}</p>
+        <p class="page-sub empty-sub" v-else>請選擇活動開始管理簽到</p>
+      </div>
+
+      <div class="header-actions">
+        <!-- Activity Select -->
+        <div class="activity-selector">
+          <label class="selector-label">SELECT ACTIVITY</label>
+          <select v-model="selectedActivityId" @change="onActivityChange" class="activity-select">
+            <option value="">-- 選擇活動 --</option>
+            <option v-for="act in activities" :key="act.id" :value="act.id">
+              {{ act.title }} ({{ formatDate(act.startTime) }})
+            </option>
+          </select>
+        </div>
+        <!-- QR Button -->
         <button class="qr-btn" @click="showQrModal = true" :disabled="!selectedActivityId">
-          <span class="icon">⬛</span> 產生 QR Code
+          <span class="qr-icon">▣</span>
+          QR Code
         </button>
       </div>
     </div>
 
-    <!-- Activity Selector -->
-    <div class="activity-selector-card">
-      <label class="field-label">選擇活動</label>
-      <select v-model="selectedActivityId" @change="onActivityChange" class="activity-select">
-        <option value="">-- 選擇活動 --</option>
-        <option v-for="act in activities" :key="act.id" :value="act.id">
-          {{ act.title }} ({{ formatDate(act.startTime) }})
-        </option>
-      </select>
-    </div>
-
-    <!-- Stats Row -->
+    <!-- ── Stats Row ── -->
     <div class="stats-row" v-if="selectedActivityId">
       <div class="stat-card">
-        <div class="stat-num">{{ stats.total }}</div>
-        <div class="stat-label">總報名人數</div>
+        <span class="stat-label">TOTAL</span>
+        <span class="stat-num">{{ stats.total }}</span>
+        <span class="stat-desc">總報名人數</span>
       </div>
       <div class="stat-card accent">
-        <div class="stat-num">{{ stats.checkedIn }}</div>
-        <div class="stat-label">已簽到</div>
+        <span class="stat-label">CHECKED IN</span>
+        <span class="stat-num">{{ stats.checkedIn }}</span>
+        <span class="stat-desc">已簽到</span>
+      </div>
+      <div class="stat-card neutral">
+        <span class="stat-label">PENDING</span>
+        <span class="stat-num">{{ stats.total - stats.checkedIn }}</span>
+        <span class="stat-desc">未簽到</span>
       </div>
       <div class="stat-card warn">
-        <div class="stat-num">{{ stats.total - stats.checkedIn }}</div>
-        <div class="stat-label">未簽到</div>
-      </div>
-      <div class="stat-card info">
-        <div class="stat-num">{{ stats.late }}</div>
-        <div class="stat-label">遲到人數</div>
+        <span class="stat-label">LATE</span>
+        <span class="stat-num">{{ stats.late }}</span>
+        <span class="stat-desc">遲到人數</span>
       </div>
       <div class="stat-card rate">
-        <div class="stat-num">{{ stats.total > 0 ? Math.round((stats.checkedIn / stats.total) * 100) : 0 }}%</div>
-        <div class="stat-label">簽到率</div>
+        <span class="stat-label">RATE</span>
+        <span class="stat-num pink">{{ stats.total > 0 ? Math.round((stats.checkedIn / stats.total) * 100) : 0 }}%</span>
         <div class="progress-bar">
           <div class="progress-fill" :style="{ width: stats.total > 0 ? (stats.checkedIn / stats.total * 100) + '%' : '0%' }"></div>
         </div>
       </div>
     </div>
 
-    <!-- Manual Check-in Section -->
-    <div class="section-card" v-if="selectedActivityId">
-      <div class="section-header">
-        <h2>手動簽到</h2>
-        <span class="badge">管理員操作</span>
-      </div>
-      <div class="manual-checkin">
-        <div class="search-row">
-          <input
-            v-model="searchKeyword"
-            @input="filterRegistrations"
-            placeholder="搜尋姓名或 ID..."
-            class="search-input"
-          />
-          <div class="filter-tabs">
+    <!-- ── Empty (no activity selected) ── -->
+    <div class="empty-wrap" v-if="!selectedActivityId">
+      <div class="empty-big">SELECT</div>
+      <p class="empty-desc mono">請從上方選擇活動</p>
+    </div>
+
+    <!-- ── Check-in Panel ── -->
+    <div class="panel" v-if="selectedActivityId">
+      <div class="panel-header">
+        <div class="panel-title-row">
+          <h2 class="panel-title">手動簽到</h2>
+          <span class="admin-badge">ADMIN</span>
+        </div>
+
+        <!-- Search + Filter -->
+        <div class="search-filter-row">
+          <div class="search-wrap">
+            <input
+              v-model="searchKeyword"
+              placeholder="搜尋姓名或 ID..."
+              class="search-input"
+            />
+            <span class="search-icon">→</span>
+          </div>
+          <div class="filter-pills">
             <button
               v-for="f in filters"
               :key="f.value"
-              :class="['filter-tab', { active: activeFilter === f.value }]"
+              :class="['pill', { active: activeFilter === f.value }]"
               @click="setFilter(f.value)"
             >{{ f.label }}</button>
           </div>
         </div>
+      </div>
 
-        <!-- Registration List -->
-        <div class="registration-list">
-          <div v-if="loading" class="loading-state">載入中...</div>
-          <div v-else-if="filteredRegistrations.length === 0" class="empty-state">
-            沒有符合的報名紀錄
-          </div>
-          <div
-            v-for="reg in filteredRegistrations"
-            :key="reg.id"
-            class="registration-row"
-            :class="{ 'checked': reg.status === 'ATTENDED', 'late': reg.late === true }"
-          >
+      <!-- List -->
+      <div class="reg-list">
+        <div v-if="loading" class="list-state mono">LOADING...</div>
+        <div v-else-if="filteredRegistrations.length === 0" class="list-state mono">
+          沒有符合的紀錄
+        </div>
+        <div
+          v-for="reg in filteredRegistrations"
+          :key="reg.id"
+          class="reg-row"
+          :class="{
+            'is-checked': reg.status === 'ATTENDED' && !reg.late,
+            'is-late': reg.status === 'ATTENDED' && reg.late === true
+          }"
+        >
+          <!-- Left -->
+          <div class="reg-left">
+            <div class="reg-avatar" :class="{
+              'av-checked': reg.status === 'ATTENDED' && !reg.late,
+              'av-late': reg.status === 'ATTENDED' && reg.late === true
+            }">
+              {{ (reg.userName || reg.userId || '?')[0].toUpperCase() }}
+            </div>
             <div class="reg-info">
-              <span class="reg-id">{{ reg.userName || reg.userId }}</span>
-              <span class="reg-time">報名：{{ formatDate(reg.registrationTime) }}</span>
-              <span v-if="reg.status === 'ATTENDED'" class="check-time">
-                簽到：{{ formatDate(reg.checkInTime) }}
-                <span v-if="reg.late === true" class="late-badge">遲到</span>
+              <span class="reg-name">{{ reg.userName || reg.userId }}</span>
+              <span class="reg-meta mono">
+                {{ reg.userId }}
+                <span class="meta-sep">·</span>
+                報名 {{ formatDate(reg.registrationTime) }}
+              </span>
+              <span v-if="reg.status === 'ATTENDED'" class="check-meta mono">
+                簽到 {{ formatDate(reg.checkInTime) }}
+                <span class="late-pill" v-if="reg.late">LATE</span>
               </span>
             </div>
-            <div class="reg-status">
-              <span class="payment-badge" :class="reg.paymentStatus?.toLowerCase()">
-                {{ paymentLabel(reg.paymentStatus) }}
-              </span>
-              <button
-                v-if="reg.status === 'REGISTERED'"
-                class="checkin-btn"
-                @click="handleManualCheckIn(reg)"
-                :disabled="checkingIn === reg.id"
-              >
-                {{ checkingIn === reg.id ? '處理中...' : '✓ 簽到' }}
-              </button>
-              <span v-else-if="reg.status === 'ATTENDED'" class="checked-badge">✓ 已簽到</span>
-            </div>
+          </div>
+
+          <!-- Right -->
+          <div class="reg-right">
+            <span class="pay-badge" :class="reg.paymentStatus?.toLowerCase()">
+              {{ paymentLabel(reg.paymentStatus) }}
+            </span>
+            <button
+              v-if="reg.status === 'REGISTERED'"
+              class="checkin-btn"
+              @click="handleManualCheckIn(reg)"
+              :disabled="checkingIn === reg.id"
+            >
+              {{ checkingIn === reg.id ? '...' : '✓ 簽到' }}
+            </button>
+            <span v-else-if="reg.status === 'ATTENDED'" class="done-badge">✓ 已簽到</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Empty State -->
-    <div class="empty-activity" v-if="!selectedActivityId">
-      <div class="empty-icon">📋</div>
-      <p>請選擇活動以查看簽到情況</p>
-    </div>
-
-    <!-- QR Code Modal -->
-    <div class="modal-overlay" v-if="showQrModal" @click.self="showQrModal = false">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>活動簽到 QR Code</h3>
-          <button class="modal-close" @click="showQrModal = false">✕</button>
-        </div>
-        <div class="modal-body">
-          <p class="qr-activity-name">{{ currentActivity?.title }}</p>
-          <div class="qr-wrapper">
-            <img :src="qrCodeUrl" alt="QR Code" class="qr-image" v-if="qrCodeUrl" />
-            <div class="qr-loading" v-else>產生中...</div>
+    <!-- ── QR Code Modal ── -->
+    <Teleport to="body">
+      <div v-if="showQrModal" class="modal-overlay" @click.self="showQrModal = false">
+        <div class="modal-box">
+          <button class="modal-close" @click="showQrModal = false">×</button>
+          <div class="modal-eyebrow mono">QR CODE</div>
+          <h3 class="modal-title">{{ currentActivity?.title }}</h3>
+          <div class="qr-wrap">
+            <img :src="qrCodeUrl" alt="QR Code" class="qr-img" v-if="qrCodeUrl" />
+            <div class="qr-loading mono" v-else>產生中...</div>
           </div>
-          <p class="qr-hint">會員掃碼後可自助簽到</p>
-          <div class="qr-url-box">{{ checkinUrl }}</div>
+          <p class="qr-hint mono">會員掃碼後可自助簽到</p>
+          <div class="qr-url mono">{{ checkinUrl }}</div>
+          <a class="qr-download" :href="qrCodeUrl" target="_blank" download>下載 QR Code →</a>
         </div>
       </div>
-    </div>
+    </Teleport>
 
-    <!-- Toast -->
-    <div class="toast" :class="toast.type" v-if="toast.show">{{ toast.message }}</div>
+    <!-- ── Toast ── -->
+    <Teleport to="body">
+      <div v-if="toast.show" class="toast" :class="toast.type">{{ toast.message }}</div>
+    </Teleport>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
-import { activityApi } from '@/api/activity';
-import { registrationApi } from '@/api/registration';
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { activityApi } from '@/api/activity'
+import { registrationApi } from '@/api/registration'
 
-const activities = ref([]);
-const selectedActivityId = ref('');
-const currentActivity = computed(() => activities.value.find(a => a.id == selectedActivityId.value));
-const registrations = ref([]);
-const loading = ref(false);
-const checkingIn = ref(null);
-const showQrModal = ref(false);
-const searchKeyword = ref('');
-const activeFilter = ref('all');
-const stats = ref({ total: 0, checkedIn: 0, late: 0 });
+const route = useRoute()
+
+const activities = ref([])
+const selectedActivityId = ref(route.query.activityId || '')
+const currentActivity = computed(() => activities.value.find(a => a.id == selectedActivityId.value))
+const registrations = ref([])
+const loading = ref(false)
+const checkingIn = ref(null)
+const showQrModal = ref(false)
+const searchKeyword = ref('')
+const activeFilter = ref('all')
+const stats = ref({ total: 0, checkedIn: 0, late: 0 })
 
 const filters = [
   { label: '全部', value: 'all' },
   { label: '未簽到', value: 'pending' },
   { label: '已簽到', value: 'checkedIn' },
   { label: '遲到', value: 'late' },
-];
+]
+const toast = ref({ show: false, message: '', type: '' })
 
-const toast = ref({ show: false, message: '', type: '' });
+// Navbar scroll
+const navHidden = ref(false)
+let lastY = 0
+const onScroll = () => {
+  const y = window.scrollY
+  navHidden.value = y > lastY && y > 60
+  lastY = y
+}
+onMounted(async () => {
+  window.addEventListener('scroll', onScroll, { passive: true })
+  try {
+    const res = await activityApi.getAllActivities()
+    activities.value = res.data || []
+    if (selectedActivityId.value) await onActivityChange()
+  } catch (e) { console.error(e) }
+})
+onUnmounted(() => window.removeEventListener('scroll', onScroll))
 
-// QR Code
+// QR
 const checkinUrl = computed(() =>
   selectedActivityId.value
     ? `${window.location.origin}/checkin/member?activityId=${selectedActivityId.value}`
     : ''
-);
+)
 const qrCodeUrl = computed(() =>
   selectedActivityId.value
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(checkinUrl.value)}`
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(checkinUrl.value)}`
     : ''
-);
+)
 
-// Filtered list
+// Filter
 const filteredRegistrations = computed(() => {
-  let list = registrations.value;
+  let list = registrations.value
   if (searchKeyword.value) {
-    const kw = searchKeyword.value.toLowerCase();
-    list = list.filter(r =>
-      r.userId?.toLowerCase().includes(kw) ||
-      r.userName?.toLowerCase().includes(kw)
-    );
+    const kw = searchKeyword.value.toLowerCase()
+    list = list.filter(r => r.userId?.toLowerCase().includes(kw) || r.userName?.toLowerCase().includes(kw))
   }
-  if (activeFilter.value === 'pending')   list = list.filter(r => r.status === 'REGISTERED');
-  if (activeFilter.value === 'checkedIn') list = list.filter(r => r.status === 'ATTENDED');
-  if (activeFilter.value === 'late')      list = list.filter(r => r.status === 'ATTENDED' && r.late === true);
-  return list;
-});
+  if (activeFilter.value === 'pending')   list = list.filter(r => r.status === 'REGISTERED')
+  if (activeFilter.value === 'checkedIn') list = list.filter(r => r.status === 'ATTENDED')
+  if (activeFilter.value === 'late')      list = list.filter(r => r.status === 'ATTENDED' && r.late === true)
+  return list
+})
 
-function setFilter(val) { activeFilter.value = val; }
-function filterRegistrations() { /* reactive via computed */ }
+function setFilter(val) { activeFilter.value = val }
 
 async function onActivityChange() {
-  if (!selectedActivityId.value) return;
-  loading.value = true;
+  if (!selectedActivityId.value) return
+  loading.value = true
   try {
     const [regRes, countRes, checkinCountRes] = await Promise.all([
       registrationApi.getActivityRegistrations(selectedActivityId.value),
       registrationApi.countRegistrations(selectedActivityId.value),
       registrationApi.countCheckedIn(selectedActivityId.value),
-    ]);
-    registrations.value = regRes.data || [];
-    const lateCount = registrations.value.filter(r => r.late === true).length;
+    ])
+    registrations.value = regRes.data || []
+    const lateCount = registrations.value.filter(r => r.late === true).length
     stats.value = {
       total: countRes.data || 0,
       checkedIn: checkinCountRes.data || 0,
       late: lateCount,
-    };
+    }
   } catch (e) {
-    showToast('載入資料失敗', 'error');
+    showToast('載入資料失敗', 'error')
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
 async function handleManualCheckIn(reg) {
-  checkingIn.value = reg.id;
+  checkingIn.value = reg.id
   try {
-    const res = await registrationApi.checkIn(reg.id);
-    // 用後端回傳的資料更新，確保 status / late 欄位正確
-    reg.status = res.data.status;
-    reg.checkInTime = res.data.checkInTime;
-    reg.late = res.data.late;
-    stats.value.checkedIn++;
-    if (reg.late === true) stats.value.late++;
-    showToast(`✓ ${reg.userId} 簽到成功`, 'success');
+    const res = await registrationApi.checkIn(reg.id)
+    reg.status = res.data.status
+    reg.checkInTime = res.data.checkInTime
+    reg.late = res.data.late
+    stats.value.checkedIn++
+    if (reg.late === true) stats.value.late++
+    showToast(`✓ ${reg.userName || reg.userId} 簽到成功`, 'success')
   } catch (e) {
-    const msg = e.response?.data?.message || '簽到失敗';
-    showToast(msg, 'error');
+    showToast(e.response?.data?.message || '簽到失敗', 'error')
   } finally {
-    checkingIn.value = null;
+    checkingIn.value = null
   }
 }
 
-function showToast(message, type = 'success') {
-  toast.value = { show: true, message, type };
-  setTimeout(() => { toast.value.show = false; }, 3000);
+function paymentLabel(s) {
+  return ({ PAID: '已繳費', PENDING: '待繳費', FREE: '免費', UNPAID: '未繳費' })[s] || s || '—'
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleString('zh-TW', {
-    month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit'
-  });
+function formatDate(dt) {
+  if (!dt) return '—'
+  const d = new Date(dt)
+  return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
 }
 
-function paymentLabel(status) {
-  const map = { PAID: '已繳費', PENDING: '待繳費', FREE: '免費' };
-  return map[status] || status;
+let toastTimer = null
+function showToast(msg, type = 'success') {
+  toast.value = { show: true, message: msg, type }
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toast.value.show = false }, 2800)
 }
-
-onMounted(async () => {
-  try {
-    const res = await activityApi.getAllActivities();
-    activities.value = (res.data || []).filter(a => a.status === 'ONGOING' || a.status === 'PUBLISHED');
-  } catch (e) {
-    showToast('載入活動列表失敗', 'error');
-  }
-});
 </script>
 
 <style scoped>
-/* ===== Design: Industrial Utility ===== */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+TC:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
 
 * { box-sizing: border-box; }
 
-.dashboard-container {
+.ci-wrap {
   min-height: 100vh;
-  background: #f0f0ec;
-  font-family: 'IBM Plex Sans TC', sans-serif;
-  padding: 28px 32px;
-  color: #1a1a1a;
+  background: #ffffff;
+  font-family: 'Noto Sans TC', sans-serif;
+  color: #0a0a0a;
 }
+.mono { font-family: 'Space Mono', monospace; }
 
-/* Header */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+/* ── Navbar ── */
+.navbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  transform: translateY(0);
+  transition: transform 0.3s ease;
 }
-.header-left { display: flex; align-items: center; gap: 16px; }
+.navbar-hidden { transform: translateY(-100%); }
+.nav-inner {
+  max-width: 1300px; margin: 0 auto;
+  padding: 1rem 2.5rem;
+  display: flex; align-items: center; gap: 1.5rem;
+}
 .back-btn {
-  background: none;
-  border: 2px solid #1a1a1a;
-  padding: 8px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: background 0.2s;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem; letter-spacing: 0.1em;
+  background: none; border: 1px solid #e0e0e0;
+  border-radius: 20px; padding: 0.4rem 1rem;
+  cursor: pointer; color: #888;
+  transition: all 0.18s;
 }
-.back-btn:hover { background: #1a1a1a; color: #f0f0ec; }
-h1 { font-size: 1.7rem; font-weight: 700; margin: 0; letter-spacing: -0.5px; }
-.subtitle { color: #666; font-size: 0.9rem; margin: 2px 0 0; }
+.back-btn:hover { border-color: #0a0a0a; color: #0a0a0a; }
+.nav-logo {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.88rem; font-weight: 700; letter-spacing: 0.18em; color: #0a0a0a;
+  flex: 1;
+}
+.nav-crumb {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem; letter-spacing: 0.12em; color: #aaa;
+}
+.nav-accent { color: #ff2d6b; }
+
+/* ── Page Header ── */
+.page-header {
+  max-width: 1300px; margin: 0 auto;
+  padding: 8rem 2.5rem 2.5rem;
+  display: flex; justify-content: space-between; align-items: flex-end;
+  border-bottom: 2px solid #0a0a0a;
+  gap: 2rem; flex-wrap: wrap;
+}
+.eyebrow { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
+.eyebrow-line { display: block; width: 24px; height: 2px; background: #ff2d6b; border-radius: 2px; }
+.eyebrow-text { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.2em; color: #ff2d6b; }
+.page-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 4rem; letter-spacing: 0.06em; line-height: 1; margin: 0;
+}
+.title-accent { color: #ff2d6b; }
+.page-sub { font-size: 0.88rem; color: #555; margin: 0.4rem 0 0; }
+.empty-sub { color: #ccc; }
+
+.header-actions { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
+.activity-selector { display: flex; flex-direction: column; gap: 0.4rem; }
+.selector-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.58rem; letter-spacing: 0.18em; color: #aaa;
+}
+.activity-select {
+  padding: 0.7rem 1.2rem;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 24px;
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 0.88rem; color: #0a0a0a;
+  background: #fff; outline: none;
+  cursor: pointer; min-width: 260px;
+  transition: border-color 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  padding-right: 2.5rem;
+}
+.activity-select:focus { border-color: #ff2d6b; }
 
 .qr-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #1a1a1a;
-  color: #f0f0ec;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: inherit;
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: opacity 0.2s;
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.7rem 1.5rem;
+  background: #0a0a0a; color: #fff; border: none;
+  border-radius: 24px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+  cursor: pointer; transition: all 0.2s;
+  white-space: nowrap;
 }
-.qr-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.qr-btn:hover:not(:disabled) { opacity: 0.85; }
+.qr-btn:hover:not(:disabled) { background: #ff2d6b; }
+.qr-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.qr-icon { font-size: 0.9rem; }
 
-/* Activity Selector */
-.activity-selector-card {
-  background: white;
-  border: 1px solid #e0e0d8;
-  border-radius: 10px;
-  padding: 18px 22px;
-  margin-bottom: 20px;
-}
-.field-label { font-size: 0.8rem; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px; }
-.activity-select {
-  width: 100%;
-  padding: 10px 14px;
-  border: 2px solid #e0e0d8;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 0.95rem;
-  background: #fafaf8;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.activity-select:focus { border-color: #1a1a1a; }
-
-/* Stats */
+/* ── Stats Row ── */
 .stats-row {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 14px;
-  margin-bottom: 20px;
+  max-width: 1300px; margin: 0 auto;
+  padding: 0 2.5rem;
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  padding-top: 2rem; padding-bottom: 2rem;
 }
 .stat-card {
-  background: white;
-  border: 1px solid #e0e0d8;
-  border-radius: 10px;
-  padding: 18px 16px;
-  text-align: center;
-}
-.stat-card.accent { background: #1a1a1a; color: white; border-color: #1a1a1a; }
-.stat-card.warn { background: #fff8e1; border-color: #ffe082; }
-.stat-card.info { background: #e3f2fd; border-color: #90caf9; }
-.stat-card.rate { text-align: left; }
-.stat-num { font-size: 2rem; font-weight: 700; font-family: 'IBM Plex Mono', monospace; line-height: 1; }
-.stat-label { font-size: 0.78rem; color: inherit; opacity: 0.65; margin-top: 5px; font-weight: 500; }
-.stat-card.accent .stat-label { opacity: 0.75; }
-.progress-bar { height: 4px; background: #e0e0d8; border-radius: 2px; margin-top: 10px; }
-.progress-fill { height: 100%; background: #1a1a1a; border-radius: 2px; transition: width 0.5s ease; }
-
-/* Section */
-.section-card {
-  background: white;
-  border: 1px solid #e0e0d8;
-  border-radius: 10px;
-  padding: 22px;
-  margin-bottom: 20px;
-}
-.section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-.section-header h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
-.badge {
-  background: #f0f0ec;
-  border: 1px solid #d0d0c8;
-  padding: 3px 10px;
+  background: #fff;
+  border: 1.5px solid #f0f0f0;
   border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #666;
+  padding: 1.5rem 1.25rem;
+  display: flex; flex-direction: column; gap: 0.3rem;
+  transition: box-shadow 0.2s;
+}
+.stat-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+.stat-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.58rem; letter-spacing: 0.18em; color: #bbb;
+}
+.stat-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 3.2rem; line-height: 1; letter-spacing: 0.02em; color: #0a0a0a;
+}
+.stat-num.pink { color: #ff2d6b; }
+.stat-card.accent .stat-num { color: #ff2d6b; }
+.stat-card.neutral .stat-num { color: #888; }
+.stat-card.warn .stat-num { color: #d97706; }
+.stat-desc { font-size: 0.78rem; color: #888; }
+.progress-bar { height: 4px; background: #f0f0f0; border-radius: 10px; margin-top: 0.75rem; }
+.progress-fill { height: 100%; background: #ff2d6b; border-radius: 10px; transition: width 0.7s cubic-bezier(0.16,1,0.3,1); }
+
+/* ── Empty ── */
+.empty-wrap { text-align: center; padding: 5rem 2rem; }
+.empty-big {
+  font-family: 'Bebas Neue', sans-serif; font-size: 7rem;
+  color: transparent; -webkit-text-stroke: 1px #eee; line-height: 1;
+}
+.empty-desc { font-size: 0.72rem; letter-spacing: 0.15em; color: #ccc; margin-top: 0.5rem; }
+
+/* ── Panel ── */
+.panel {
+  max-width: 1300px; margin: 0 auto;
+  padding: 0 2.5rem 4rem;
+}
+.panel-header {
+  background: #fff;
+  border: 1.5px solid #f0f0f0;
+  border-radius: 20px 20px 0 0;
+  padding: 1.5rem 1.75rem 1.25rem;
+  border-bottom: none;
+}
+.panel-title-row { display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1.25rem; }
+.panel-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.8rem; letter-spacing: 0.08em; margin: 0; color: #0a0a0a;
+}
+.admin-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.56rem; letter-spacing: 0.12em;
+  background: #fff5f7; border: 1px solid #fecdd3;
+  color: #ff2d6b; padding: 0.22rem 0.75rem;
+  border-radius: 20px; font-weight: 700;
 }
 
-/* Search */
-.search-row { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+/* Search + Filter */
+.search-filter-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.search-wrap { position: relative; flex: 1; min-width: 220px; }
 .search-input {
-  flex: 1;
-  min-width: 200px;
-  padding: 10px 14px;
-  border: 2px solid #e0e0d8;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 0.9rem;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.search-input:focus { border-color: #1a1a1a; }
-.filter-tabs { display: flex; gap: 6px; }
-.filter-tab {
-  padding: 7px 14px;
-  border: 2px solid #e0e0d8;
-  border-radius: 6px;
-  background: white;
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
+  width: 100%; padding: 0.75rem 2.5rem 0.75rem 1.25rem;
+  border: 1.5px solid #e8e8e8; border-radius: 24px;
+  font-family: 'Noto Sans TC', sans-serif; font-size: 0.9rem;
+  background: #fafafa; color: #0a0a0a; outline: none;
   transition: all 0.2s;
-  color: #666;
 }
-.filter-tab.active, .filter-tab:hover { background: #1a1a1a; color: white; border-color: #1a1a1a; }
-
-/* Registration List */
-.registration-list { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
-.loading-state, .empty-state { text-align: center; padding: 40px; color: #aaa; font-size: 0.9rem; }
-
-.registration-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 16px;
-  border: 1px solid #e0e0d8;
-  border-radius: 8px;
-  transition: border-color 0.2s;
-  background: #fafaf8;
+.search-input::placeholder { color: #ccc; }
+.search-input:focus { border-color: #ff2d6b; background: #fff; }
+.search-icon {
+  position: absolute; right: 1rem; top: 50%;
+  transform: translateY(-50%); color: #ccc; pointer-events: none;
+  font-size: 0.9rem;
 }
-.registration-row.checked { background: #f1f8f4; border-color: #a5d6a7; }
-.registration-row.late { border-left: 3px solid #ff9800; }
+.filter-pills { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.pill {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem; letter-spacing: 0.08em;
+  padding: 0.55rem 1rem;
+  border: 1.5px solid #e8e8e8; border-radius: 20px;
+  background: #fff; color: #888; cursor: pointer;
+  transition: all 0.18s; white-space: nowrap;
+}
+.pill.active { background: #0a0a0a; color: #fff; border-color: #0a0a0a; }
+.pill:hover:not(.active) { border-color: #ff2d6b; color: #ff2d6b; }
 
-.reg-info { display: flex; flex-direction: column; gap: 3px; }
-.reg-id { font-weight: 700; font-family: 'IBM Plex Mono', monospace; font-size: 0.95rem; }
-.reg-time, .check-time { font-size: 0.78rem; color: #888; }
-.late-badge {
-  background: #ff9800;
-  color: white;
-  font-size: 0.7rem;
-  padding: 1px 6px;
-  border-radius: 4px;
-  margin-left: 6px;
-  font-weight: 600;
+/* ── Registration List ── */
+.reg-list {
+  border: 1.5px solid #f0f0f0;
+  border-top: none;
+  border-radius: 0 0 20px 20px;
+  overflow: hidden;
+  max-height: 560px; overflow-y: auto;
+}
+.reg-list::-webkit-scrollbar { width: 4px; }
+.reg-list::-webkit-scrollbar-track { background: #fafafa; }
+.reg-list::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 10px; }
+.reg-list::-webkit-scrollbar-thumb:hover { background: #ff2d6b; }
+
+.list-state {
+  text-align: center; padding: 4rem;
+  font-size: 0.72rem; letter-spacing: 0.15em; color: #ccc;
 }
 
-.reg-status { display: flex; align-items: center; gap: 10px; }
-.payment-badge {
-  font-size: 0.75rem;
-  padding: 3px 9px;
-  border-radius: 5px;
-  font-weight: 600;
+.reg-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1rem 1.75rem;
+  border-bottom: 1px solid #f5f5f5;
+  background: #fff;
+  transition: background 0.15s;
+  border-left: 4px solid transparent;
 }
-.payment-badge.paid { background: #e8f5e9; color: #2e7d32; }
-.payment-badge.pending { background: #fff8e1; color: #f57f17; }
-.payment-badge.free { background: #e3f2fd; color: #1565c0; }
+.reg-row:last-child { border-bottom: none; }
+.reg-row:hover { background: #fafafa; }
+.reg-row.is-checked { border-left-color: #22c55e; background: #f0fdf4; }
+.reg-row.is-late { border-left-color: #f59e0b; background: #fffbeb; }
+
+/* Avatar */
+.reg-left { display: flex; align-items: center; gap: 1rem; }
+.reg-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: #f0f0f0; color: #888;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.reg-avatar.av-checked { background: #dcfce7; color: #16a34a; }
+.reg-avatar.av-late { background: #fef3c7; color: #d97706; }
+
+.reg-info { display: flex; flex-direction: column; gap: 2px; }
+.reg-name { font-weight: 700; font-size: 0.95rem; color: #0a0a0a; }
+.reg-meta, .check-meta {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem; color: #aaa; letter-spacing: 0.04em;
+}
+.meta-sep { margin: 0 0.3em; }
+.late-pill {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.55rem; letter-spacing: 0.1em;
+  background: #fef3c7; color: #92400e;
+  padding: 1px 7px; border-radius: 10px;
+  margin-left: 6px; font-weight: 700;
+}
+
+.reg-right { display: flex; align-items: center; gap: 0.75rem; }
+.pay-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.58rem; letter-spacing: 0.06em;
+  padding: 0.25rem 0.7rem; border-radius: 20px; font-weight: 600;
+}
+.pay-badge.paid    { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+.pay-badge.pending { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+.pay-badge.free    { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+.pay-badge.unpaid  { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
 
 .checkin-btn {
-  background: #2e7d32;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 7px;
-  cursor: pointer;
-  font-family: inherit;
-  font-weight: 700;
-  font-size: 0.85rem;
-  transition: opacity 0.2s;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em;
+  background: #ff2d6b; color: #fff; border: none;
+  border-radius: 20px; padding: 0.55rem 1.25rem;
+  cursor: pointer; transition: all 0.18s;
+  box-shadow: 0 2px 10px rgba(255,45,107,0.25);
 }
-.checkin-btn:hover:not(:disabled) { opacity: 0.85; }
-.checkin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.checked-badge { color: #2e7d32; font-weight: 700; font-size: 0.85rem; }
+.checkin-btn:hover:not(:disabled) { background: #e01f5a; box-shadow: 0 4px 16px rgba(255,45,107,0.35); }
+.checkin-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+.done-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem; color: #16a34a; font-weight: 700; letter-spacing: 0.06em;
+}
 
-/* Empty Activity */
-.empty-activity { text-align: center; padding: 80px; }
-.empty-icon { font-size: 3rem; margin-bottom: 12px; }
-.empty-activity p { color: #aaa; }
-
-/* Modal */
+/* ── QR Modal ── */
 .modal-overlay {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
   z-index: 1000;
 }
-.modal {
-  background: white;
-  border-radius: 14px;
-  width: 340px;
-  overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+.modal-box {
+  background: #fff;
+  border-radius: 24px;
+  width: 380px; max-width: 90vw;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.15);
+  position: relative;
 }
-.modal-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 18px 22px;
-  border-bottom: 1px solid #e0e0d8;
-}
-.modal-header h3 { margin: 0; font-size: 1rem; font-weight: 700; }
 .modal-close {
-  background: none; border: none; font-size: 1.1rem;
-  cursor: pointer; color: #888; padding: 4px;
+  position: absolute; top: 1rem; right: 1.25rem;
+  background: none; border: none; font-size: 1.4rem;
+  color: #ccc; cursor: pointer; line-height: 1;
+  transition: color 0.15s;
 }
-.modal-body { padding: 24px; text-align: center; }
-.qr-activity-name { font-weight: 700; margin-bottom: 16px; font-size: 0.95rem; }
-.qr-wrapper { display: flex; justify-content: center; margin-bottom: 14px; }
-.qr-image { border: 3px solid #1a1a1a; border-radius: 10px; }
-.qr-loading { width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; background: #f0f0ec; border-radius: 10px; color: #888; }
-.qr-hint { font-size: 0.82rem; color: #888; margin-bottom: 12px; }
-.qr-url-box {
-  background: #f0f0ec;
-  border: 1px solid #e0e0d8;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.72rem;
-  color: #555;
-  word-break: break-all;
+.modal-close:hover { color: #ff2d6b; }
+.modal-eyebrow {
+  font-size: 0.58rem; letter-spacing: 0.2em; color: #ff2d6b; margin-bottom: 0.4rem;
 }
+.modal-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem; letter-spacing: 0.06em; margin: 0 0 1.25rem; color: #0a0a0a;
+}
+.qr-wrap {
+  display: flex; justify-content: center;
+  margin-bottom: 1rem;
+}
+.qr-img {
+  border-radius: 16px;
+  border: 1.5px solid #f0f0f0;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+.qr-loading {
+  width: 240px; height: 240px;
+  background: #fafafa; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.68rem; letter-spacing: 0.12em; color: #ccc;
+}
+.qr-hint { font-size: 0.62rem; letter-spacing: 0.12em; color: #aaa; margin-bottom: 0.75rem; }
+.qr-url {
+  background: #fafafa; border: 1px solid #f0f0f0;
+  border-radius: 12px; padding: 0.65rem 1rem;
+  font-size: 0.6rem; color: #aaa;
+  word-break: break-all; text-align: left;
+  margin-bottom: 1rem;
+}
+.qr-download {
+  display: inline-block;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem; letter-spacing: 0.1em;
+  color: #ff2d6b; text-decoration: none; font-weight: 700;
+  transition: opacity 0.15s;
+}
+.qr-download:hover { opacity: 0.7; }
 
-/* Toast */
+/* ── Toast ── */
 .toast {
-  position: fixed;
-  bottom: 30px; left: 50%; transform: translateX(-50%);
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  z-index: 2000;
-  animation: slideUp 0.3s ease;
+  position: fixed; bottom: 2.5rem; left: 50%;
+  transform: translateX(-50%);
+  padding: 0.85rem 2rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem; letter-spacing: 0.08em; font-weight: 700;
+  border-radius: 24px; z-index: 2000;
+  white-space: nowrap;
+  animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
 }
-.toast.success { background: #1a1a1a; color: white; }
-.toast.error { background: #d32f2f; color: white; }
-
+.toast.success { background: #0a0a0a; color: #fff; }
+.toast.error   { background: #ff2d6b; color: #fff; }
 @keyframes slideUp {
-  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
-  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .stats-row { grid-template-columns: repeat(3, 1fr); }
+}
 @media (max-width: 768px) {
   .stats-row { grid-template-columns: repeat(2, 1fr); }
-  .dashboard-container { padding: 16px; }
-  .header { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .page-header { flex-direction: column; align-items: flex-start; }
+  .page-header, .stats-row, .panel { padding-left: 1.25rem; padding-right: 1.25rem; }
+  .nav-inner { padding-left: 1.25rem; padding-right: 1.25rem; }
+  .header-actions { width: 100%; }
+  .activity-select { min-width: 100%; }
 }
 </style>
