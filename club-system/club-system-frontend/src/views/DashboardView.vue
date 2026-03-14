@@ -16,10 +16,7 @@
         <div class="club-header">
           <h1 class="club-title">CLUB</h1>
         </div>
-        <div class="welcome-section">
-          <h1>歡迎回來，{{ userStore.userName }}</h1>
-          <p class="subtitle">Welcome back, {{ userStore.userName}}</p>
-        </div>
+
 
         <div class="quick-actions">
           <h2 class="section-title">ACTIVITIES</h2>
