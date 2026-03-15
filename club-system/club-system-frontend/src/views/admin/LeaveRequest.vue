@@ -68,8 +68,13 @@
               <td><span class="id-text">#{{ item.id }}</span></td>
               <td>
                 <div class="info-cell">
-                  <span class="user-id">👤 {{ item.userId }}</span>
-                  <span class="activity-id">🎯 {{ item.activityId }}</span>
+                  <span class="user-id">
+                    👤 {{ userNames[item.userId] || '載入中...' }}
+                  </span>
+                  
+                  <span class="activity-id">
+                    🎯 {{ activityTitles[item.activityId] || '載入中...' }}
+                  </span>
                 </div>
               </td>
               <td>{{ item.leaveType }}</td>
@@ -85,7 +90,7 @@
                   class="action-select"
                   :disabled="item.status === 'APPROVED'"
                 >
-                  <option value="PENDING" disabled>待處理</option>
+                  <option value="PENDING" >待處理</option>
                   <option value="APPROVED">准假 Approve</option>
                   <option value="REJECTED">駁回 Reject</option>
                 </select>
@@ -122,24 +127,73 @@ const filterType = ref('member');
 const filterValue = ref('all');
 const userStore = useUserStore();
 const isLoading = ref(false);
+const userNames = ref({});    // 格式：{ "u001": "張小明" }
+const activityTitles = ref({}); // 格式：{ "101": "進階街舞課程" }
 
 // --- 1. 初始化讀取：取得所有請假單 ---
 onMounted(async () => {
   await fetchAllLeaves();
 });
 
+// --- 批次獲取名稱的函式 ---
+const fetchDetails = async (data) => {
+  const token = userStore.token;
+  const authConfig = { headers: { Authorization: `Bearer ${token}` } };
+
+  // 取得所有不重複的 ID
+  const userIds = [...new Set(data.map(item => item.userId))];
+  const activityIds = [...new Set(data.map(item => item.activityId))];
+
+  // 1. 補抓使用者名稱 (假設 API: /api/users/{id})
+  userIds.forEach(async (id) => {
+    if (!userNames.value[id]) {
+      try {
+        const res = await axios.get(`http://localhost:8080/api/users/${id}`, authConfig);
+        userNames.value[id] = res.data.name; // 確認後端欄位是 name 還是 username
+      } catch (e) {
+        userNames.value[id] = `用戶 ${id}`; // 失敗備案
+      }
+    }
+  });
+
+  // 2. 補抓活動標題 (假設 API: /api/activities/{id})
+  activityIds.forEach(async (id) => {
+    if (!activityTitles.value[id]) {
+      try {
+        const res = await axios.get(`http://localhost:8080/api/activities/${id}`, authConfig);
+        activityTitles.value[id] = res.data.title;
+      } catch (e) {
+        activityTitles.value[id] = `活動 #${id}`; // 失敗備案
+      }
+    }
+  });
+};
+
+
+const getAuthConfig = () => ({
+  headers: {
+    'Authorization': `Bearer ${userStore.token}`
+  }
+});
+
+
 const fetchAllLeaves = async () => {
   isLoading.value = true;
   try {
-    const response = await axios.get(API_BASE);
+    const response = await axios.get(API_BASE, {
+      headers: { Authorization: `Bearer ${userStore.token}` }
+    });
     mockData.value = response.data;
+    
+    // 關鍵步驟：抓完假單後立刻去抓詳細名稱
+    await fetchDetails(mockData.value);
   } catch (error) {
-    console.error("獲取資料失敗", error);
-    alert("無法讀取審核資料");
+    console.error("載入失敗", error);
   } finally {
     isLoading.value = false;
   }
 };
+
 
 // --- 2. 篩選邏輯 ---
 const currentOptions = computed(() => {
@@ -155,45 +209,65 @@ const filteredData = computed(() => {
   );
 });
 
-// --- 3. 審核操作：對應你的 @PutMapping("/review/{id}") ---
+
 const updateStatus = async (id, newStatus) => {
   try {
-    // 根據你的後端定義，status 是作為 RequestParam 傳遞
-    // URL 格式為: /api/leaves/review/{id}?status=APPROVED&note=Checked...
+    // put 請求的第二個參數是 body (這裡傳 null)，第三個才是 config (包含 params 和 headers)
     await axios.put(`${API_BASE}/review/${id}`, null, {
+      ...getAuthConfig(),
       params: {
         status: newStatus,
-        reviewerId: 'm0010', // 你可以根據登入狀況修改
-        //reviewerId: userStore.userId || 'admin'
-        note: '管理員審核通過'
+        reviewerId: userStore.userId || 'admin',
+        note: '管理員審核處理'
       }
     });
 
-    // 重新抓取資料或本地更新
     const item = mockData.value.find(i => i.id === id);
     if (item) item.status = newStatus;
-    
-    alert(`單號 #${id} 已更新為 ${newStatus}`);
+    alert(`單號 #${id} 狀態已更新`);
   } catch (error) {
     console.error("更新失敗", error);
-    alert('狀態更新失敗，請檢查後端連線');
+    alert('操作失敗，請確認管理員權限');
   }
 };
 
-// --- 4. 刪除紀錄：對應你的 @DeleteMapping("/{id}") ---
 const removeData = async (id) => {
   if(confirm('確定要永久刪除此紀錄嗎？')) {
     try {
-      await axios.delete(`${API_BASE}/${id}`);
+      // 確保路徑沒有多餘的斜線
+      const url = `${API_BASE.replace(/\/$/, '')}/${id}`;
       
-      // 後端刪除成功 (204 No Content) 後更新 UI
+      await axios.delete(url, getAuthConfig());
+      
       mockData.value = mockData.value.filter(item => item.id !== id);
+      alert('刪除成功');
     } catch (error) {
-      console.error("刪除失敗", error);
-      alert('刪除失敗');
+      console.error("刪除失敗詳情:", error.response);
+      
+      if (error.response?.status === 404) {
+        alert(`刪除失敗 (404)：找不到該單號 (#${id})。請確認資料是否已被刪除或後端路徑正確。`);
+      } else if (error.response?.status === 403) {
+        alert('權限不足，無法刪除');
+      } else {
+        alert(`刪除失敗：${error.response?.data || '伺服器錯誤'}`);
+      }
     }
   }
 };
+// --- 4. 刪除紀錄：對應你的 @DeleteMapping("/{id}") ---
+// const removeData = async (id) => {
+//   if(confirm('確定要永久刪除此紀錄嗎？')) {
+//     try {
+//       await axios.delete(`${API_BASE}/${id}`);
+      
+//       // 後端刪除成功 (204 No Content) 後更新 UI
+//       mockData.value = mockData.value.filter(item => item.id !== id);
+//     } catch (error) {
+//       console.error("刪除失敗", error);
+//       alert('刪除失敗');
+//     }
+//   }
+// };
 
 const pendingCount = computed(() => 
   mockData.value.filter(i => i.status === 'PENDING').length

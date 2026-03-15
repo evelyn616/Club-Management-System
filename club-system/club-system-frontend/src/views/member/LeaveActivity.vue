@@ -24,7 +24,7 @@
               <td>
                 <div class="activity-cell">
                   <span class="activity-name">{{ reg.activityTitle || '活動 #' + reg.activityId }}</span>
-                  <span class="reg-id">單號: #{{ reg.id }}</span>
+                  
                 </div>
               </td>
               <td class="date-cell">{{ formatDate(reg.createdAt) }}</td>
@@ -59,31 +59,78 @@ const registeredList = ref([]);
 const userStore = useUserStore();
 const loading = ref(false);
 
+// const fetchRegistrations = async () => {
+//   if (!userStore.userId) {
+//     console.error("未找到使用者 ID");
+//     return;
+//   }
+
+//   const token = userStore.token; 
+
+//   loading.value = true;
+//   try {
+//     const response = await axios.get(`http://localhost:8080/api/registrations/my?userId=${userStore.userId}`, {
+//       headers: {
+//         'Authorization': `Bearer ${token}` 
+//       }
+//     });
+//     registeredList.value = response.data; 
+//   } catch (error) {
+//     console.error("讀取報名資料失敗:", error);
+    
+//     if (error.response && error.response.status === 401) {
+//       alert("登入驗證已過期，請重新登入");
+//       // router.push('/login');
+//     } else {
+//       alert("無法取得報名紀錄，請檢查後端連線");
+//     }
+//   } finally {
+//     loading.value = false;
+//   }
+// };
+
 const fetchRegistrations = async () => {
-  if (!userStore.userId) {
-    console.error("未找到使用者 ID");
-    return;
-  }
+  if (!userStore.userId) return;
 
-  const token = userStore.token; 
-
+  const token = userStore.token;
   loading.value = true;
+  
   try {
+    // 1. 先抓取報名列表
     const response = await axios.get(`http://localhost:8080/api/registrations/my?userId=${userStore.userId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}` 
-      }
+      headers: { 'Authorization': `Bearer ${token}` }
     });
-    registeredList.value = response.data; 
+    
+    const rawList = response.data;
+
+    // 2. 準備補抓活動名稱 (假設獲取活動詳情的 API 是 /api/activities/{id})
+    // 使用 Map 當作簡單快取，避免同一個活動 ID 重複請求
+    const activityMap = new Map();
+
+    const listWithTitles = await Promise.all(rawList.map(async (reg) => {
+      // 如果這個活動名稱之前抓過了，直接用，不用再發請求
+      if (activityMap.has(reg.activityId)) {
+        return { ...reg, activityTitle: activityMap.get(reg.activityId) };
+      }
+
+      try {
+        const actRes = await axios.get(`http://localhost:8080/api/activities/${reg.activityId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const title = actRes.data.title; // 請確認後端欄位名稱是 title 還是 name
+        activityMap.set(reg.activityId, title);
+        return { ...reg, activityTitle: title };
+      } catch (e) {
+        console.warn(`無法取得活動 #${reg.activityId} 的名稱`);
+        return { ...reg, activityTitle: `活動 #${reg.activityId}` }; // 失敗時的備案
+      }
+    }));
+
+    registeredList.value = listWithTitles;
+    
   } catch (error) {
     console.error("讀取報名資料失敗:", error);
-    
-    if (error.response && error.response.status === 401) {
-      alert("登入驗證已過期，請重新登入");
-      // router.push('/login');
-    } else {
-      alert("無法取得報名紀錄，請檢查後端連線");
-    }
+    // ... 錯誤處理 ...
   } finally {
     loading.value = false;
   }

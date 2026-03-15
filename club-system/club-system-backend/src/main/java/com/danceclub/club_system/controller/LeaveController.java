@@ -65,12 +65,17 @@ public class LeaveController {
 
     // --- 5. DELETE: 刪除請假單 ---
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteLeave(@PathVariable Long id) {
+    public ResponseEntity<?> deleteLeave(@PathVariable Long id) {
         try {
             leaveService.deleteRequest(id);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+            // 這行非常重要！它會在你的後端控制台印出錯誤原因（例如：SQLIntegrityConstraintViolationException）
+            e.printStackTrace(); 
+            
+            // 暫時回傳 500 和錯誤訊息給前端，方便我們除錯
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                 .body("後端刪除出錯: " + e.getMessage());
         }
     }
 }

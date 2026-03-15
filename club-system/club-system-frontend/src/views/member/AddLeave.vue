@@ -110,11 +110,20 @@ const handleSubmit = async () => {
   if (!form.value.reason || form.value.reason.trim() === '') {
     return alert('請填寫請假原因');
   }
+  if (!userStore.token) {
+    alert('登入資訊已過期，請重新登入');
+    router.push('/login');
+    return;
+  }
 
-  try {
-    console.log('發送 POST 請求:', form.value);
-    
-    const response = await axios.post('http://localhost:8080/api/leaves', form.value);
+try {
+    const response = await axios.post(
+      'http://localhost:8080/api/leaves', 
+      form.value, 
+      {
+        headers: { 'Authorization': `Bearer ${userStore.token}` }
+      }
+    );
     
     if (response.status === 201 || response.status === 200) {
       alert('請假申請已成功送出！');
@@ -122,18 +131,27 @@ const handleSubmit = async () => {
     }
   } catch (error) {
     console.error("提交失敗:", error);
-    console.error("錯誤詳情:", error.response);
     
-    let errorMsg = '提交失敗';
-    if (error.response) {
-      // ✅ 後端修正後這裡能拿到具體錯誤訊息
-      errorMsg = error.response.data?.message 
-              || error.response.data 
-              || `HTTP ${error.response.status} 錯誤`;
-    } else {
-      errorMsg = '無法連線到後端伺服器';
+    // 1. 處理驗證過期
+    if (error.response?.status === 401) {
+      alert('驗證失敗，請重新登入');
+      return;
+    }
+
+    // 2. 處理重複請假 (唯一性約束衝突)
+    // 判斷後端傳回的錯誤字串是否包含 "duplicate" 或 "already exists"
+    const responseData = JSON.stringify(error.response?.data || '');
+    if (responseData.includes('duplicate') || responseData.includes('already exists')) {
+      alert('⚠️ 您已經提交過此活動的請假申請，請勿重複提交！');
+      router.push('/dashboard'); // 或是引導回列表頁
+      return;
     }
     
+    // 3. 一般錯誤處理
+    let errorMsg = '提交失敗';
+    if (error.response) {
+      errorMsg = error.response.data?.message || error.response.data || `錯誤代碼: ${error.response.status}`;
+    }
     alert(errorMsg);
   }
 };

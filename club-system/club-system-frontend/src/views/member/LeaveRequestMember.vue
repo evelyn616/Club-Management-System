@@ -1,53 +1,70 @@
 <template>
   <div class="outer-wrapper">
     <div class="container">
-      <div class="top-navigation">
-        <button @click="goBack" class="btn-back-minimal">
-          <i class="fas fa-arrow-left"></i> 返回
+      <header class="page-header">
+        <button @click="goBack" class="btn-back">
+          <i class="fas fa-chevron-left"></i> 總覽
         </button>
-      </div>
+        <div class="title-row">
+          <h1>請假申請紀錄</h1>
+          <div class="badge-group">
+            <span class="count-tag">{{ mockData.length }} 筆紀錄</span>
+            <span class="mode-tag">個人查詢</span>
+          </div>
+        </div>
+      </header>
 
-      <div class="header-section">
-        <h1>請假申請紀錄</h1>
-        <span class="mode-tag">唯讀模式</span>
-      </div>
-      
-      <div class="table-responsive">
-        <table>
-          <thead>
-            <tr>
-              <th>單號</th>
-              <th>會員編號</th>
-              <th>請假類型</th>
-              <th>原因</th>
-              <th>狀態</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in mockData" :key="item.id">
-              <td><span class="id-text">#{{ item.id }}</span></td>
-              <td class="user-id-cell">{{ item.userId }}</td>
-              <td>{{ item.leaveType }}</td>
-              <td class="reason-cell">{{ item.reason }}</td>
-              <td>
-                <span :class="['status-badge', item.status.toLowerCase()]">
-                  {{ item.status }}
-                </span>
-              </td>
-              <td>
-                <button @click="removeData(item.id)" class="btn-delete-minimal">
-                  刪除
-                </button>
-              </td>
-            </tr>
-            
-            <tr v-if="mockData.length === 0">
-              <td colspan="6" class="no-data-minimal">目前沒有任何申請紀錄</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <main class="content-card">
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th width="10%">單號</th>
+                <th width="15%">姓名</th>
+                <th width="25%">對應活動</th>
+                <th width="15%">類型</th>
+                <th width="25%">原因</th>
+                <th width="10%">狀態</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in mockData" :key="item.id">
+                <td><span class="id-text">#{{ item.id }}</span></td>
+                <td>
+                  <div class="user-info">
+                    <span class="user-name">{{ userNames[item.userId] || '載入中...' }}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="activity-info">
+                    <i class="fas fa-calendar-alt icon-dim"></i>
+                    {{ activityTitles[item.activityId] || '載入中...' }}
+                  </div>
+                </td>
+                <td>
+                  <span class="type-tag">{{ item.leaveType }}</span>
+                </td>
+                <td>
+                  <p class="reason-text" :title="item.reason">{{ item.reason }}</p>
+                </td>
+                <td>
+                  <div :class="['status-indicator', item.status.toLowerCase()]">
+                    <span class="dot"></span>
+                    {{ item.status }}
+                  </div>
+                </td>
+              </tr>
+              
+              <tr v-if="mockData.length === 0">
+                <td colspan="6" class="empty-state">
+                  <i class="fas fa-inbox"></i>
+                  <p>目前沒有任何申請紀錄</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
     </div>
   </div>
 </template>
@@ -59,222 +76,277 @@ import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
-// 初始資料設為空，等待後端連線
-const mockData = ref([]);
 const userStore = useUserStore();
+const mockData = ref([]);
 
-// 頁面加載時自動抓取後端已提交的資料
-// onMounted(async () => {
-//   try {
-//     const response = await axios.get('http://localhost:8080/api/leaves');
-//     mockData.value = response.data;
-//   } catch (error) {
-//     console.error("無法抓取資料:", error);
-//     // 如果後端沒開，可以暫時保留一些假資料測試畫面
-//     mockData.value = [
-//       { id: 101, memberId: 'M0001', leaveType: '事假', reason: '家裡有事', status: 'PENDING' },
-//       { id: 102, memberId: 'M0005', leaveType: '病假', reason: '感冒發燒', status: 'APPROVED' }
-//     ];
-//   }
-// });
+// 名稱對照表
+const userNames = ref({});
+const activityTitles = ref({});
+
+const fetchDetails = async (data) => {
+  const authConfig = { headers: { Authorization: `Bearer ${userStore.token}` } };
+  
+  // 取得清單中所有不重複的 ID
+  const userIds = [...new Set(data.map(item => item.userId))];
+  const activityIds = [...new Set(data.map(item => item.activityId))];
+
+  // 抓取用戶姓名
+  userIds.forEach(async (id) => {
+    if (!userNames.value[id]) {
+      try {
+        const res = await axios.get(`http://localhost:8080/api/users/${id}`, authConfig);
+        userNames.value[id] = res.data.name;
+      } catch (e) {
+        userNames.value[id] = id; // 失敗則顯示 ID
+      }
+    }
+  });
+
+  // 抓取活動標題
+  activityIds.forEach(async (id) => {
+    if (!activityTitles.value[id]) {
+      try {
+        const res = await axios.get(`http://localhost:8080/api/activities/${id}`, authConfig);
+        activityTitles.value[id] = res.data.title;
+      } catch (e) {
+        activityTitles.value[id] = `活動 #${id}`;
+      }
+    }
+  });
+};
 
 onMounted(async () => {
   if (!userStore.userId) {
-    console.error("未找到使用者 ID");
     alert('請先登入以查看請假紀錄');
     router.push('/login');
     return;
   }
 
   try {
-    // 這裡調用你 Service 裡的 getLeavesByUserId 邏輯
-    const response = await axios.get(`http://localhost:8080/api/leaves/user/${userStore.userId}`);
-    mockData.value = response.data; // 這裡的變數名可改為 leaveList
+    const response = await axios.get(`http://localhost:8080/api/leaves/user/${userStore.userId}`, {
+      headers: { 'Authorization': `Bearer ${userStore.token}` }
+    });
+    mockData.value = response.data;
+    
+    // 取得紀錄後，緊接著抓取對應的名稱細節
+    if (mockData.value.length > 0) {
+      await fetchDetails(mockData.value);
+    }
   } catch (error) {
-    console.error("無法抓取個人資料:", error);
-    mockData.value = []; // 清空，不顯示假資料
-    alert('讀取紀錄失敗');
+    console.error("讀取失敗:", error);
+    if (error.response?.status === 401) {
+      alert('登入過期，請重新登入');
+      router.push('/login');
+    } else {
+      alert('讀取紀錄失敗');
+    }
   }
 });
 
-// 模擬刪除功能
-const removeData = async (id) => {
-  if (confirm('確定要刪除這筆申請紀錄嗎？')) {
-    try {
-      await axios.delete(`http://localhost:8080/api/leaves/${id}`);
-      mockData.value = mockData.value.filter(item => item.id !== id);
-    } catch (error) {
-      alert('刪除失敗，請檢查後端連線');
-    }
-  }
-};
 const goBack = () => {
   router.push('/dashboard');
 };
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+/* 核心變數：全面調深顏色 */
+:host {
+  --primary-color: #2563eb;
+  --bg-color: #f8fafc;
+  --text-main: #000000;      /* 純黑 */
+  --text-content: #1a1a1a;   /* 極深灰 */
+  --text-muted: #333333;     /* 深灰，取代原本的淺灰 */
+  --border-color: #cbd5e1;   /* 稍微加深邊框 */
+}
 
 .outer-wrapper {
-  font-family: 'Inter', "Microsoft JhengHei", sans-serif;
-  background-color: #ffffff;
+  font-family: 'Inter', "Microsoft JhengHei", -apple-system, sans-serif;
+  background-color: #f8fafc;
   min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  padding: 40px 20px;
-  color: #1a1a1a;
+  padding: 40px 24px;
 }
 
 .container {
-  width: 100%;
-  max-width: 1000px; /* 紀錄頁稍微寬一點點 */
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
-.top-navigation {
-  margin-bottom: 24px;
-}
-
-.btn-back-minimal {
-  background: none;
-  border: none;
-  color: #666;
-  font-size: 14px;
-  cursor: pointer;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: color 0.2s;
-}
-
-.btn-back-minimal:hover {
-  color: #1a1a1a;
-}
-
-.header-section {
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
+/* 頁首設計 */
+.page-header {
   margin-bottom: 32px;
 }
 
-h1 {
-  font-size: 24px;
+.btn-back {
+  background: white;
+  border: 1px solid #000000; /* 邊框調黑 */
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #000000;           /* 文字調黑 */
   font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: all 0.2s;
+}
+
+.btn-back:hover {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #000000;           /* 標題純黑 */
   margin: 0;
   letter-spacing: -0.5px;
 }
 
-.mode-tag {
-  font-size: 12px;
-  background-color: #f0f0f0;
-  color: #666;
-  padding: 2px 8px;
-  border-radius: 4px;
+.badge-group {
+  display: flex;
+  gap: 8px;
 }
 
-.table-responsive {
-  width: 100%;
-  overflow-x: auto;
+.count-tag {
+  background: #000000;      /* 標籤改為黑底白字 */
+  color: #ffffff;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mode-tag {
+  background: #e2e8f0;
+  color: #000000;           /* 文字純黑 */
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 卡片與表格 */
+.content-card {
+  background: white;
+  border-radius: 12px;
+  border: 2px solid #000000; /* 加粗黑邊框 */
+  box-shadow: 4px 4px 0px rgba(0, 0, 0, 1); /* 硬派陰影風格 */
+  overflow: hidden;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  text-align: left;
 }
 
-thead th {
-  font-weight: 600;
+th {
+  background: #f1f5f9;
+  padding: 16px;
   font-size: 13px;
-  color: #999;
-  text-transform: uppercase;
-  padding: 12px 16px;
-  border-bottom: 2px solid #1a1a1a;
-}
-
-tbody tr {
-  border-bottom: 1px solid #eeeeee;
-  transition: background-color 0.2s ease;
-}
-
-tbody tr:hover {
-  background-color: #fafafa;
+  font-weight: 800;          /* 字體加粗 */
+  color: #000000;           /* 標題純黑 */
+  text-align: left;
+  border-bottom: 2px solid #000000;
 }
 
 td {
-  padding: 20px 16px;
+  padding: 18px 16px;
   font-size: 14px;
-  vertical-align: middle;
+  color: #000000;           /* 表格內容純黑 */
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .id-text {
-  font-family: monospace;
-  color: #666;
-}
-
-.user-id-cell {
+  color: #333333;           /* ID 調深 */
+  font-family: 'JetBrains Mono', monospace;
   font-weight: 600;
 }
 
-.reason-cell {
-  max-width: 250px;
-  color: #444;
-  line-height: 1.5;
+.user-name {
+  font-weight: 700;
+  color: #000000;
 }
 
-/* 狀態標籤優化：維持簡約但有顏色區分 */
-.status-badge {
+.activity-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #000000;           /* 活動名稱調黑 */
+  font-weight: 500;
+}
+
+.icon-dim {
+  color: #000000;           /* 圖示也調黑 */
+}
+
+.type-tag {
+  border: 1px solid #000000;
+  padding: 2px 8px;
+  border-radius: 4px;
   font-size: 12px;
+  color: #000000;
   font-weight: 600;
+}
+
+.reason-text {
+  margin: 0;
+  color: #333333;           /* 原因描述調為深灰黑 */
+  font-weight: 400;
+}
+
+/* 狀態指示器 (維持顏色邏輯但調深文字) */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
   padding: 4px 10px;
-  border-radius: 4px;
-  text-transform: uppercase;
+  border-radius: 6px;
+  border: 1px solid currentColor; /* 加上邊框增加識別度 */
 }
 
-.status-badge.pending {
-  background-color: #fff3e0;
-  color: #ef6c00;
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
-.status-badge.approved {
-  background-color: #e8f5e9;
-  color: #2e7d32;
+.status-indicator.pending {
+  background: #fff7ed; color: #9a3412; /* 深橘 */
 }
+.status-indicator.pending .dot { background: #ea580c; }
 
-.status-badge.rejected {
-  background-color: #ffebee;
-  color: #c62828;
+.status-indicator.approved {
+  background: #f0fdf4; color: #166534; /* 深綠 */
 }
+.status-indicator.approved .dot { background: #16a34a; }
 
-.btn-delete-minimal {
-  background: none;
-  border: 1px solid #eeeeee;
-  color: #ff5252;
-  padding: 6px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s;
+.status-indicator.rejected {
+  background: #fef2f2; color: #991b1b; /* 深紅 */
 }
+.status-indicator.rejected .dot { background: #dc2626; }
 
-.btn-delete-minimal:hover {
-  background-color: #ff5252;
-  color: white;
-  border-color: #ff5252;
-}
-
-.no-data-minimal {
+/* 空狀態 */
+.empty-state {
+  padding: 80px 0;
   text-align: center;
-  padding: 80px;
-  color: #bbb;
-  font-size: 14px;
+  color: #000000;
+}
+
+.empty-state i {
+  font-size: 48px;
+  margin-bottom: 16px;
 }
 
 @media (max-width: 768px) {
-  .reason-cell {
-    display: none; /* 手機版隱藏原因欄位以節省空間 */
-  }
+  .outer-wrapper { padding: 20px 12px; }
+  th:nth-child(5), td:nth-child(5) { display: none; }
 }
 </style>
