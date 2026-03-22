@@ -1,45 +1,58 @@
 <template>
   <div class="auth-container">
-    <div class="auth-card">
-      <h1 class="auth-title">登入</h1>
-      <p class="auth-subtitle">歡迎回來</p>
 
-      <form @submit.prevent="handleLogin" class="auth-form">
-        <div class="form-group">
-          <label for="email">電子郵件</label>
-          <input
-            id="email"
-            v-model="formData.email"
-            type="email"
-            placeholder="your@email.com"
-            required
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="password">密碼</label>
-          <input
-            id="password"
-            v-model="formData.password"
-            type="password"
-            placeholder="••••••••"
-            required
-          />
-        </div>
-
-        <div v-if="errorMessage" class="error-message">
-          {{ errorMessage }}
-        </div>
-
-        <button type="submit" class="btn-primary" :disabled="loading">
-          {{ loading ? '登入中...' : '登入' }}
-        </button>
-      </form>
-
-      <div class="auth-footer">
-        <p>還沒有帳號？ <router-link to="/register">立即註冊</router-link></p>
+    <!-- ── 左側圖片 Gallery ── -->
+    <div class="gallery-grid">
+      <div class="img-block" v-for="n in 4" :key="n">
+        <div class="img-inner" :class="`img-${n}`"></div>
+        <div class="img-overlay"></div>
       </div>
     </div>
+
+    <!-- ── 右側表單 ── -->
+    <div class="auth-form-wrapper">
+      <div class="auth-card">
+        <h1 class="auth-title">登入</h1>
+        <p class="auth-subtitle">歡迎回來</p>
+
+        <form @submit.prevent="handleLogin" class="auth-form">
+          <div class="form-group">
+            <label for="email">電子郵件</label>
+            <input
+              id="email"
+              v-model="formData.email"
+              type="email"
+              placeholder="your@email.com"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="password">密碼</label>
+            <input
+              id="password"
+              v-model="formData.password"
+              type="password"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <div v-if="errorMessage" class="error-message">
+            {{ errorMessage }}
+          </div>
+
+          <button type="submit" class="btn-primary" :disabled="loading">
+            {{ loading ? '登入中...' : '登入' }}
+          </button>
+        </form>
+
+        <div class="auth-footer">
+          <p>還沒有帳號？ <router-link to="/register">立即註冊</router-link></p>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -52,18 +65,13 @@ import { login } from '@/api/auth'
 const router = useRouter()
 const userStore = useUserStore()
 
-const formData = ref({
-  email: '',
-  password: ''
-})
-
+const formData = ref({ email: '', password: '' })
 const loading = ref(false)
 const errorMessage = ref('')
 
 const handleLogin = async () => {
   loading.value = true
   errorMessage.value = ''
-
   try {
     const response = await login(formData.value)
     userStore.login(response)
@@ -77,22 +85,100 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
+
 .auth-container {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: #fafafa;
-  padding: 2rem;
+  justify-content: flex-end;
+  overflow: hidden;
+  background: #000;
+  padding: 2rem 24px 2rem 2rem;
+}
+
+/* ── 梯形白底（右側） ── */
+.auth-container::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 100%; height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  z-index: 5;
+  clip-path: polygon(75% 0%, 100% 0%, 100% 100%, 60% 100%);
+}
+
+/* ── 左側 Gallery ── */
+.gallery-grid {
+  position: absolute;
+  inset: 0;
+  width: 72%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  background: #000;
+  z-index: 1;
+}
+
+.img-block {
+  overflow: hidden;
+  position: relative;
+}
+
+/* 圖片層：比方塊稍寬，預留右移空間 */
+.img-inner {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 0;
+  right: -8%;
+  background-size: cover;
+  background-position: center;
+  filter: grayscale(100%);
+  transition: filter 0.5s ease, transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transform: translateX(0);
+  will-change: transform, filter;
+}
+
+.img-block:hover .img-inner {
+  filter: none;
+  
+}
+
+/* 各方塊圖片來源（同一張圖，填入你的圖片路徑或 URL） */
+.img-inner {
+  background-image: url('https://i.pinimg.com/1200x/7a/13/a0/7a13a019c901112a7d69ef4f59713346.jpg');
+}
+
+/* 模糊邊界 overlay（獨立層，不干擾 img-inner 的 transition） */
+.img-overlay {
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── 右側表單 ── */
+.auth-form-wrapper {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  margin-right: 5rem;
+  align-items: flex-end;
+  text-align: right;
 }
 
 .auth-card {
-  background: white;
-  padding: 3rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+  border: none;
   width: 100%;
-  max-width: 420px;
 }
 
 .auth-title {

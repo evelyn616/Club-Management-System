@@ -13,9 +13,9 @@ const route = useRoute()
 const isAdmin = computed(() => userStore.userRole?.toUpperCase() === 'ADMIN')
 const isLanding = computed(() => route.name === 'dashboard')
 
-async function handleLogout() {
-  await router.push('/login')
+function handleLogout() {
   userStore.logout()
+  router.push('/')
 }
 </script>
 

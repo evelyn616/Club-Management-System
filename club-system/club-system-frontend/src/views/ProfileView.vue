@@ -1,190 +1,120 @@
 <template>
-  <div class="profile-page">
+  <div class="profile">
+    <div class="page-header">
+      <div class="header-left">
+        <div class="header-label">
+          <span class="label-line"></span>
+          <span class="label-text">USER ACCOUNT</span>
+        </div>
+        <h1 class="page-title">
+          <span class="title-line title-line-1">管理</span>
+          <span class="title-line title-line-2"><span class="title-accent">個人帳戶資料</span></span>
+        </h1>
+        <p class="page-subtitle">
+          <span class="subtitle-inner">更新您的基本資訊並維護帳戶安全性</span>
+        </p>
+      </div>
+      
+      <div class="header-right">
+        <div class="status-badge status-registered" v-if="userData">
+          <span class="status-dot"></span>
+          {{ getRoleText(userData.role) }} ID: {{ userData.id }}
+        </div>
+      </div>
+    </div>
 
-    <main class="main-content">
-      <div class="container">
-        <div class="profile-header">
-          <h1>個人資料</h1>
-          <p class="subtitle">管理您的個人資訊</p>
+    <main class="form-container-custom">
+      
+      <div v-if="loading" class="state-loading">
+        <div class="loading-bar-scan"></div>
+        <p>SCANNING DATA...</p>
+      </div>
+
+      <div v-else-if="errorMessage && !userData" class="error-card-custom">
+        <h3 class="error-title">CONNECTION ERROR</h3>
+        <p>{{ errorMessage }}</p>
+        <button @click="loadUserData" class="submit-btn-cyber">RETRY CONNECTION</button>
+      </div>
+
+      <div v-else-if="userData" class="profile-section-wrapper">
+        
+        <div class="registration-card profile-card-gap">
+          <div class="card-index">BASIC_INFO</div>
+          <div class="card-header-flex">
+            <h2 class="section-title">基本資料</h2>
+            <div class="action-zone">
+              <button v-if="!isEditing" @click="startEdit" class="edit-trigger">EDIT PROFILE</button>
+              <div v-else class="edit-actions-group">
+                <button @click="handleSave" class="save-btn" :disabled="saving">SAVE</button>
+                <button @click="cancelEdit" class="cancel-btn-text">CANCEL</button>
+              </div>
+            </div>
+          </div>
+
+          <transition name="fade">
+            <div v-if="successMessage" class="msg-box success">{{ successMessage }}</div>
+          </transition>
+
+          <div class="form-grid">
+            <div class="input-group">
+              <label class="info-label">FULL NAME</label>
+              <input v-model="formData.name" type="text" :disabled="!isEditing" :class="{ 'editing-mode': isEditing }" class="custom-input">
+            </div>
+            <div class="input-group">
+              <label class="info-label">EMAIL ADDRESS</label>
+              <input :value="userData.email" type="email" disabled class="custom-input readonly-style">
+            </div>
+            <div class="input-group">
+              <label class="info-label">PHONE NUMBER</label>
+              <input v-model="formData.phone" type="tel" :disabled="!isEditing" :class="{ 'editing-mode': isEditing }" class="custom-input">
+            </div>
+            <div class="input-group">
+              <label class="info-label">BIRTHDAY</label>
+              <input v-model="formData.birthday" type="date" :disabled="!isEditing" :class="{ 'editing-mode': isEditing }" class="custom-input">
+            </div>
+            <div class="input-group full-width">
+              <label class="info-label">INSTITUTION / SCHOOL</label>
+              <input v-model="formData.school" type="text" :disabled="!isEditing" :class="{ 'editing-mode': isEditing }" class="custom-input">
+            </div>
+            
+            <div class="form-footer-meta">
+              <div class="meta-item">CREATED AT: {{ formatDate(userData.createdAt) }}</div>
+              <div class="meta-item">LAST UPDATED: {{ formatDate(userData.updatedAt) }}</div>
+            </div>
+          </div>
         </div>
 
-        <div v-if="loading" class="loading">載入中...</div>
+        <div class="registration-card">
+          <div class="card-index">SECURITY_ENCRYPTION</div>
+          <h2 class="section-title">修改密碼</h2>
+          
+          <div v-if="passwordError" class="msg-box error">{{ passwordError }}</div>
+          <div v-if="passwordSuccess" class="msg-box success">{{ passwordSuccess }}</div>
 
-        <div v-else-if="errorMessage && !userData" class="error-container">
-          <div class="error-message">
-            {{ errorMessage }}
-          </div>
-          <div class="debug-info">
-            <p><strong>Debug 資訊：</strong></p>
-            <p>User ID: {{ userStore.userId || '未設定' }}</p>
-            <p>User Name: {{ userStore.userName || '未設定' }}</p>
-            <p>已登入: {{ userStore.isLoggedIn ? '是' : '否' }}</p>
-            <p>Token: {{ userStore.token ? '有' : '無' }}</p>
-          </div>
-          <button @click="loadUserData" class="btn-retry">重新載入</button>
-        </div>
-
-        <div v-else-if="userData" class="profile-content">
-          <!-- 基本資料卡片 -->
-          <div class="profile-card">
-            <div class="card-header">
-              <h2>基本資料</h2>
-              <button v-if="!isEditing" @click="startEdit" class="btn-edit">編輯</button>
-              <div v-else class="edit-actions">
-                <button @click="handleSave" class="btn-save" :disabled="saving">
-                  {{ saving ? '儲存中...' : '儲存' }}
-                </button>
-                <button @click="cancelEdit" class="btn-cancel">取消</button>
-              </div>
+          <div class="form-grid">
+            <div class="input-group full-width">
+              <label class="info-label">OLD PASSWORD</label>
+              <input v-model="passwordForm.oldPassword" type="password" placeholder="ENTER CURRENT PASSWORD" class="custom-input editing-mode">
             </div>
-
-            <div v-if="errorMessage" class="error-message">
-              {{ errorMessage }}
+            <div class="input-group">
+              <label class="info-label">NEW PASSWORD</label>
+              <input v-model="passwordForm.newPassword" type="password" placeholder="MIN. 6 CHARACTERS" class="custom-input editing-mode">
             </div>
-
-            <div v-if="successMessage" class="success-message">
-              {{ successMessage }}
-            </div>
-
-            <div class="profile-form">
-              <div class="form-row">
-                <div class="form-group">
-                  <label>會員編號</label>
-                  <input type="text" :value="userData.id" disabled />
-                </div>
-                <div class="form-group">
-                  <label>角色</label>
-                  <input type="text" :value="getRoleText(userData.role)" disabled />
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label>信用積分</label>
-                <div class="credit-points-display">
-                  <span class="credit-icon">🎁</span>
-                  <span class="credit-value">{{ userData.creditPoints ?? 0 }}</span>
-                  <span class="credit-label">點</span>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label>姓名</label>
-                <input
-                  v-model="formData.name"
-                  type="text"
-                  :disabled="!isEditing"
-                  :class="{ editing: isEditing }"
-                />
-              </div>
-
-              <div class="form-group">
-                <label>電子郵件</label>
-                <input type="email" :value="userData.email" disabled />
-              </div>
-
-              <div class="form-group">
-                <label>電話號碼</label>
-                <input
-                  v-model="formData.phone"
-                  type="tel"
-                  :disabled="!isEditing"
-                  :class="{ editing: isEditing }"
-                />
-              </div>
-
-              <div class="form-group">
-                <label>生日</label>
-                <input
-                  v-model="formData.birthday"
-                  type="date"
-                  :disabled="!isEditing"
-                  :class="{ editing: isEditing }"
-                />
-              </div>
-
-              <div class="form-group">
-                <label>學校</label>
-                <input
-                  v-model="formData.school"
-                  type="text"
-                  :disabled="!isEditing"
-                  :class="{ editing: isEditing }"
-                />
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label>註冊時間</label>
-                  <input type="text" :value="formatDate(userData.createdAt)" disabled />
-                </div>
-                <div class="form-group">
-                  <label>最後更新</label>
-                  <input type="text" :value="formatDate(userData.updatedAt)" disabled />
-                </div>
-              </div>
+            <div class="input-group">
+              <label class="info-label">CONFIRM NEW PASSWORD</label>
+              <input v-model="passwordForm.confirmPassword" type="password" placeholder="RE-ENTER NEW PASSWORD" class="custom-input editing-mode">
             </div>
           </div>
 
-          <!-- 修改密碼卡片 -->
-          <div class="profile-card">
-            <div class="card-header">
-              <h2>修改密碼</h2>
-            </div>
-
-            <div v-if="passwordError" class="error-message">
-              {{ passwordError }}
-            </div>
-
-            <div v-if="passwordSuccess" class="success-message">
-              {{ passwordSuccess }}
-            </div>
-
-            <div class="profile-form">
-              <div class="form-group">
-                <label>舊密碼</label>
-                <input
-                  v-model="passwordForm.oldPassword"
-                  type="password"
-                  placeholder="請輸入舊密碼"
-                  class="editing"
-                />
-              </div>
-
-              <div class="form-group">
-                <label>新密碼</label>
-                <input
-                  v-model="passwordForm.newPassword"
-                  type="password"
-                  placeholder="請輸入新密碼（至少6個字符）"
-                  class="editing"
-                />
-              </div>
-
-              <div class="form-group">
-                <label>確認新密碼</label>
-                <input
-                  v-model="passwordForm.confirmPassword"
-                  type="password"
-                  placeholder="請再次輸入新密碼"
-                  class="editing"
-                />
-              </div>
-
-              <button
-                @click="handleChangePassword"
-                class="btn-change-password"
-                :disabled="changingPassword"
-              >
-                {{ changingPassword ? '修改中...' : '修改密碼' }}
-              </button>
-            </div>
-          </div>
+          <button @click="handleChangePassword" class="submit-btn-cyber password-btn-margin" :disabled="changingPassword">
+            {{ changingPassword ? 'ENCRYPTING...' : 'UPDATE PASSWORD' }}
+          </button>
         </div>
       </div>
     </main>
   </div>
 </template>
-
+ 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -352,11 +282,6 @@ const handleChangePassword = async () => {
   }
 }
 
-const handleLogout = () => {
-  userStore.logout()
-  router.push('/')
-}
-
 const getRoleText = (role) => {
   return role === 'admin' ? '管理員' : '會員'
 }
@@ -379,329 +304,138 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.profile-page {
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+TC:wght@400;700&family=Space+Mono:wght@400;700&display=swap');
+
+/* --- 1. 滿版容器基礎 --- */
+.profile {
   min-height: 100vh;
-  background: #fafafa;
+  background: #ffffff;
+  font-family: 'Noto Sans TC', sans-serif;
+  color: #0a0a0a;
+  width: 100%;
+  padding: calc(56px + 3rem) 5% 5rem;
+  box-sizing: border-box;
 }
 
-/* Navbar */
-
-
-
-
-.logo {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin: 0;
+/* --- 3. Header 動畫 --- */
+.page-header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 4rem; padding-bottom: 2rem; border-bottom: 2px solid #0a0a0a;
+  animation: slideUpFade 0.8s ease-out;
 }
+.header-label { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+.label-line { width: 2rem; height: 1px; background: #ff2d6b; animation: expandLine 1.2s ease-out; }
+.label-text { font-family: 'Space Mono', monospace; font-size: 0.65rem; color: #ff2d6b; letter-spacing: 0.2em; animation: revealText 1s both; }
 
+.page-title { font-family: 'Bebas Neue', sans-serif; font-size: 5rem; line-height: 0.92; margin: 0; }
+.title-line-1 { display: block; animation: slideUpFade 0.8s 0.1s both; }
+.title-line-2 { display: block; animation: slideUpFade 0.8s 0.2s both; }
+.title-accent { color: #ff2d6b; }
+.page-subtitle { font-size: 0.85rem; color: #999; margin-top: 1rem; animation: slideUpFade 0.8s 0.3s both; }
 
-
-.nav-link {
-  color: #666;
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s;
+/* --- 4. 卡片與表單設計 --- */
+.form-container-custom { max-width: 1000px; margin: 0 auto; animation: slideUpFade 1s 0.4s both; }
+.registration-card {
+  background: #ffffff; border: 1px solid #eeeeee; position: relative;
+  padding: 3.5rem; margin-bottom: 3rem; box-shadow: 0 10px 40px rgba(0,0,0,0.03);
 }
+.registration-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #0a0a0a; }
 
-.nav-link:hover {
-  color: #1a1a1a;
+.section-title { font-family: 'Noto Sans TC', sans-serif; font-weight: 700; font-size: 1.5rem; margin: 0 0 2rem 0; }
+.card-index { font-family: 'Space Mono', monospace; font-size: 0.65rem; color: #444; margin-bottom: 1rem; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+.full-width { grid-column: span 2; }
+
+/* 輸入框優化 */
+.info-label { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: #444; margin-bottom: 0.6rem; display: block; }
+.custom-input {
+  width: 100%; border: 1px solid #e0e0e0; padding: 1rem; font-size: 0.95rem; outline: none; transition: all 0.25s;
 }
+.readonly-style { background: #f9f9f9; color: #999; border-color: #f0f0f0; cursor: not-allowed; }
+.editing-mode { border-color: #0a0a0a; }
+.editing-mode:focus { border-color: #ff2d6b; box-shadow: 0 0 0 4px rgba(255, 45, 107, 0.05); }
 
-
-
-
-
-/* Main Content */
-.main-content {
-  padding: 3rem 0;
+/* 按鈕類別 */
+.card-header-flex { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+.edit-trigger { 
+  background: transparent; border: 1px solid #0a0a0a; padding: 0.6rem 1.5rem; 
+  font-family: 'Space Mono', monospace; font-size: 0.75rem; cursor: pointer; transition: 0.3s;
 }
+.edit-trigger:hover { background: #0a0a0a; color: #fff; }
 
-.container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 0 2rem;
-}
 
-.profile-header {
-  margin-bottom: 2rem;
-}
 
-.profile-header h1 {
-  font-size: 2rem;
+/* SAVE 按鈕 (主按鈕：桃紅) */
+.save-btn {
+  background: #ff2d6b;
+  color: #fff;
+  border: 1px solid #ff2d6b;
+  padding: 0.6rem 2rem;
+  cursor: pointer;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: #1a1a1a;
-  margin: 0 0 0.5rem 0;
+  letter-spacing: 0.1em;
+  transition: all 0.3s ease;
 }
 
-.subtitle {
-  color: #666;
-  margin: 0;
+.save-btn:hover {
+  background: #d41f53;
+  border-color: #d41f53;
 }
 
-.loading {
-  text-align: center;
-  padding: 3rem;
-  color: #666;
-}
-
-.error-container {
-  text-align: center;
-  padding: 3rem;
-}
-
-.debug-info {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background: #f5f5f5;
-  border-radius: 6px;
-  text-align: left;
-  max-width: 400px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.debug-info p {
-  margin: 0.5rem 0;
-  font-size: 0.9rem;
-  color: #666;
-}
-
-.btn-retry {
-  margin-top: 1.5rem;
-  padding: 0.75rem 1.5rem;
-  background: #1a1a1a;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-retry:hover {
-  background: #333;
-}
-
-.profile-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.profile-card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  padding: 2rem;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.card-header h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin: 0;
-}
-
-.btn-edit {
-  padding: 0.5rem 1.25rem;
-  background: #1a1a1a;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-edit:hover {
-  background: #333;
-}
-
-.edit-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.btn-save {
-  padding: 0.5rem 1.25rem;
-  background: #1a1a1a;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-save:hover:not(:disabled) {
-  background: #333;
-}
-
-.btn-save:disabled {
-  opacity: 0.6;
+.save-btn:disabled {
+  background: #ccc;
+  border-color: #ccc;
   cursor: not-allowed;
 }
-
-.btn-cancel {
-  padding: 0.5rem 1.25rem;
-  background: white;
-  color: #666;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  font-weight: 500;
+.cancel-btn-text {
+  background: transparent;
+  color: #0a0a0a;
+  border: 1px solid #0a0a0a;
+  padding: 0.6rem 1.5rem;
   cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-cancel:hover {
-  background: #f5f5f5;
-  border-color: #ccc;
-}
-
-.error-message {
-  padding: 0.75rem;
-  background: #fee;
-  border: 1px solid #fcc;
-  border-radius: 6px;
-  color: #c33;
-  font-size: 0.9rem;
-  margin-bottom: 1.5rem;
-}
-
-.success-message {
-  padding: 0.75rem;
-  background: #efe;
-  border: 1px solid #cfc;
-  border-radius: 6px;
-  color: #3c3;
-  font-size: 0.9rem;
-  margin-bottom: 1.5rem;
-}
-
-.profile-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-group label {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #333;
-}
-
-.form-group input {
-  padding: 0.75rem 1rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  font-size: 1rem;
-  background: #f9f9f9;
-  color: #666;
-}
-
-.form-group input:disabled {
-  cursor: not-allowed;
-}
-
-.form-group input.editing {
-  background: white;
-  border-color: #ccc;
-  color: #1a1a1a;
-}
-
-.form-group input.editing:focus {
-  outline: none;
-  border-color: #333;
-}
-
-.credit-points-display {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background: #fffbea;
-  border: 1px solid #fde68a;
-  border-radius: 6px;
-}
-
-.credit-icon {
-  font-size: 1.1rem;
-}
-
-.credit-value {
-  font-size: 1.4rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: #b45309;
+  letter-spacing: 0.1em;
+  transition: all 0.3s ease;
 }
 
-.credit-label {
-  font-size: 0.9rem;
-  color: #92400e;
+.cancel-btn-text:hover {
+  background: #0a0a0a;
+  color: #fff;
 }
-
-.btn-change-password {
-  padding: 0.75rem 1.5rem;
-  background: #1a1a1a;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-  margin-top: 0.5rem;
+.submit-btn-cyber {
+  width: 100%; background: #0a0a0a; color: #fff; border: none; padding: 1.2rem;
+  font-family: 'Space Mono', monospace; font-weight: 700; cursor: pointer; transition: 0.3s;
 }
+.submit-btn-cyber:hover { background: #ff2d6b; transform: translateY(-2px); }
+.password-btn-margin { margin-top: 2.5rem; }
 
-.btn-change-password:hover:not(:disabled) {
-  background: #333;
-}
+/* 訊息框 */
+.msg-box { padding: 1rem; margin-bottom: 2rem; font-size: 0.9rem; font-weight: 700; border-left: 4px solid; }
+.msg-box.success { background: #f0fff4; color: #2f855a; border-color: #48bb78; }
+.msg-box.error { background: #fff5f5; color: #c53030; border-color: #f56565; }
 
-.btn-change-password:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+.form-footer-meta { grid-column: span 2; display: flex; gap: 2rem; margin-top: 1rem; padding-top: 1.5rem; border-top: 1px dashed #eee; }
+.meta-item { font-family: 'Space Mono', monospace; font-size: 0.65rem; color: #444; }
 
-/* Responsive */
+/* --- 5. 動畫定義 --- */
+@keyframes slideUpFade { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes expandLine { from { width: 0; } to { width: 2rem; } }
+@keyframes revealText { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
+
+/* 狀態標籤 */
+.status-badge { display: flex; align-items: center; gap: 0.5rem; font-family: 'Space Mono', monospace; font-size: 0.65rem; padding: 0.4rem 1.2rem; background: #f5f5f5; border-radius: 20px; }
+.status-dot { width: 6px; height: 6px; background: #ff2d6b; border-radius: 50%; animation: pulse 1.5s infinite; }
+
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
 @media (max-width: 768px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-
-  .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .edit-actions {
-    width: 100%;
-  }
-
-  .btn-save,
-  .btn-cancel {
-    flex: 1;
-  }
+  .page-title { font-size: 3rem; }
+  .form-grid { grid-template-columns: 1fr; }
+  .registration-card { padding: 2rem; }
 }
 </style>

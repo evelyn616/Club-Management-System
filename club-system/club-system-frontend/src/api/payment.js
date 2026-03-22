@@ -123,3 +123,27 @@ export const getPendingReviewPayments = async () => {
   const response = await apiClient.get('/payments/admin/pending-review')
   return response.data
 }
+
+/**
+ * 取得所有付款記錄（管理員）
+ */
+export const getAllPayments = async (params = {}) => {
+  const response = await apiClient.get('/payments/admin/all', { params })
+  return response.data
+}
+
+/**
+ * 取得繳費統計（管理員）- 增強版
+ */
+export const getPaymentStats = async () => {
+  const response = await apiClient.get('/payments/admin/statistics')
+  return response.data
+}
+
+/**
+ * 查詢綠界訂單狀態（管理員）
+ */
+export const queryEcpayStatus = async (paymentId) => {
+  const response = await apiClient.get(`/payments/${paymentId}/ecpay-status`)
+  return response.data
+}

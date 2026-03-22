@@ -66,6 +66,7 @@ public class EcpayService {
 
         // 更新 Payment 狀態和訂單編號
         payment.setMerchantTradeNo(merchantTradeNo);
+        payment.setStatus(PaymentStatus.PROCESSING);
         payment.setMethod(mapChoosePaymentToMethod(request.getChoosePayment()));
         
         // 設定付款期限（預設 3 天）
@@ -142,6 +143,129 @@ public class EcpayService {
 
         // 回傳 1|OK 給綠界
         return "1|OK";
+    }
+
+    /**
+     * 查詢綠界訂單狀態（QueryTradeInfo）
+     */
+    public Map<String, String> queryTradeInfo(String merchantTradeNo) {
+        // 準備查詢參數
+        Map<String, String> params = new TreeMap<>();
+        params.put("MerchantID", ecpayConfig.getMerchantId());
+        params.put("MerchantTradeNo", merchantTradeNo);
+        params.put("TimeStamp", String.valueOf(System.currentTimeMillis() / 1000));
+
+        // 計算 CheckMacValue
+        String checkMacValue = generateCheckMacValue(params);
+        params.put("CheckMacValue", checkMacValue);
+
+        // 發送 POST 請求到綠界
+        try {
+            StringBuilder postData = new StringBuilder();
+            boolean first = true;
+            for (Map.Entry<String, String> entry : params.entrySet()) {
+                if (!first) postData.append("&");
+                postData.append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8.toString()))
+                        .append("=")
+                        .append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8.toString()));
+                first = false;
+            }
+
+            java.net.URL url = new java.net.URL(ecpayConfig.getQueryUrl());
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+
+            try (java.io.OutputStream os = conn.getOutputStream()) {
+                os.write(postData.toString().getBytes(StandardCharsets.UTF_8));
+            }
+
+            // 讀取回應
+            StringBuilder response = new StringBuilder();
+            try (java.io.BufferedReader br = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    response.append(line);
+                }
+            }
+
+            // 解析回應（格式：key=value&key=value）
+            Map<String, String> result = new LinkedHashMap<>();
+            String[] pairs = response.toString().split("&");
+            for (String pair : pairs) {
+                int idx = pair.indexOf("=");
+                if (idx > 0) {
+                    String key = java.net.URLDecoder.decode(pair.substring(0, idx), StandardCharsets.UTF_8.toString());
+                    String value = idx < pair.length() - 1
+                            ? java.net.URLDecoder.decode(pair.substring(idx + 1), StandardCharsets.UTF_8.toString())
+                            : "";
+                    result.put(key, value);
+                }
+            }
+
+            return result;
+        } catch (Exception e) {
+            throw new RuntimeException("查詢綠界訂單失敗: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 查詢並同步綠界訂單狀態到本地資料庫
+     */
+    @Transactional
+    public Map<String, Object> queryAndSyncTradeStatus(Long paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new IllegalArgumentException("繳費記錄不存在"));
+
+        if (payment.getMerchantTradeNo() == null || payment.getMerchantTradeNo().isEmpty()) {
+            throw new IllegalArgumentException("此筆繳費沒有綠界訂單編號");
+        }
+
+        // 查詢綠界
+        Map<String, String> tradeInfo = queryTradeInfo(payment.getMerchantTradeNo());
+
+        String tradeStatus = tradeInfo.get("TradeStatus");
+        String tradeNo = tradeInfo.get("TradeNo");
+        String tradeAmt = tradeInfo.get("TradeAmt");
+        String paymentDateStr = tradeInfo.get("PaymentDate");
+        String paymentTypeStr = tradeInfo.get("PaymentType");
+
+        // 判斷是否需要同步狀態
+        boolean synced = false;
+        if ("1".equals(tradeStatus) && payment.getStatus() != PaymentStatus.PAID) {
+            // 綠界已付款但本地還沒更新
+            payment.setStatus(PaymentStatus.PAID);
+            payment.setPaidAt(LocalDateTime.now());
+            payment.setEcpayTradeNo(tradeNo);
+            payment.setNote("綠界查詢同步 - 付款成功, 付款方式: " + paymentTypeStr + ", 付款時間: " + paymentDateStr);
+
+            Registration registration = payment.getRegistration();
+            if (registration != null) {
+                registration.setPaymentStatus(PaymentStatus.PAID);
+                registrationRepository.save(registration);
+            }
+
+            paymentRepository.save(payment);
+            synced = true;
+        }
+
+        // 回傳查詢結果
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("paymentId", paymentId);
+        result.put("merchantTradeNo", payment.getMerchantTradeNo());
+        result.put("localStatus", payment.getStatus().name());
+        result.put("ecpayTradeStatus", tradeStatus);
+        result.put("ecpayTradeStatusText", "1".equals(tradeStatus) ? "已付款" : "0".equals(tradeStatus) ? "未付款" : "異常");
+        result.put("ecpayTradeNo", tradeNo);
+        result.put("tradeAmt", tradeAmt);
+        result.put("paymentDate", paymentDateStr);
+        result.put("paymentType", paymentTypeStr);
+        result.put("synced", synced);
+        result.put("rawResponse", tradeInfo);
+
+        return result;
     }
 
     /**

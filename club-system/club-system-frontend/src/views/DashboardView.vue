@@ -105,9 +105,9 @@
               <h3>請假紀錄</h3>
               <p>查看您的請假紀錄</p>
             </router-link>
-            <router-link to="/leave-request" class="action-card">
-              <h3>管理請假</h3>
-              <p>管理所有請假紀錄</p>
+            <router-link to="/leave-activity" class="action-card">
+              <h3>我的優惠券</h3>
+              <p>查看您的所有優惠券</p>
             </router-link>
           </div>
 

@@ -43,6 +43,10 @@ export const useUserStore = defineStore("user", () => {
         isLoggedIn.value = false;
         adminElevated.value = false;
         localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('userRole');
         localStorage.removeItem('creditPoints');
         sessionStorage.removeItem('adminElevated');
     }

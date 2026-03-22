@@ -13,6 +13,7 @@ package com.danceclub.club_system.model.enums;
 public enum PaymentStatus {
     NOT_REQUIRED("無須繳費"),
     PENDING("待繳費"),
+    PROCESSING("付款中"),
     PENDING_REVIEW("審核中"),
     PAID("已繳費"),
     CANCELLED("已取消"),
