@@ -1,6 +1,7 @@
 package com.danceclub.club_system.model;
 
 
+import com.danceclub.club_system.model.enums.DiscountType;
 import com.danceclub.club_system.model.enums.PaymentStatus;
 import com.danceclub.club_system.model.enums.RegistrationStatus;
 import jakarta.persistence.*;
@@ -51,6 +52,21 @@ public class Registration {
     @Size(max = 200, message = "備註最多200字")
     @Column(nullable = true, length = 200)
     private String note;
+
+    //====折扣====//
+
+    /** 此次報名使用的折扣類型（nullable = true 讓舊資料欄位可以為 NULL，Java 預設 NONE） */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "discount_type", nullable = true, length = 20)
+    private DiscountType discountType = DiscountType.NONE;
+
+    /** 折扣前原始金額（活動費用） */
+    @Column(name = "original_amount", nullable = true, precision = 10, scale = 2)
+    private BigDecimal originalAmount;
+
+    /** 使用的優惠碼（若 discountType = PROMO_CODE） */
+    @Column(name = "promo_code_used", nullable = true, length = 50)
+    private String promoCodeUsed;
 
     //====繳費====//
     @NotNull(message = "繳費狀態不得為空")
@@ -131,6 +147,9 @@ public class Registration {
         }
         if (paymentAmount == null){
             paymentAmount = BigDecimal.ZERO;
+        }
+        if (discountType == null){
+            discountType = DiscountType.NONE;
         }
         if (checkedIn == null){
             checkedIn = false;

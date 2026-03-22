@@ -1,6 +1,7 @@
 <template>
   <div class="landing">
-    <nav class="navbar">
+    <!-- 未登入才顯示此 navbar -->
+    <nav class="navbar" v-if="!userStore.isLoggedIn">
       <div class="nav-container">
         <h2 class="logo">社團管理系統</h2>
         <div class="nav-links">
@@ -44,7 +45,8 @@
 </template>
 
 <script setup>
-// No script needed for this static page
+import { useUserStore } from '@/stores/user'
+const userStore = useUserStore()
 </script>
 
 <style scoped>
@@ -55,7 +57,13 @@
 
 /* Navbar */
 .navbar {
-  border-bottom: 1px solid #e0e0e0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 800;
+  border-bottom: none;
+  background: transparent;
   padding: 1rem 0;
 }
 
@@ -71,7 +79,7 @@
 .logo {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1a1a1a;
+  color: #fff;
   margin: 0;
 }
 
@@ -82,28 +90,30 @@
 }
 
 .nav-link {
-  color: #666;
+  color: rgba(255,255,255,0.8);
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s;
 }
 
 .nav-link:hover {
-  color: #1a1a1a;
+  color: #fff;
 }
 
 .btn-nav {
   padding: 0.5rem 1.25rem;
-  background: #1a1a1a;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.4);
   color: white;
   text-decoration: none;
   border-radius: 6px;
   font-weight: 500;
   transition: background 0.2s;
+  backdrop-filter: blur(4px);
 }
 
 .btn-nav:hover {
-  background: #333;
+  background: rgba(255,255,255,0.25);
 }
 
 /* Hero Section */

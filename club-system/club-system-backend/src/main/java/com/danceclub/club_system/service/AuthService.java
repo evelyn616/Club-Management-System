@@ -32,24 +32,27 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
-    
+    private final DiscountService discountService;
+
     // Email validation pattern
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
         "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
     );
-    
+
     public AuthService(UserRepository userRepository,
                       IdGeneratorService idGeneratorService,
                       PasswordEncoder passwordEncoder,
                       JwtTokenProvider jwtTokenProvider,
                       AuthenticationManager authenticationManager,
-                      UserDetailsService userDetailsService) {
+                      UserDetailsService userDetailsService,
+                      DiscountService discountService) {
         this.userRepository = userRepository;
         this.idGeneratorService = idGeneratorService;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
+        this.discountService = discountService;
     }
     
     /**
@@ -86,7 +89,14 @@ public class AuthService {
         
         // Save user to database
         User savedUser = userRepository.save(user);
-        
+
+        // 發放新人優惠券
+        try {
+            discountService.issueWelcomeCoupon(savedUser.getId());
+        } catch (Exception e) {
+            // 優惠券發放失敗不影響註冊流程
+        }
+
         // Generate JWT token
         UserDetails userDetails = userDetailsService.loadUserByUsername(savedUser.getEmail());
         String token = jwtTokenProvider.generateToken(userDetails);
@@ -202,6 +212,7 @@ public class AuthService {
             user.getBirthday(),
             user.getSchool(),
             user.getRole(),
+            user.getCreditPoints(),
             user.getCreatedAt(),
             user.getUpdatedAt()
         );

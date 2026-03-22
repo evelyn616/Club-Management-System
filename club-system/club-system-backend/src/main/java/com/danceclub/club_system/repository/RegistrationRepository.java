@@ -104,4 +104,7 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
             @Param("registered") RegistrationStatus registered,
             @Param("absent") RegistrationStatus absent
     );
+
+    /** 計算某會員指定狀態的報名筆數（用於忠誠優惠券門檻計算） */
+    long countByUserIdAndStatus(String userId, RegistrationStatus status);
 }

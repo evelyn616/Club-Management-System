@@ -194,6 +194,7 @@ public class UserService {
             user.getBirthday(),
             user.getSchool(),
             user.getRole(),
+            user.getCreditPoints(),
             user.getCreatedAt(),
             user.getUpdatedAt()
         );

@@ -1,17 +1,6 @@
 <template>
   <div class="activity-list">
 
-    <!-- Navbar -->
-    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
-      <div class="nav-container">
-        <router-link to="/dashboard" class="nav-logo">CLUB SYSTEM</router-link>
-        <div class="nav-right">
-          <span class="nav-username">{{ userStore.userName }}</span>
-          <router-link to="/profile" class="nav-link">個人資料</router-link>
-          <button @click="handleLogout" class="nav-logout">登出</button>
-        </div>
-      </div>
-    </nav>
 
     <!-- Search & Filter -->
     <div class="search-filter-bar">
@@ -73,12 +62,18 @@
         >
           <!-- Cover Image -->
           <div class="card-cover">
-            <img
-              v-if="activity.coverImageUrl"
-              :src="activity.coverImageUrl"
-              :alt="activity.title"
-              class="cover-img"
-            />
+            <div v-if="activity.coverImageUrl" class="cover-img-wrap">
+              <div class="cover-shimmer" :class="{ hidden: loadedImgs.has(activity.id) }"></div>
+              <img
+                :src="activity.coverImageUrl"
+                :alt="activity.title"
+                class="cover-img"
+                :class="{ 'img-loaded': loadedImgs.has(activity.id) }"
+                loading="lazy"
+                decoding="async"
+                @load="onImgLoad(activity.id)"
+              />
+            </div>
             <div v-else class="cover-placeholder">
               <span class="placeholder-type">{{ getActivityTypeLabel(activity.activityType) }}</span>
             </div>
@@ -129,14 +124,124 @@
               <span class="info-label">LOCATION</span>
               <span class="info-value">{{ selectedActivity?.location }}</span>
             </div>
-            <div class="modal-info-item" v-if="selectedActivity?.feeAmount > 0">
-              <span class="info-label">FEE</span>
-              <span class="info-value amount">NT$ {{ selectedActivity?.feeAmount }}</span>
-            </div>
             <div class="modal-info-item">
               <span class="info-label">REGISTRANT</span>
               <span class="info-value">{{ userStore.userName }}</span>
             </div>
+          </div>
+
+          <!-- 折扣區塊 -->
+          <div v-if="selectedActivity?.feeAmount > 0" class="discount-section">
+            <div class="discount-section-title">FEE & DISCOUNT</div>
+
+            <!-- 載入中 -->
+            <div v-if="discountLoading" class="discount-loading">載入折扣資訊...</div>
+
+            <!-- 幹部免費 -->
+            <div v-else-if="discountPreview?.officerFree" class="discount-badge officer">
+              幹部免費 ✓
+            </div>
+
+            <!-- 可選折扣 -->
+            <div v-else-if="discountPreview" class="discount-options">
+              <!-- 無折扣選項 -->
+              <label class="discount-option" :class="{ selected: selectedDiscount === 'NONE' }">
+                <input type="radio" v-model="selectedDiscount" value="NONE" />
+                <span class="opt-label">原價</span>
+                <span class="opt-amount">NT$ {{ discountPreview.originalAmount }}</span>
+              </label>
+
+              <!-- 早鳥優惠 -->
+              <label
+                v-if="discountPreview.earlyBirdActive"
+                class="discount-option"
+                :class="{ selected: selectedDiscount === 'EARLY_BIRD' }"
+              >
+                <input type="radio" v-model="selectedDiscount" value="EARLY_BIRD" />
+                <span class="opt-label">
+                  🐣 早鳥優惠
+                  <small>截止 {{ formatDateTime(discountPreview.earlyBirdDeadline) }}</small>
+                </span>
+                <span class="opt-amount discount">NT$ {{ discountPreview.earlyBirdAmount }}</span>
+              </label>
+
+              <!-- 優惠券 -->
+              <template v-if="discountPreview.availableCoupons?.length > 0">
+                <label
+                  class="discount-option"
+                  :class="{ selected: selectedDiscount === 'COUPON' }"
+                >
+                  <input type="radio" v-model="selectedDiscount" value="COUPON" />
+                  <span class="opt-label">
+                    🎟 優惠券
+                    <small>可用 {{ discountPreview.availableCoupons.length }} 張</small>
+                  </span>
+                  <span class="opt-amount discount">NT$ {{ calcFinalAmount() }}</span>
+                </label>
+                <!-- 選了 COUPON 才顯示券選擇 -->
+                <select
+                  v-if="selectedDiscount === 'COUPON'"
+                  v-model="selectedCouponId"
+                  class="coupon-select"
+                >
+                  <option
+                    v-for="c in discountPreview.availableCoupons"
+                    :key="c.id"
+                    :value="c.id"
+                  >
+                    {{ c.description || (c.couponType === 'WELCOME' ? '新人優惠券' : c.couponType === 'COUPON' ? '忠誠優惠券' : '優惠券') }} — {{ c.discountAmount ? 'NT$ ' + c.discountAmount + ' 折抵' : c.discountRate ? (c.discountRate * 10).toFixed(1).replace(/\.0$/, '') + '折' : '' }}
+                  </option>
+                </select>
+              </template>
+
+              <!-- 優惠碼輸入 -->
+              <div class="promo-row">
+                <div class="promo-input-wrap">
+                  <input
+                    v-model="promoCodeInput"
+                    type="text"
+                    placeholder="輸入優惠碼"
+                    class="promo-input"
+                    @keyup.enter="validatePromoCode"
+                    @input="promoCodeResult = null; promoCodeError = ''; if (selectedDiscount === 'PROMO_CODE') selectedDiscount = 'NONE'"
+                  />
+                  <button
+                    class="promo-btn"
+                    @click="validatePromoCode"
+                    :disabled="promoValidating || !promoCodeInput.trim()"
+                  >{{ promoValidating ? '...' : '套用' }}</button>
+                </div>
+                <p v-if="promoCodeError" class="promo-error">{{ promoCodeError }}</p>
+
+                <!-- 驗證成功 → 顯示為可選選項 -->
+                <label
+                  v-if="promoCodeResult?.valid"
+                  class="discount-option promo-option"
+                  :class="{ selected: selectedDiscount === 'PROMO_CODE' }"
+                >
+                  <input type="radio" v-model="selectedDiscount" value="PROMO_CODE" />
+                  <span class="opt-label">
+                    🏷 優惠碼
+                    <small>{{ promoCodeResult.description || promoCodeInput.toUpperCase() }}
+                      · 省 NT$ {{ promoCodeResult.savedAmount }}</small>
+                  </span>
+                  <span class="opt-amount discount">NT$ {{ promoCodeResult.finalAmount }}</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 最終金額 -->
+            <div v-if="!discountPreview?.officerFree && discountPreview" class="final-amount">
+              <span>實付金額</span>
+              <span class="final-price">
+                NT$ {{ calcFinalAmount() }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 免費活動 -->
+          <div v-else class="discount-section">
+            <div class="free-badge">免費活動 🎉</div>
           </div>
         </div>
         <div class="modal-footer">
@@ -157,11 +262,14 @@ import { useRouter } from 'vue-router'
 import { activityApi } from '@/api/activity'
 import { useUserStore } from '@/stores/user'
 import { registrationApi } from '@/api/registration'
+import { discountApi } from '@/api/discount'
+import { promoCodeApi } from '@/api/promoCode'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const activities = ref([])
+const loadedImgs = ref(new Set())
 const loading = ref(false)
 const searchKeyword = ref('')
 const selectedActivityType = ref('')
@@ -173,6 +281,38 @@ const showRegisterModal = ref(false)
 const selectedActivity = ref(null)
 const isRegistering = ref(false)
 const registrations = ref([])
+
+// 折扣相關
+const discountPreview = ref(null)
+const discountLoading = ref(false)
+const selectedDiscount = ref('NONE')   // 'NONE' | 'EARLY_BIRD' | 'COUPON' | 'PROMO_CODE'
+const selectedCouponId = ref(null)
+
+// 優惠碼
+const promoCodeInput = ref('')
+const promoCodeResult = ref(null)
+const promoValidating = ref(false)
+const promoCodeError = ref('')
+
+const validatePromoCode = async () => {
+  if (!promoCodeInput.value.trim() || !selectedActivity.value) return
+  promoValidating.value = true
+  promoCodeError.value = ''
+  promoCodeResult.value = null
+  try {
+    const res = await promoCodeApi.validate(promoCodeInput.value.trim(), selectedActivity.value.id)
+    if (res.data.valid) {
+      promoCodeResult.value = res.data
+      selectedDiscount.value = 'PROMO_CODE'
+    } else {
+      promoCodeError.value = res.data.errorMessage
+    }
+  } catch {
+    promoCodeError.value = '驗證失敗，請稍後再試'
+  } finally {
+    promoValidating.value = false
+  }
+}
 
 // Navbar scroll hide/show
 const navHidden = ref(false)
@@ -260,29 +400,96 @@ const filteredActivities = computed(() => {
   return result
 })
 
-const openRegisterModal = (activity) => {
+const openRegisterModal = async (activity) => {
   if (!userStore.token) return null
   if (isRegistered(activity.id)) return  // 已報名不開 modal
   if (isActivityFull(activity)) return   // 已額滿不開 modal
   selectedActivity.value = activity
+  selectedDiscount.value = 'NONE'
+  selectedCouponId.value = null
+  discountPreview.value = null
+  promoCodeInput.value = ''
+  promoCodeResult.value = null
+  promoCodeError.value = ''
   showRegisterModal.value = true
+
+  // 載入折扣資訊
+  if (activity.feeAmount > 0) {
+    discountLoading.value = true
+    try {
+      const res = await discountApi.preview(activity.id, userStore.userId)
+      discountPreview.value = res.data
+      // 自動選最優折扣
+      if (res.data.officerFree) {
+        selectedDiscount.value = 'OFFICER'
+      } else if (res.data.earlyBirdActive) {
+        selectedDiscount.value = 'EARLY_BIRD'
+      } else if (res.data.availableCoupons?.length > 0) {
+        selectedDiscount.value = 'COUPON'
+        selectedCouponId.value = res.data.availableCoupons[0].id
+      }
+    } catch (e) {
+      console.error('折扣預覽載入失敗', e)
+    } finally {
+      discountLoading.value = false
+    }
+  }
 }
+
 const closeRegisterModal = () => {
   showRegisterModal.value = false
   selectedActivity.value = null
+  discountPreview.value = null
 }
+
+const calcFinalAmount = () => {
+  if (!discountPreview.value) return selectedActivity.value?.feeAmount ?? 0
+  switch (selectedDiscount.value) {
+    case 'EARLY_BIRD': return discountPreview.value.earlyBirdAmount
+    case 'COUPON': {
+      const coupon = discountPreview.value.availableCoupons?.find(c => c.id === selectedCouponId.value)
+      if (!coupon) return discountPreview.value.loyaltyAmount
+      const original = discountPreview.value.originalAmount
+      if (coupon.discountAmount != null) return Math.max(0, original - coupon.discountAmount)
+      const rate = coupon.discountRate ?? discountPreview.value.loyaltyRate
+      return Math.round(original * rate * 100) / 100
+    }
+    case 'PROMO_CODE': return promoCodeResult.value?.finalAmount ?? discountPreview.value.originalAmount
+    default:           return discountPreview.value.originalAmount
+  }
+}
+
 const confirmRegister = async () => {
   if (!selectedActivity.value) return
+
+  // COUPON 需要選了券
+  if (selectedDiscount.value === 'COUPON' && !selectedCouponId.value) {
+    alert('⚠️ 請選擇要使用的優惠券')
+    return
+  }
+  // PROMO_CODE 需要有驗證結果
+  if (selectedDiscount.value === 'PROMO_CODE' && !promoCodeResult.value?.valid) {
+    alert('⚠️ 請輸入並套用有效的優惠碼')
+    return
+  }
+
   isRegistering.value = true
   try {
-    const response = await registrationApi.createRegistration({
+    const payload = {
       userId: userStore.userId,
-      activityId: selectedActivity.value.id
-    })
-    console.log('報名成功:', response.data)
-    alert(`✅ 報名成功！\n活動：${selectedActivity.value.title}`)
+      activityId: selectedActivity.value.id,
+      requestedDiscount: selectedDiscount.value === 'OFFICER' || selectedDiscount.value === 'PROMO_CODE'
+        ? 'NONE' : selectedDiscount.value,
+      loyaltyCouponId: selectedDiscount.value === 'COUPON' ? selectedCouponId.value : null,
+      promoCode: selectedDiscount.value === 'PROMO_CODE' ? promoCodeInput.value.trim() : null,
+    }
+    const response = await registrationApi.createRegistration(payload)
+    const finalAmt = calcFinalAmount()
+    const discountNote = selectedDiscount.value !== 'NONE' && selectedDiscount.value !== 'OFFICER'
+      ? `\n折扣後金額：NT$ ${finalAmt}` : ''
+    alert(`✅ 報名成功！\n活動：${selectedActivity.value.title}${discountNote}`)
     closeRegisterModal()
-    loadRegistrations()
+    router.push({name: 'pending-payments'})
   } catch (error) {
     if (error.response?.status === 409) alert('⚠️ 您已經報名過此活動。')
     else if (error.response?.status === 400) alert(`❌ ${error.response.data?.message || '報名資料有誤'}`)
@@ -300,6 +507,10 @@ const loadRegistrations = async () => {
   } catch (error) {
     console.error('載入報名紀錄失敗:', error)
   }
+}
+
+const onImgLoad = (id) => {
+  loadedImgs.value = new Set([...loadedImgs.value, id])
 }
 
 const isActivityFull = (activity) => {
@@ -373,27 +584,16 @@ onMounted(() => {
 }
 
 /* ===== Navbar ===== */
-.navbar {
-  position: fixed; padding: 1rem 0;
-  top: 0; left: 0; right: 0; z-index: 100;
-  background: rgba(255,255,255,0.85);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0,0,0,0.08);
-  box-shadow: 0 2px 20px rgba(0,0,0,0.06);
-  transform: translateY(0); transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
-}
+
 .navbar-hidden { transform: translateY(-100%); }
-.nav-container {
-  max-width: 1400px; margin: 0 auto; padding: 0 2rem;
-  display: flex; justify-content: space-between; align-items: center;
-}
+
 .nav-logo {
   font-family: 'Space Mono', monospace; font-size: 1.25rem;
   font-weight: 700; letter-spacing: 0.18em; color: #0a0a0a;
   text-decoration: none; transition: color 0.2s;
 }
 .nav-logo:hover { color: #ff2d6b; }
-.nav-right { display: flex; align-items: center; gap: 1.5rem; }
+
 .nav-username { font-family: 'Space Mono', monospace; font-weight: 500; letter-spacing: 0.08em; color: #aaa; }
 .nav-link {
   font-family: 'Space Mono', monospace; font-weight: 500; letter-spacing: 0.08em;
@@ -516,10 +716,28 @@ onMounted(() => {
   background: #f0f0f0;
   margin-bottom: 0.85rem;
 }
+.cover-img-wrap {
+  width: 100%; height: 100%; position: relative;
+}
+.cover-shimmer {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, #ececec 25%, #f5f5f5 50%, #ececec 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  z-index: 1;
+  transition: opacity 0.3s ease;
+}
+.cover-shimmer.hidden { opacity: 0; pointer-events: none; }
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
 .cover-img {
   width: 100%; height: 100%; object-fit: cover;
-  display: block; transition: filter 0.2s;
+  display: block; transition: filter 0.2s, opacity 0.35s ease;
+  opacity: 0; position: relative; z-index: 2;
 }
+.cover-img.img-loaded { opacity: 1; }
 .cover-placeholder {
   width: 100%; height: 100%;
   background: linear-gradient(135deg, #1a1a1a, #333);
@@ -534,6 +752,7 @@ onMounted(() => {
 .cover-badges {
   position: absolute; top: 0.65rem; left: 0.65rem;
   display: flex; gap: 0.4rem; align-items: center;
+  z-index: 3;
 }
 .type-badge {
   font-family: 'Space Mono', monospace; font-size: 0.56rem;
@@ -639,6 +858,158 @@ onMounted(() => {
 }
 .modal-confirm-btn:hover:not(:disabled) { background: #0a0a0a; }
 .modal-confirm-btn:disabled { background: #e0e0e0; color: #bbb; cursor: not-allowed; }
+
+/* ===== Discount Section ===== */
+.discount-section {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e0e0e0;
+}
+.discount-section-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  color: #aaa;
+  margin-bottom: 0.75rem;
+}
+.discount-loading {
+  font-size: 0.8rem;
+  color: #aaa;
+  font-family: 'Space Mono', monospace;
+}
+.discount-badge.officer {
+  display: inline-block;
+  background: #1a7a3c;
+  color: #fff;
+  padding: 0.35rem 0.85rem;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.free-badge {
+  color: #1a7a3c;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.discount-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.discount-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid #e0e0e0;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  border-radius: 4px;
+}
+.discount-option:hover { border-color: #aaa; }
+.discount-option.selected { border-color: #ff2d6b; background: rgba(255,45,107,0.03); }
+.discount-option input[type="radio"] { accent-color: #ff2d6b; }
+.opt-label {
+  flex: 1;
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.opt-label small { font-size: 0.68rem; color: #aaa; font-family: 'Space Mono', monospace; }
+.opt-amount {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #aaa;
+}
+.opt-amount.discount { color: #ff2d6b; }
+.coupon-select {
+  margin-top: 0.25rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #e0e0e0;
+  font-size: 0.78rem;
+  font-family: 'Space Mono', monospace;
+  outline: none;
+  border-radius: 4px;
+  width: 100%;
+  cursor: pointer;
+}
+.coupon-select:focus { border-color: #ff2d6b; }
+
+/* 優惠碼 */
+.promo-row {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.promo-input-wrap {
+  display: flex;
+  gap: 0.4rem;
+}
+.promo-input {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  outline: none;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: border-color 0.2s;
+}
+.promo-input:focus { border-color: #ff2d6b; }
+.promo-btn {
+  padding: 0.45rem 0.9rem;
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.promo-btn:hover:not(:disabled) { background: #333; }
+.promo-btn:disabled { background: #ccc; cursor: not-allowed; }
+.promo-error {
+  font-size: 0.75rem;
+  color: #dc2626;
+  margin: 0;
+}
+.promo-option { margin-top: 0.25rem; }
+.final-amount {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #e0e0e0;
+  font-size: 0.82rem;
+  color: #555;
+  font-family: 'Space Mono', monospace;
+}
+.final-price {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #ff2d6b;
+}
+.info-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  color: #aaa;
+}
+.info-value {
+  font-size: 0.88rem;
+  color: #0a0a0a;
+}
+.info-value.amount {
+  color: #ff2d6b;
+  font-weight: 700;
+}
 
 /* ===== Responsive ===== */
 @media (max-width: 768px) {

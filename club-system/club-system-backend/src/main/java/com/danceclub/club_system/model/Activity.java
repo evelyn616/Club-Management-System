@@ -117,6 +117,11 @@ public class Activity {
 
     @Column(name = "cancel_reason",nullable = true)
     private String cancelReason;
+
+    // ========== 早鳥優惠截止時間（可選；null 時由 DiscountService 依全域設定計算） ==========
+
+    @Column(name = "early_bird_deadline", nullable = true)
+    private LocalDateTime earlyBirdDeadline;
     // ========== JPA 生命週期回調(Entity不同狀態) ==========
 
     @PrePersist

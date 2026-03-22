@@ -53,7 +53,10 @@ public class RegistrationController {
 
         Registration registration = registrationService.createRegistration(
                 request.getActivityId(),
-                request.getUserId()
+                request.getUserId(),
+                request.getRequestedDiscount(),
+                request.getLoyaltyCouponId(),
+                request.getPromoCode()
         );
 
         return ResponseEntity.status(HttpStatus.CREATED).body(registration);

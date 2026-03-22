@@ -1,13 +1,6 @@
 <template>
   <div class="db-wrap">
 
-    <!-- ── Navbar ── -->
-    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
-      <div class="nav-inner">
-        <router-link to="/admin/activity-management-container" class="nav-logo">CLUB SYSTEM</router-link>
-        <span class="nav-crumb">ADMIN / <span class="nav-accent">草稿箱</span></span>
-      </div>
-    </nav>
 
     <!-- ── Header ── -->
     <div class="page-header">
@@ -202,12 +195,7 @@ const formatDateTime = (dt) => {
 .mono { font-family: 'Space Mono', monospace; }
 
 /* Navbar */
-.navbar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  padding: 1rem 3rem; background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.08);
-  transform: translateY(0); transition: transform 0.3s ease;
-}
+
 .navbar-hidden { transform: translateY(-100%); }
 .nav-inner { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
 .nav-logo { font-family: 'Space Mono', monospace; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.18em; color: #0a0a0a; text-decoration: none; }
@@ -319,6 +307,6 @@ const formatDateTime = (dt) => {
 @media (max-width: 768px) {
   .page-header { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
   .page-header, .table-section { padding-left: 1.25rem; padding-right: 1.25rem; }
-  .navbar { padding-left: 1.25rem; padding-right: 1.25rem; }
+  
 }
 </style>

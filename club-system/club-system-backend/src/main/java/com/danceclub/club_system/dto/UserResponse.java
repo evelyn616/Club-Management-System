@@ -16,15 +16,17 @@ public class UserResponse {
     private LocalDate birthday;
     private String school;
     private String role;
+    private Integer creditPoints;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    
+
     // Default constructor
     public UserResponse() {}
-    
+
     // Constructor with all fields
-    public UserResponse(String id, String name, String email, String phone, 
-                       LocalDate birthday, String school, String role, 
+    public UserResponse(String id, String name, String email, String phone,
+                       LocalDate birthday, String school, String role,
+                       Integer creditPoints,
                        LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.name = name;
@@ -33,6 +35,7 @@ public class UserResponse {
         this.birthday = birthday;
         this.school = school;
         this.role = role;
+        this.creditPoints = creditPoints;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -89,11 +92,19 @@ public class UserResponse {
     public String getRole() {
         return role;
     }
-    
+
     public void setRole(String role) {
         this.role = role;
     }
-    
+
+    public Integer getCreditPoints() {
+        return creditPoints;
+    }
+
+    public void setCreditPoints(Integer creditPoints) {
+        this.creditPoints = creditPoints;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }

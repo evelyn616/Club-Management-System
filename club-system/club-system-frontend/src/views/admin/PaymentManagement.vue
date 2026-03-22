@@ -1,15 +1,5 @@
 <template>
   <div class="payment-management">
-    <!-- 頂部導航 -->
-    <nav class="admin-navbar">
-      <div class="nav-container">
-        <h2 class="logo">繳費管理</h2>
-        <div class="nav-right">
-          <router-link to="/admin/dashboard" class="nav-link">返回後台</router-link>
-          <button @click="handleLogout" class="btn-logout">登出</button>
-        </div>
-      </div>
-    </nav>
 
     <!-- 主要內容 -->
     <main class="main-content">
@@ -290,36 +280,13 @@ onMounted(() => {
 }
 
 /* 導航列 */
-.admin-navbar {
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
-  padding: 1rem 0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
 
-.nav-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
 
-.logo {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin: 0;
-}
 
-.nav-right {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
+
+
+
+
 
 .nav-link {
   color: #666;
@@ -332,21 +299,9 @@ onMounted(() => {
   color: #1a1a1a;
 }
 
-.btn-logout {
-  padding: 0.5rem 1.25rem;
-  background: white;
-  color: #1a1a1a;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
 
-.btn-logout:hover {
-  background: #f5f5f5;
-  border-color: #ccc;
-}
+
+
 
 /* 主要內容 */
 .main-content {

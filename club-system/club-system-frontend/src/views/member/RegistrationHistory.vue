@@ -1,18 +1,6 @@
 <template>
   <div class="registration-history">
 
-    <!-- Navbar -->
-    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
-      <div class="nav-container">
-        <router-link to="/dashboard" class="nav-logo">CLUB SYSTEM</router-link>
-        <div class="nav-right">
-          <span class="nav-username">{{ userStore.userName }}</span>
-          <router-link to="/profile" class="nav-link">個人資料</router-link>
-          <button @click="handleLogout" class="nav-logout">登出</button>
-        </div>
-      </div>
-    </nav>
-
     <!-- Header -->
     <div class="page-header">
       <div class="header-left">
@@ -94,84 +82,110 @@
       </div>
     </div>
 
-    <!-- Cards -->
-    <div v-else class="registration-grid">
-      <div class="cards-container" :class="{ 'cards-fade': !cardsVisible }">
-        <div
-          v-for="(reg, index) in displayedRegistrations"
-          :key="reg.id"
-          class="history-card"
-          :class="getAttendanceClass(reg.status)"
-        >
-          <!-- Card Number -->
-          <div class="card-index">{{ String(index + 1).padStart(2, '0') }}</div>
+    <!-- Tickets -->
+    <div v-else class="tickets-list" :class="{ 'cards-fade': !cardsVisible }">
 
-          <!-- Card Header -->
-          <div class="card-header">
-            <div class="attendance-badge" :class="getAttendanceClass(reg.status)">
-              <span class="status-dot"></span>
-              {{ getAttendanceLabel(reg.status) }}
-            </div>
-            <div class="activity-type-badge" v-if="reg.activityType">
-              {{ getActivityTypeLabel(reg.activityType) }}
-            </div>
-          </div>
+      <div
+        v-for="(reg, index) in displayedRegistrations"
+        :key="reg.id"
+        class="ticket"
+        :class="getAttendanceClass(reg.status)"
+      >
+        <!-- Top gray band -->
+        <div class="ticket-band">
+          <span class="band-left">
+            <span class="band-star">★</span>
+            {{ getActivityTypeLabel(reg.activityType) || 'ACTIVITY' }}
+            <span class="band-star">★</span>
+          </span>
+          <span class="band-right">NO. {{ String(reg.id).padStart(6, '0') }}</span>
+        </div>
 
-          <!-- Title -->
-          <div class="card-title-section">
-            <h3 class="activity-title">{{ reg.activityTitle || '（活動資訊不可用）' }}</h3>
-          </div>
+        <!-- Ticket body -->
+        <div class="ticket-body">
 
-          <!-- Info -->
-          <div class="card-body">
-            <div class="info-row-horizontal">
-              <div class="info-item" v-if="reg.activityLocation">
-                <span class="info-label">LOCATION</span>
-                <span class="info-value">{{ reg.activityLocation }}</span>
+          <!-- Main section -->
+          <div class="ticket-main">
+
+            <div class="ticket-top-row">
+              <div class="attendance-badge" :class="getAttendanceClass(reg.status)">
+                <span class="status-dot"></span>
+                {{ getAttendanceLabel(reg.status) }}
               </div>
-              <div class="info-item" v-if="reg.activityStartTime">
-                <span class="info-label">DATE</span>
-                <span class="info-value">
+              <span class="ticket-index">{{ String(index + 1).padStart(2, '0') }}</span>
+            </div>
+
+            <h3 class="ticket-title">{{ reg.activityTitle || '（活動資訊不可用）' }}</h3>
+
+            <div class="ticket-info-grid">
+              <div class="ticket-info-item" v-if="reg.activityStartTime">
+                <span class="tkt-label">DATE &amp; TIME</span>
+                <span class="tkt-value">
                   {{ formatDate(reg.activityStartTime) }}
                   <span class="time-sep">—</span>
                   {{ formatTimeOnly(reg.activityEndTime) }}
                 </span>
               </div>
+              <div class="ticket-info-item" v-if="reg.activityLocation">
+                <span class="tkt-label">VENUE</span>
+                <span class="tkt-value">{{ reg.activityLocation }}</span>
+              </div>
             </div>
 
-            <div class="card-divider"></div>
-
-            <!-- 已出席：顯示簽到時間 -->
-            <div class="info-row-horizontal" v-if="reg.status === 'ATTENDED'">
-              <div class="info-item">
-                <span class="info-label">CHECK-IN</span>
-                <span class="info-value">
+            <!-- 已出席：簽到時間 -->
+            <div class="ticket-payment-row" v-if="reg.status === 'ATTENDED'">
+              <div class="ticket-info-item">
+                <span class="tkt-label">CHECK-IN</span>
+                <span class="tkt-value">
                   {{ formatDate(reg.checkedInTime) }}
                   <span v-if="reg.late" class="late-tag">LATE</span>
                 </span>
               </div>
-              <div class="info-item" v-if="reg.paymentAmount > 0">
-                <span class="info-label">AMOUNT</span>
-                <span class="info-value amount">NT$ {{ reg.paymentAmount }}</span>
+              <div class="ticket-info-item" v-if="reg.paymentAmount > 0">
+                <span class="tkt-label">AMOUNT</span>
+                <span class="tkt-value tkt-amount">NT$ {{ reg.paymentAmount }}</span>
               </div>
             </div>
 
             <!-- 未出席 / 已取消：費用 -->
-            <div class="info-row-horizontal" v-else-if="reg.paymentAmount > 0">
-              <div class="info-item">
-                <span class="info-label">AMOUNT</span>
-                <span class="info-value amount">NT$ {{ reg.paymentAmount }}</span>
+            <div class="ticket-payment-row" v-else-if="reg.paymentAmount > 0">
+              <div class="ticket-info-item">
+                <span class="tkt-label">AMOUNT</span>
+                <span class="tkt-value tkt-amount">NT$ {{ reg.paymentAmount }}</span>
               </div>
             </div>
+
           </div>
 
-          <!-- Footer -->
-          <div class="card-footer">
-            <span class="reg-date-hint">{{ formatDate(reg.registrationTime) }}</span>
-            <span class="activity-status-tag" :class="getActivityStatusClass(reg.activityStatus)">
-              {{ getActivityStatusLabel(reg.activityStatus) }}
-            </span>
+          <!-- Perforation -->
+          <div class="ticket-perf">
+            <div class="perf-notch perf-top"></div>
+            <div class="perf-line"></div>
+            <div class="perf-notch perf-bottom"></div>
           </div>
+
+          <!-- Stub -->
+          <div class="ticket-stub">
+            <div class="stub-admit">DANCE</div>
+            <div class="stub-one">CLUB</div>
+            <div class="stub-ornament">✦ ✦ ✦</div>
+            <div class="stub-date-block">
+              <span class="stub-date-label">DATE</span>
+              <span class="stub-date-val">{{ formatDateShort(reg.activityStartTime) }}</span>
+            </div>
+            <div class="stub-footer">
+              <span class="stub-reg-date">報名 {{ formatDateShort(reg.registrationTime) }}</span>
+              <span class="stub-activity-status" :class="getActivityStatusClass(reg.activityStatus)">
+                {{ getActivityStatusLabel(reg.activityStatus) }}
+              </span>
+            </div>
+            <button
+              v-if="reg.activityStatus === 'COMPLETED' && reg.status === 'ATTENDED'"
+              class="feedback-btn"
+              @click="router.push('/feedback/activity/' + reg.activityId)"
+            >✍️ 填寫回饋</button>
+          </div>
+
         </div>
       </div>
 
@@ -271,6 +285,11 @@ const formatDate = (dateTime) => {
   return d.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' })
     + ' ' + d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
 };
+const formatDateShort = (dateTime) => {
+  if (!dateTime) return '-';
+  const d = new Date(dateTime);
+  return d.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
+};
 const formatTimeOnly = (dateTime) => {
   if (!dateTime) return '';
   return new Date(dateTime).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
@@ -311,46 +330,6 @@ onMounted(() => {
   padding: 6rem 2rem 5rem;
 }
 
-/* ===== Navbar ===== */
-.navbar {
-  position: fixed;
-  padding: 1rem 0;
-  top: 0; left: 0; right: 0;
-  z-index: 100;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.06);
-  transform: translateY(0);
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.navbar-hidden { transform: translateY(-100%); }
-.nav-container {
-  max-width: 1400px; margin: 0 auto; padding: 0 2rem;
-  display: flex; justify-content: space-between; align-items: center;
-}
-.nav-logo {
-  font-family: 'Space Mono', monospace; font-size: 1.25rem;
-  font-weight: 700; letter-spacing: 0.18em; color: #0a0a0a;
-  text-decoration: none; transition: color 0.2s;
-}
-.nav-logo:hover { color: #ff2d6b; }
-.nav-right { display: flex; align-items: center; gap: 1.5rem; }
-.nav-username { font-family: 'Space Mono', monospace; font-weight: 500; letter-spacing: 0.08em; color: #aaa; }
-.nav-link {
-  font-family: 'Space Mono', monospace; font-weight: 500;
-  letter-spacing: 0.08em; color: #555; text-decoration: none; transition: color 0.2s;
-}
-.nav-link:hover { color: #0a0a0a; }
-.nav-logout {
-  background: transparent; border: 1px solid #e0e0e0; color: #555;
-  padding: 0.5rem 1.25rem; font-family: 'Space Mono', monospace;
-  letter-spacing: 0.08em; cursor: pointer; transition: all 0.2s;
-  border-radius: 6px; font-weight: 500;
-}
-.nav-logout:hover { border-color: #ff2d6b; color: #ff2d6b; background: rgba(255, 45, 107, 0.04); }
-
 /* ===== Header ===== */
 .page-header {
   display: flex; justify-content: space-between; align-items: flex-end;
@@ -374,29 +353,25 @@ onMounted(() => {
 }
 .label-line {
   display: inline-block; height: 1px; width: 2rem; background: #ff2d6b;
-  animation: expandLine 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both; 
+  animation: expandLine 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
 .label-text { font-family: 'Space Mono', monospace; font-size: 0.65rem; letter-spacing: 0.2em; color: #ff2d6b; }
-.label-num { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; color: #ccc; margin-left: auto; }
+.label-num  { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; color: #ccc; margin-left: auto; }
 
 .page-title {
   font-family: 'Bebas Neue', sans-serif; font-size: 5rem;
   line-height: 0.92; margin: 0; color: #0a0a0a;
-  letter-spacing: 0.02em; display: flex; flex-direction: column; 
+  letter-spacing: 0.02em; display: flex; flex-direction: column;
 }
-.title-line { display: block; overflow: visible; padding-bottom: 0.1em; font-weight:500; }
+.title-line { display: block; overflow: visible; padding-bottom: 0.1em; font-weight: 500; }
 .title-line-1 { animation: slideUpFade 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both; }
 .title-line-2 { animation: slideUpFade 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.38s both; }
-.title-accent { color: #ff2d6b; font-weight:500;}
+.title-accent { color: #ff2d6b; font-weight: 500; }
 
 .page-subtitle { font-size: 0.78rem; color: #999; margin: 0.75rem 0 0; letter-spacing: 0.04em; overflow: hidden; }
-.subtitle-inner {
-  display: inline-block;
-  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.52s both;
-}
+.subtitle-inner { display: inline-block; animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.52s both; }
 
 .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 1.25rem; }
-
 .back-btn {
   font-family: 'Space Mono', monospace; font-size: 0.72rem;
   letter-spacing: 0.12em; color: #0a0a0a; background: transparent;
@@ -419,7 +394,7 @@ onMounted(() => {
 
 /* ===== Filter Tabs ===== */
 .filter-tabs {
-  display: flex; margin-bottom: 2rem;
+  display: flex; margin-bottom: 2.5rem;
   border: 1px solid #0a0a0a; overflow: hidden; width: fit-content;
 }
 .tab-btn {
@@ -474,88 +449,313 @@ onMounted(() => {
 }
 .cta-btn:hover { background: #0a0a0a; color: #fff; }
 
-/* ===== Cards Grid ===== */
-.cards-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 1px; background: #e0e0e0; border: 1px solid #e0e0e0;
-  opacity: 1; transition: opacity 0.15s ease;
+/* ===== Tickets List ===== */
+.tickets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  opacity: 1;
+  transition: opacity 0.15s ease;
 }
 .cards-fade { opacity: 0; }
 
-.history-card {
-  background: #ffffff; padding: 1.5rem;
-  position: relative; transition: background 0.2s;
+/* ===== Ticket — all gray base ===== */
+.ticket {
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+  background: #F5F5F3;
+  border: 1.5px solid #ddd;
 }
-.history-card:hover { background: #fafafa; }
-
-/* Left accent bar */
-.history-card::before {
-  content: ''; position: absolute;
-  left: 0; top: 0; bottom: 0; width: 3px;
+.ticket:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.11), 0 2px 6px rgba(0,0,0,0.06);
 }
-.history-card.status-attended::before  { background: #0a0a0a; }
-.history-card.status-absent::before    { background: #f59e0b; }
-.history-card.status-cancelled::before { background: #e0e0e0; }
 
-.card-index { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: #ccc; letter-spacing: 0.1em; margin-bottom: 1rem; }
+/* ---- Band — uniform dark gray ---- */
+.ticket-band {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 1.25rem;
+  background: #3A3A3A;
+  color: #aaaaaa;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+}
+.band-star { margin: 0 0.35rem; }
+.band-left { display: flex; align-items: center; }
 
-.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+/* ---- Body ---- */
+.ticket-body {
+  display: flex;
+  min-height: 160px;
+}
 
+/* ---- Main ---- */
+.ticket-main {
+  flex: 1 1 auto;
+  padding: 1.1rem 1.3rem 1.1rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: #F5F5F3;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 23px,
+    rgba(0,0,0,0.04) 23px,
+    rgba(0,0,0,0.04) 24px
+  );
+}
+
+.ticket-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ticket-index {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  color: #bbb;
+  letter-spacing: 0.1em;
+}
+
+/* ---- Status badges with color ---- */
 .attendance-badge {
-  display: flex; align-items: center; gap: 0.35rem;
-  font-family: 'Space Mono', monospace; font-size: 0.62rem;
-  letter-spacing: 0.08em; padding: 0.2rem 0.6rem; border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 2px;
+  font-weight: 700;
 }
 .status-dot { width: 5px; height: 5px; border-radius: 50%; display: block; }
-.attendance-badge.status-attended  { background: #0a0a0a; color: #fff; }
-.attendance-badge.status-attended .status-dot { background: #fff; }
-.attendance-badge.status-absent    { background: rgba(245,158,11,0.1); color: #b45309; border: 1px solid rgba(245,158,11,0.25); }
+
+/* 已出席 → 綠色 */
+.attendance-badge.status-attended {
+  background: rgba(22,101,52,0.10);
+  color: #166534;
+  border: 1px solid rgba(22,101,52,0.25);
+}
+.attendance-badge.status-attended .status-dot { background: #16a34a; }
+
+/* 未出席 → 橙色 */
+.attendance-badge.status-absent {
+  background: rgba(180,83,9,0.10);
+  color: #b45309;
+  border: 1px solid rgba(180,83,9,0.25);
+}
 .attendance-badge.status-absent .status-dot { background: #f59e0b; }
-.attendance-badge.status-cancelled { background: #f5f5f5; color: #aaa; border: 1px solid #e0e0e0; }
-.attendance-badge.status-cancelled .status-dot { background: #ccc; }
 
-.activity-type-badge {
-  font-family: 'Space Mono', monospace; font-size: 0.58rem;
-  letter-spacing: 0.1em; color: #bbb; border: 1px solid #e0e0e0;
-  padding: 0.15rem 0.5rem; border-radius: 2px;
+/* 已取消 → 灰色 */
+.attendance-badge.status-cancelled {
+  background: rgba(0,0,0,0.05);
+  color: #888;
+  border: 1px solid #ddd;
+}
+.attendance-badge.status-cancelled .status-dot { background: #bbb; }
+
+.ticket-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.65rem;
+  line-height: 1.1;
+  margin: 0;
+  color: #222;
+  letter-spacing: 0.04em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.card-title-section { margin-bottom: 1.25rem; }
-.activity-title {
-  font-family: 'Noto Sans TC', sans-serif; font-size: 1.05rem;
-  font-weight: 700; color: #0a0a0a; margin: 0; line-height: 1.4;
-  display: -webkit-box; -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical; overflow: hidden;
+.ticket-info-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
 }
-
-.card-body { display: flex; flex-direction: column; gap: 0.75rem; }
-.info-row-horizontal { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.info-item { display: flex; flex-direction: column; gap: 0.25rem; }
-.info-label { font-family: 'Space Mono', monospace; font-size: 0.55rem; letter-spacing: 0.15em; color: #bbb; text-transform: uppercase; }
-.info-value { font-size: 0.82rem; color: #333; font-weight: 500; }
-.info-value.amount { font-family: 'Space Mono', monospace; color: #ff2d6b; font-size: 0.82rem; font-weight: 700; }
+.ticket-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.tkt-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.18em;
+  color: #aaa;
+  text-transform: uppercase;
+}
+.tkt-value {
+  font-size: 0.8rem;
+  color: #444;
+  font-weight: 500;
+}
+.tkt-value.tkt-amount {
+  font-family: 'Space Mono', monospace;
+  color: #555;
+  font-weight: 700;
+}
 .time-sep { color: #ccc; margin: 0 0.2rem; }
-.card-divider { height: 1px; background: #f0f0f0; margin: 0.25rem 0; }
+
+.ticket-payment-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #ddd;
+  margin-top: 0.2rem;
+}
 
 .late-tag {
-  font-family: 'Space Mono', monospace; font-size: 0.58rem;
-  background: rgba(255,45,107,0.08); color: #ff2d6b;
+  font-family: 'Space Mono', monospace; font-size: 0.55rem;
+  background: rgba(180,83,9,0.08); color: #b45309;
   padding: 0.1rem 0.4rem; border-radius: 2px; margin-left: 0.4rem;
-  letter-spacing: 0.06em; border: 1px solid rgba(255,45,107,0.2);
+  letter-spacing: 0.06em; border: 1px solid rgba(180,83,9,0.2);
 }
 
-.card-footer {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #f0f0f0;
+/* ---- Perforation ---- */
+.ticket-perf {
+  width: 28px;
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #F5F5F3;
 }
-.reg-date-hint { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: #ccc; letter-spacing: 0.06em; }
-.activity-status-tag {
-  font-family: 'Space Mono', monospace; font-size: 0.6rem;
-  letter-spacing: 0.1em; padding: 0.18rem 0.55rem; border-radius: 2px;
+.perf-notch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #ffffff;
+  border: 1.5px solid #ddd;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
 }
-.act-completed { background: #f5f5f5; color: #888; border: 1px solid #e0e0e0; }
-.act-cancelled { background: #f5f5f5; color: #ccc; border: 1px solid #ebebeb; }
+.perf-top    { top: -9px; }
+.perf-bottom { bottom: -9px; }
+.perf-line {
+  flex: 1;
+  width: 2px;
+  border-left: 2px dashed #ccc;
+  margin: 10px 0;
+}
+
+/* ---- Stub — dark gray ---- */
+.ticket-stub {
+  width: 130px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 1rem 0.8rem;
+  text-align: center;
+  background: #3A3A3A;
+}
+
+.stub-admit {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.25em;
+  line-height: 1;
+  color: rgba(255,255,255,0.35);
+}
+.stub-one {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+  letter-spacing: 0.12em;
+  line-height: 0.95;
+  color: #bbbbbb;
+}
+.stub-ornament {
+  font-size: 0.5rem;
+  color: rgba(255,255,255,0.2);
+  letter-spacing: 0.2em;
+  margin: 0.15rem 0;
+}
+.stub-date-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0.2rem 0;
+}
+.stub-date-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.48rem;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.35);
+}
+.stub-date-val {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 0.08em;
+}
+
+.stub-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: auto;
+  width: 100%;
+}
+.stub-reg-date {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.47rem;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.05em;
+}
+.stub-activity-status {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  padding: 0.18rem 0.5rem;
+  border-radius: 2px;
+  width: 100%;
+  text-align: center;
+}
+.act-completed {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.5);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.act-cancelled {
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.feedback-btn {
+  margin-top: 0.5rem;
+  width: 100%;
+  padding: 0.35rem 0;
+  background: rgba(255, 45, 107, 0.15);
+  border: 1px solid rgba(255, 45, 107, 0.4);
+  border-radius: 4px;
+  color: #ff6b9d;
+  font-size: 0.62rem;
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.feedback-btn:hover {
+  background: rgba(255, 45, 107, 0.28);
+  color: #fff;
+}
 
 .no-filter-result {
   text-align: center; color: #ccc;
@@ -567,9 +767,10 @@ onMounted(() => {
 @media (max-width: 640px) {
   .registration-history { padding: 5rem 1rem 4rem; }
   .page-title { font-size: 3.5rem; }
-  .cards-container { grid-template-columns: 1fr; }
   .page-header { flex-direction: column; align-items: flex-start; }
   .header-right { align-items: flex-start; }
-  .info-row-horizontal { grid-template-columns: 1fr; }
+  .ticket-stub { width: 100px; }
+  .stub-one { font-size: 1.5rem; }
+  .ticket-title { font-size: 1.35rem; }
 }
 </style>

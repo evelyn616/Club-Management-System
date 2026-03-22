@@ -1,13 +1,4 @@
 <template>
-    <nav class="admin-navbar">
-      <div class="nav-container">
-        <h2 class="logo">管理後台</h2>
-        <div class="nav-right">
-          <span class="admin-name">{{  userStore.userName || '管理員' }}</span>
-          <button @click="handleLogout" class="btn-logout">登出</button>
-        </div>
-      </div>
-    </nav>
 
     
   <div class="am-wrap">
@@ -33,6 +24,9 @@
         </button>
         <button class="action-btn" @click="router.push('/admin/draft-box-container')">
           <span class="btn-icon">📝</span> 草稿箱
+        </button>
+        <button class="action-btn" @click="router.push('/admin/discount-settings')">
+          <span class="btn-icon">🏷</span> 折扣設定
         </button>
       </div>
     </div>
@@ -138,6 +132,9 @@
                 
                 <button class="uc-btn" @click="router.push('/admin/update-activity-container/' + act.id)">
                   更新活動
+                </button>
+                <button class="uc-btn" @click="router.push('/admin/feedback/' + act.id)">
+                  📋 回饋表單
                 </button>
               </div>
             </div>
@@ -668,55 +665,17 @@ onMounted(() => {
   .am-actions { flex-wrap: wrap; }
 }
 
-.admin-navbar {
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
-  padding: 1rem 0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
 
-.nav-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
 
-.logo {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin: 0;
-}
 
-.nav-right {
-  display: flex;
-  gap: 1.5rem;
-  align-items: center;
-}
 
-.admin-name {
-  color: #666;
-  font-weight: 500;
-}
 
-.btn-logout {
-  padding: 0.5rem 1.25rem;
-  background: white;
-  color: #1a1a1a;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
 
-.btn-logout:hover {
-  background: #f5f5f5;
-  border-color: #ccc;
-}
+
+
+
+
+
+
+
 </style>

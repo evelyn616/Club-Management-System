@@ -1,14 +1,5 @@
 <template>
   <div class="profile-page">
-    <nav class="navbar">
-      <div class="nav-container">
-        <h2 class="logo">社團管理系統</h2>
-        <div class="nav-right">
-          <router-link to="/dashboard" class="nav-link">返回首頁</router-link>
-          <button @click="handleLogout" class="btn-logout">登出</button>
-        </div>
-      </div>
-    </nav>
 
     <main class="main-content">
       <div class="container">
@@ -64,6 +55,15 @@
                 <div class="form-group">
                   <label>角色</label>
                   <input type="text" :value="getRoleText(userData.role)" disabled />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>信用積分</label>
+                <div class="credit-points-display">
+                  <span class="credit-icon">🎁</span>
+                  <span class="credit-value">{{ userData.creditPoints ?? 0 }}</span>
+                  <span class="credit-label">點</span>
                 </div>
               </div>
 
@@ -385,20 +385,9 @@ onMounted(() => {
 }
 
 /* Navbar */
-.navbar {
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
-  padding: 1rem 0;
-}
 
-.nav-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+
+
 
 .logo {
   font-size: 1.25rem;
@@ -407,11 +396,7 @@ onMounted(() => {
   margin: 0;
 }
 
-.nav-right {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
+
 
 .nav-link {
   color: #666;
@@ -424,21 +409,9 @@ onMounted(() => {
   color: #1a1a1a;
 }
 
-.btn-logout {
-  padding: 0.5rem 1.25rem;
-  background: white;
-  color: #1a1a1a;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
 
-.btn-logout:hover {
-  background: #f5f5f5;
-  border-color: #ccc;
-}
+
+
 
 /* Main Content */
 .main-content {
@@ -662,6 +635,31 @@ onMounted(() => {
 .form-group input.editing:focus {
   outline: none;
   border-color: #333;
+}
+
+.credit-points-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #fffbea;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+}
+
+.credit-icon {
+  font-size: 1.1rem;
+}
+
+.credit-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #b45309;
+}
+
+.credit-label {
+  font-size: 0.9rem;
+  color: #92400e;
 }
 
 .btn-change-password {

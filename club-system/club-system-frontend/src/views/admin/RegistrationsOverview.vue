@@ -1,13 +1,6 @@
 <template>
   <div class="overview-wrap">
 
-    <!-- ── Navbar ── -->
-    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
-      <div class="nav-inner">
-        <router-link to="/admin/activity-management-container" class="nav-logo">CLUB SYSTEM</router-link>
-        <span class="nav-crumb">ADMIN / <span class="nav-crumb-active">報名總覽</span></span>
-      </div>
-    </nav>
 
     <!-- ── Page Header ── -->
     <div class="page-header">
@@ -233,6 +226,9 @@ const newRegistrationsToday = computed(() => {
 })
 
 // ── Filter ──
+// 狀態優先順序
+const STATUS_ORDER = { ONGOING:0, PUBLISHED:1, SCHEDULED:2, DRAFT:3, COMPLETED:4, CANCELLED:5 }
+
 const filteredActivities = computed(() => {
   let result = [...activities.value]
   if (selectedType.value) {
@@ -245,6 +241,24 @@ const filteredActivities = computed(() => {
       (a.description || '').toLowerCase().includes(kw)
     )
   }
+  result.sort((a, b) => {
+    const oA = STATUS_ORDER[a.status] ?? 99
+    const oB = STATUS_ORDER[b.status] ?? 99
+    if (oA !== oB) return oA - oB
+    // 同群組內：PUBLISHED/ONGOING/SCHEDULED → 開始時間近的排前面
+    if (oA <= 2) {
+      const tA = a.startTime ? new Date(a.startTime).getTime() : Infinity
+      const tB = b.startTime ? new Date(b.startTime).getTime() : Infinity
+      return tA - tB
+    }
+    // COMPLETED/CANCELLED → 最近的排前面
+    if (oA >= 4) {
+      const tA = a.startTime ? new Date(a.startTime).getTime() : 0
+      const tB = b.startTime ? new Date(b.startTime).getTime() : 0
+      return tB - tA
+    }
+    return 0
+  })
   return result
 })
 
@@ -311,14 +325,7 @@ const goToDetail = (activityId) => {
 }
 
 /* ── Navbar ── */
-.navbar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  background: rgba(255,255,255,0.9);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0,0,0,0.08);
-  transform: translateY(0);
-  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
-}
+
 .navbar-hidden { transform: translateY(-100%); }
 .nav-inner {
   max-width: 1400px; margin: 0 auto;
@@ -398,7 +405,7 @@ const goToDetail = (activityId) => {
   border-bottom: 1px solid #e8e8e8;
 }
 .kpi-card {
-  padding: 0.5rem 2rem;
+  padding: 2.5rem 2rem;
   border-right: 1px solid #e8e8e8;
   display: flex; flex-direction: column; gap: 0.35rem;
   position: relative;
@@ -415,12 +422,12 @@ const goToDetail = (activityId) => {
 
 .kpi-label {
   font-family: 'Space Mono', monospace;
-  font-size: 0.65rem; letter-spacing: 0.18em; color: #aaa;
+  font-size: 0.6rem; letter-spacing: 0.18em; color: #aaa;
   text-transform: uppercase;
 }
 .kpi-num {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 2rem; line-height: 1; letter-spacing: 0.02em; color: #0a0a0a;
+  font-size: 4rem; line-height: 1; letter-spacing: 0.02em; color: #0a0a0a;
 }
 .kpi-card.accent .kpi-num { color: #0a0a0a; }
 .kpi-card.warn   .kpi-num { color: #d97706; }
@@ -470,7 +477,7 @@ const goToDetail = (activityId) => {
 }
 .reg-table th {
   font-family: 'Space Mono', monospace;
-  font-size: 0.8rem; letter-spacing: 0.15em;
+  font-size: 0.6rem; letter-spacing: 0.15em;
   color: #aaa; text-transform: uppercase;
   padding: 0.75rem 1rem; text-align: left;
   font-weight: 400;
@@ -491,7 +498,7 @@ const goToDetail = (activityId) => {
 }
 .td-num {
   font-family: 'Space Mono', monospace;
-  font-size: 0.8rem; color: #ccc; letter-spacing: 0.1em;
+  font-size: 0.7rem; color: #ccc; letter-spacing: 0.1em;
 }
 .td-title {
   display: flex; flex-direction: column; gap: 4px;
@@ -511,7 +518,7 @@ const goToDetail = (activityId) => {
 }
 .td-deadline .deadline-tag {
   font-family: 'Space Mono', monospace;
-  font-size: 0.75rem; letter-spacing: 0.04em;
+  font-size: 0.68rem; letter-spacing: 0.04em;
   white-space: nowrap;
 }
 .dl-normal { color: #888; }
@@ -545,7 +552,7 @@ const goToDetail = (activityId) => {
 
 .status-tag {
   font-family: 'Space Mono', monospace;
-  font-size: 0.8rem; letter-spacing: 0.1em;
+  font-size: 0.6rem; letter-spacing: 0.1em;
   padding: 0.3rem 0.75rem; font-weight: 600;
   display: inline-block;
 }
@@ -558,7 +565,7 @@ const goToDetail = (activityId) => {
 
 .view-btn {
   font-family: 'Space Mono', monospace;
-  font-size: 0.8rem; letter-spacing: 0.08em;
+  font-size: 0.65rem; letter-spacing: 0.08em;
   background: #0a0a0a; color: #fff; border: none;
   padding: 0.55rem 1rem;
   cursor: pointer; font-weight: 700;

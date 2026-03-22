@@ -5,6 +5,9 @@ import Leave from '../views/LeaveRequestView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  scrollBehavior() {
+    return { top: 0, left: 0 }
+  },
   routes: [
     {
       path: '/',
@@ -153,6 +156,13 @@ const router = createRouter({
       component: () => import('@/views/admin/CheckInDashboard.vue'),
       meta: { requiresAuth: true },
     },
+    // 管理員簽到歷史紀錄（已完成/已取消活動）
+    {
+      path: '/admin/checkin/history',
+      name: 'checkin-history',
+      component: () => import('@/views/admin/CheckInHistory.vue'),
+      meta: { requiresAuth: true },
+    },
     // 會員自助簽到頁（QR Code 掃碼後導入此頁）
   // URL 格式：/checkin/member?activityId=123
     {
@@ -185,10 +195,48 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
+      path: '/admin/discount-settings',
+      name: 'admin-discount-settings',
+      component: () => import('@/views/admin/DiscountSettings.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
       path: '/my-registration-history',
       name: 'my-registration-history',
       component: () => import('@/views/member/RegistrationHistory.vue'),
-    }
+    },
+    {
+      path: '/my-coupons',
+      name: 'my-coupons',
+      component: () => import('@/views/member/MyCoupons.vue'),
+      meta: { requiresAuth: true },
+    },
+    // 回饋表單 — 管理員建立/編輯
+    {
+      path: '/admin/feedback/:activityId',
+      name: 'feedback-builder',
+      component: () => import('@/views/admin/FeedbackFormBuilder.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    // 回饋表單 — 管理員統計摘要
+    {
+      path: '/admin/feedback/:activityId/results',
+      name: 'feedback-results',
+      component: () => import('@/views/admin/FeedbackResults.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    // 回饋表單 — 填寫頁（by formId，公開）
+    {
+      path: '/feedback/:formId',
+      name: 'feedback-form',
+      component: () => import('@/views/member/FeedbackFormView.vue'),
+    },
+    // 回饋表單 — 填寫頁（by activityId，供會員從歷史紀錄進入）
+    {
+      path: '/feedback/activity/:activityId',
+      name: 'feedback-form-by-activity',
+      component: () => import('@/views/member/FeedbackFormView.vue'),
+    },
   ],
 })
 
@@ -221,9 +269,14 @@ router.beforeEach((to) => {
     return { name: 'login' }
   }
 
-  // 頁面需要管理員權限，但不是管理員
-  if (to.meta.requiresAdmin && userStore.userRole?.toUpperCase() !== 'ADMIN') {
-    return { name: 'dashboard' }
+  // 頁面需要管理員權限：必須是 ADMIN role 且已通過二次驗證
+  if (to.meta.requiresAdmin) {
+    if (userStore.userRole?.toUpperCase() !== 'ADMIN') {
+      return { name: 'dashboard' }
+    }
+    if (!userStore.adminElevated) {
+      return { name: 'dashboard' }
+    }
   }
 })
 

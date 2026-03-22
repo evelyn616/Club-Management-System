@@ -1,14 +1,5 @@
 <template>
   <div class="payment-history-page">
-    <nav class="navbar">
-      <div class="nav-container">
-        <h2 class="logo">社團管理系統</h2>
-        <div class="nav-right">
-          <router-link to="/dashboard" class="nav-link">返回首頁</router-link>
-          <button @click="handleLogout" class="btn-logout">登出</button>
-        </div>
-      </div>
-    </nav>
 
     <main class="main-content">
       <div class="container">
@@ -339,20 +330,9 @@ onMounted(() => {
 }
 
 /* Navbar - 與 PendingPayments 相同 */
-.navbar {
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
-  padding: 1rem 0;
-}
 
-.nav-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+
+
 
 .logo {
   font-size: 1.25rem;
@@ -361,11 +341,7 @@ onMounted(() => {
   margin: 0;
 }
 
-.nav-right {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
+
 
 .nav-link {
   color: #666;
@@ -378,21 +354,9 @@ onMounted(() => {
   color: #1a1a1a;
 }
 
-.btn-logout {
-  padding: 0.5rem 1.25rem;
-  background: white;
-  color: #1a1a1a;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
 
-.btn-logout:hover {
-  background: #f5f5f5;
-  border-color: #ccc;
-}
+
+
 
 /* Main Content */
 .main-content {

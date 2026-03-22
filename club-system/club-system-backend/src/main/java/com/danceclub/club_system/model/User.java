@@ -69,6 +69,12 @@ public class User {
     private String role = "member";
 
     /**
+     * 信用積分（填寫回饋表單可累積）
+     */
+    @Column(name = "credit_points", nullable = false)
+    private Integer creditPoints = 0;
+
+    /**
      * 創建時間
      */
     @Column(name = "created_at", nullable = false, updatable = false)

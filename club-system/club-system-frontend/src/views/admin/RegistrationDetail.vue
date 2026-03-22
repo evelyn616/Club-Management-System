@@ -1,13 +1,6 @@
 <template>
   <div class="rd-wrap">
 
-    <!-- ── Navbar ── -->
-    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
-      <div class="nav-inner">
-        <router-link to="/admin/activity-management-container" class="nav-logo">CLUB SYSTEM</router-link>
-        <span class="nav-crumb">ADMIN / 報名名單</span>
-      </div>
-    </nav>
 
     <!-- ── Loading ── -->
     <div class="state-wrap" v-if="loading">
@@ -217,7 +210,24 @@ const pendingCount = computed(() => registrations.value.filter(r => r.paymentSta
 
 // Actions
 const goBack = () => router.push({ name: 'registrations-overview-container' })
-const exportList = () => alert('匯出功能開發中...')
+const exportList = async () => {
+  try {
+    const response = await fetch(
+      `http://localhost:8080/api/export/activities/${activityId}/registrations/excel`,
+      { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+    )
+    if (!response.ok) throw new Error('匯出失敗')
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `報名表單_${activityId}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    showToast('匯出失敗，請稍後再試', 'error')
+  }
+}
 
 const cancelRegistration = async (reg) => {
   if (!confirm(`確定要取消 ${reg.userName || reg.userId} 的報名嗎？`)) return
@@ -267,7 +277,7 @@ function showToast(msg, type = 'success') {
 .mono { font-family: 'Space Mono', monospace; }
 
 /* Navbar */
-.navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 1rem 3rem; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.08); transform: translateY(0); transition: transform 0.3s ease; }
+
 .navbar-hidden { transform: translateY(-100%); }
 .nav-inner { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
 .nav-logo { font-family: 'Space Mono', monospace; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.18em; color: #0a0a0a; text-decoration: none; }
@@ -380,6 +390,6 @@ function showToast(msg, type = 'success') {
   .info-row { grid-template-columns: repeat(2, 1fr); }
   .page-header { flex-direction: column; align-items: flex-start; }
   .rd-content { padding-left: 1.25rem; padding-right: 1.25rem; }
-  .navbar { padding-left: 1.25rem; padding-right: 1.25rem; }
+  
 }
 </style>

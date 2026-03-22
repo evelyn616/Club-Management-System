@@ -1,15 +1,5 @@
 <template>
   <div class="dashboard">
-    <nav class="navbar">
-      <div class="nav-container">
-        <h2 class="logo">社團管理系統</h2>
-        <div class="nav-right">
-          <span class="user-name">{{ userStore.userName }}</span>
-          <router-link to="/profile" class="nav-link">個人資料</router-link>
-          <button @click="handleLogout" class="btn-logout">登出</button>
-        </div>
-      </div>
-    </nav>
 
     <main class="main-content">
       <div class="container">
@@ -232,30 +222,18 @@ onUnmounted(() => clearInterval(timer))
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Noto+Sans+TC:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Noto+Sans+TC:wght@300;400;700&family=Nunito:wght@400;600;700;900&display=swap');
 
 
-.navbar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  padding: 1rem 0;
-  background: transparent;
-  transition: background 0.4s;
-}
-.nav-container {
-  max-width: 1200px; margin: 0 auto; padding: 0 2rem;
-  display: flex; justify-content: space-between; align-items: center;
-}
+
+
 .logo { font-size: 1.25rem; font-weight: 600; color: #fff; margin: 0; text-shadow: 0 1px 10px rgba(0,0,0,0.6); }
-.nav-right { display: flex; gap: 1.5rem; align-items: center; }
-.user-name { color: rgba(255,255,255,0.7); font-weight: 500; }
+
+
 .nav-link { color: rgba(255,255,255,0.75); text-decoration: none; font-weight: 500; transition: color 0.2s; }
 .nav-link:hover { color: #fff; }
-.btn-logout {
-  padding: 0.5rem 1.25rem; background: rgba(255,255,255,0.1);
-  color: #fff; border: 1px solid rgba(255,255,255,0.35);
-  border-radius: 6px; font-weight: 500; cursor: pointer; transition: all 0.2s;
-}
-.btn-logout:hover { background: rgba(255,255,255,0.22); }
+
+
 
 /* main-content：移除頂部 padding，讓 hero 從最頂部開始 */
 .main-content { padding: 0; }
@@ -277,7 +255,7 @@ onUnmounted(() => clearInterval(timer))
 /* 圖片層 */
 .hero-bg {
   position: absolute; inset: 0;
-  background-image: url('https://scontent.ftpe3-1.fna.fbcdn.net/v/t39.30808-6/486824286_1066644962160551_318350841127563953_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=dd6889&_nc_ohc=7R9doMjhnm0Q7kNvwEtyY-a&_nc_oc=AdnDRQ_LhDz3lmcUncrkZ5EcWJAFdzVPqUc_ZYCM2IRYn_0x9HdbhKCHGZCtTaujepY&_nc_zt=23&_nc_ht=scontent.ftpe3-1.fna&_nc_gid=RTDgD4aZgC_v39vGFdK-mA&_nc_ss=8&oh=00_AfzUvfnvjx6m3TSqSK8i779rqgCm2jx-14TndyHM8RG88A&oe=69B9EC95');
+  background-image: url('https://img.redbull.com/images/c_crop,x_0,y_0,h_2000,w_3000/c_fill,w_1100,h_733/q_auto,f_auto/redbullcom/2021/5/28/fr5yu1zz9edpqtaghhhq/locking-dance');
   background-size: cover;
   background-position: center 20%;
   transition: transform 7s ease;
@@ -647,7 +625,7 @@ onUnmounted(() => clearInterval(timer))
 }
 
 .footer-section h4.footer-label {
-  font-family: 'Copperplate', serif;
+  font-family: 'Nunito', sans-serif;
   font-size: 1rem;
   letter-spacing: 0.2rem;
   text-transform: uppercase;
@@ -656,7 +634,7 @@ onUnmounted(() => clearInterval(timer))
 }
 
 .footer-logo {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Nunito', sans-serif;
   font-weight: 900;
   letter-spacing: 0.3rem;
   margin-bottom: 1rem;
@@ -749,8 +727,8 @@ onUnmounted(() => clearInterval(timer))
 
 /* Responsive */
 @media (max-width: 768px) {
-  .nav-right { gap: 1rem; }
-  .user-name { display: none; }
+  
+  
   .action-grid { grid-template-columns: 1fr; }
   .footer-container { grid-template-columns: 1fr; gap: 2rem; text-align: center; }
   .social-links { justify-content: center; }

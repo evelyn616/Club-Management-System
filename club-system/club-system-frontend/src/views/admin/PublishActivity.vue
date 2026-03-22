@@ -1,13 +1,6 @@
 <template>
   <div class="pa-wrap">
 
-    <!-- ── Navbar ── -->
-    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
-      <div class="nav-inner">
-        <router-link to="/admin/activity-management-container" class="nav-logo">CLUB SYSTEM</router-link>
-        <span class="nav-crumb">ADMIN / <span class="nav-crumb-active">發布設定</span></span>
-      </div>
-    </nav>
 
     <!-- ── Loading ── -->
     <div v-if="loading" class="state-wrap">
@@ -551,12 +544,7 @@ const goToEdit = () => {
 .mono { font-family: 'Space Mono', monospace; }
 
 /* ── Navbar ── */
-.navbar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  padding: 1rem 3rem; background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.08);
-  transform: translateY(0); transition: transform 0.3s ease;
-}
+
 .navbar-hidden { transform: translateY(-100%); }
 .nav-inner { max-width: 1300px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
 .nav-logo { font-family: 'Space Mono', monospace; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.18em; color: #0a0a0a; text-decoration: none; }
@@ -730,6 +718,6 @@ const goToEdit = () => {
   .pa-layout, .batch-layout { grid-template-columns: 1fr; }
   .batch-options { position: static; }
   .pa-content { padding-left: 1.5rem; padding-right: 1.5rem; }
-  .navbar { padding-left: 1.5rem; padding-right: 1.5rem; }
+  
 }
 </style>

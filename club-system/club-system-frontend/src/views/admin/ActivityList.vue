@@ -1,15 +1,6 @@
 <template>
   <div class="al-wrap">
 
-    <!-- Navbar -->
-    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
-      <div class="nav-container">
-        <router-link to="/admin/dashboard" class="nav-logo">管理後台</router-link>
-        <div class="nav-right">
-          <router-link to="/admin/activity-management-container" class="nav-link">← 活動管理</router-link>
-        </div>
-      </div>
-    </nav>
 
     <!-- Header -->
     <div class="al-header">
@@ -552,19 +543,12 @@ const confirmCancelScheduledPublish = async () => {
 .mono { font-family: 'Space Mono', monospace; }
 
 /* ===== Navbar ===== */
-.navbar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  padding: 1rem 0;
-  background: rgba(255,255,255,0.88);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0,0,0,0.08);
-  transform: translateY(0); transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
-}
+
 .navbar-hidden { transform: translateY(-100%); }
-.nav-container { max-width: 1400px; margin: 0 auto; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center; }
+
 .nav-logo {  font-size: 1.25rem; font-weight: 600; color: #1a1a1a; margin: 0; }
 .nav-logo:hover { color: #ff2d6b; }
-.nav-right { display: flex; gap: 1.5rem; align-items: center; }
+
 .nav-link { font-family: 'Space Mono', monospace; font-size: 0.75rem; letter-spacing: 0.08em; color: #666; text-decoration: none; transition: color 0.2s; }
 .nav-link:hover { color: #ff2d6b; }
 

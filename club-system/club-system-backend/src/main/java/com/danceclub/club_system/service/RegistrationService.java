@@ -3,9 +3,11 @@ package com.danceclub.club_system.service;
 
 import com.danceclub.club_system.dto.*;
 import com.danceclub.club_system.model.Activity;
+import com.danceclub.club_system.service.PromoCodeService;
 import com.danceclub.club_system.model.Payment;
 import com.danceclub.club_system.model.Registration;
 import com.danceclub.club_system.model.enums.ActivityStatus;
+import com.danceclub.club_system.model.enums.DiscountType;
 import com.danceclub.club_system.model.enums.PaymentStatus;
 import com.danceclub.club_system.model.enums.PaymentType;
 import com.danceclub.club_system.model.enums.RegistrationStatus;
@@ -33,15 +35,18 @@ public class RegistrationService {
     private final PaymentRepository paymentRepository;
     public final UserService userService;
     private final EmailService emailService;
+    private final DiscountService discountService;
+    private final PromoCodeService promoCodeService;
 
-    public RegistrationService(RegistrationRepository registrationRepository, @Lazy ActivityService activityService, PaymentRepository paymentRepository, UserService userService, EmailService emailService, ActivityRepository activityRepository){
+    public RegistrationService(RegistrationRepository registrationRepository, @Lazy ActivityService activityService, PaymentRepository paymentRepository, UserService userService, EmailService emailService, ActivityRepository activityRepository, DiscountService discountService, PromoCodeService promoCodeService){
         this.registrationRepository = registrationRepository;
         this.activityService = activityService;
         this.paymentRepository = paymentRepository;
         this.userService = userService;
         this.emailService = emailService;
         this.activityRepository = activityRepository;
-
+        this.discountService = discountService;
+        this.promoCodeService = promoCodeService;
     }
 
     /**
@@ -82,24 +87,26 @@ public class RegistrationService {
     //5.儲存並回傳
 
     /**
-     * 建立新報名
-     * @param activityId 活動id
-     * @param userId 會員id
+     * 建立新報名（含折扣計算）
+     *
+     * @param activityId        活動 id
+     * @param userId            會員 id
+     * @param requestedDiscount 會員想使用的折扣類型（NONE / EARLY_BIRD / COUPON）
+     * @param loyaltyCouponId   當 requestedDiscount = COUPON 時，指定券 ID
      * @return 報名紀錄
      */
-
-    public Registration createRegistration(Long activityId, String userId) {
+    public Registration createRegistration(Long activityId, String userId,
+                                           DiscountType requestedDiscount, Long loyaltyCouponId,
+                                           String promoCode) {
         Activity existingActivity = activityService.getActivityById(activityId);
 
         //檢查是否已到人數上限
         if(existingActivity.getMaxParticipants() != null){
-            //如果有設上限
             Long currentCount = registrationRepository.countValidRegistrations(activityId);
             if (currentCount >= existingActivity.getMaxParticipants()){
                 throw new IllegalStateException("活動已額滿!");
             }
         }
-
 
         activityService.validateCanRegister(activityId);
 
@@ -110,48 +117,113 @@ public class RegistrationService {
             throw new IllegalStateException("您已報名過!");
         }
 
+        // ==== 折扣計算 ====
+        UserResponse user = userService.getUserById(userId);
+        String userRole = user.getRole();
+
+        DiscountService.DiscountResult discountResult;
+        if (promoCode != null && !promoCode.isBlank()) {
+            discountResult = promoCodeService.apply(promoCode, existingActivity.getFeeAmount());
+        } else {
+            DiscountType effectiveDiscount = requestedDiscount != null ? requestedDiscount : DiscountType.NONE;
+            discountResult = discountService.calculate(existingActivity, userRole, effectiveDiscount, loyaltyCouponId);
+        }
+
+        // ==== 建立報名紀錄 ====
         Registration registration = new Registration();
         registration.setActivityId(activityId);
         registration.setUserId(userId);
-
-        if (existingActivity.requiresPayment()) {
-
-            registration.setPaymentStatus(PaymentStatus.PENDING);
-            registration.setPaymentAmount(existingActivity.getFeeAmount());
-        } else {
-            registration.setPaymentStatus(PaymentStatus.NOT_REQUIRED);
-            registration.setPaymentAmount(BigDecimal.ZERO);
+        registration.setDiscountType(discountResult.discountType);
+        registration.setOriginalAmount(discountResult.originalAmount);
+        if (promoCode != null && !promoCode.isBlank() && discountResult.discountType == DiscountType.PROMO_CODE) {
+            registration.setPromoCodeUsed(promoCode.toUpperCase().trim());
         }
 
+        boolean isFinallyFree = discountResult.finalAmount.compareTo(BigDecimal.ZERO) == 0;
 
+        if (isFinallyFree) {
+            registration.setPaymentStatus(PaymentStatus.NOT_REQUIRED);
+            registration.setPaymentAmount(BigDecimal.ZERO);
+        } else {
+            registration.setPaymentStatus(PaymentStatus.PENDING);
+            registration.setPaymentAmount(discountResult.finalAmount);
+        }
 
         Registration saved = registrationRepository.save(registration);
 
-        //如果需要繳費，會建立payment紀錄
-        if (existingActivity.requiresPayment()){
-            createPaymentForRegistration(saved, existingActivity);
-
+        // 若使用忠誠優惠券，標記為已使用
+        if (discountResult.discountType == DiscountType.COUPON && discountResult.usedCoupon != null) {
+            discountService.markCouponUsed(discountResult.usedCoupon.getId(), saved.getId());
         }
 
+        // 如果需要繳費，建立 payment 紀錄
+        if (!isFinallyFree) {
+            createPaymentForRegistration(saved, existingActivity, discountResult);
+        }
 
         return saved;
     }
 
     /**
-     * 報名建立繳費紀錄
+     * 向下相容的舊版方法（不傳折扣參數）
      */
+    public Registration createRegistration(Long activityId, String userId) {
+        return createRegistration(activityId, userId, DiscountType.NONE, null, null);
+    }
+
+    /**
+     * 向下相容的四參數版本
+     */
+    public Registration createRegistration(Long activityId, String userId,
+                                            DiscountType requestedDiscount, Long loyaltyCouponId) {
+        return createRegistration(activityId, userId, requestedDiscount, loyaltyCouponId, null);
+    }
+
+    /**
+     * 報名建立繳費紀錄（含折扣資訊）
+     */
+    private void createPaymentForRegistration(Registration registration, Activity activity,
+                                              DiscountService.DiscountResult discountResult){
+        Payment payment = new Payment();
+        payment.setRegistration(registration);
+        payment.setPaymentType(PaymentType.ACTIVITY_FEE);
+
+        BigDecimal originalAmount = discountResult.originalAmount;
+        BigDecimal finalAmount    = discountResult.finalAmount;
+
+        payment.setOriginalAmount(originalAmount);
+        payment.setAmount(finalAmount);
+
+        // 折扣金額
+        BigDecimal discountAmt = originalAmount.subtract(finalAmount);
+        if (discountAmt.compareTo(BigDecimal.ZERO) > 0) {
+            payment.setDiscountAmount(discountAmt);
+            payment.setDiscountReason(discountResult.discountType.name());
+        }
+
+        // 繳費期限設定為活動開始前三天
+        if (activity.getStartTime() != null){
+            payment.setPaymentDeadline(activity.getStartTime().minusDays(3));
+        }
+        payment.setNote("系統自動建立");
+
+        paymentRepository.save(payment);
+    }
+
+    /**
+     * 向下相容：無折扣版本（由舊 createRegistration 呼叫）
+     * @deprecated 請改用帶 DiscountResult 的版本
+     */
+    @Deprecated
     private void createPaymentForRegistration(Registration registration, Activity activity){
         Payment payment = new Payment();
         payment.setRegistration(registration);
         payment.setPaymentType(PaymentType.ACTIVITY_FEE);
 
-
-        //原價(暫時先開發原價)
         BigDecimal originalAmount = activity.getFeeAmount();
         payment.setOriginalAmount(originalAmount);
         payment.setAmount(originalAmount);
 
-        //繳費期限設定活動三天以前
         if (activity.getStartTime() != null){
             payment.setPaymentDeadline(activity.getStartTime().minusDays(3));
         }
@@ -392,7 +464,16 @@ public class RegistrationService {
         }
         //更新狀態
         registration.setStatus(RegistrationStatus.ATTENDED);
-        return registrationRepository.save(registration);
+        Registration saved = registrationRepository.save(registration);
+
+        // 簽到後檢查忠誠優惠券資格（冪等，不影響主流程）
+        try {
+            discountService.checkAndAwardLoyaltyCoupons(registration.getUserId());
+        } catch (Exception e) {
+            System.err.println("忠誠優惠券發放失敗（不影響簽到）: " + e.getMessage());
+        }
+
+        return saved;
     }
 
     @Transactional

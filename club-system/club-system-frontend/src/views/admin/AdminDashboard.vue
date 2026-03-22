@@ -1,15 +1,5 @@
 <template>
   <div class="admin-dashboard">
-    <!-- 頂部導航 -->
-    <nav class="admin-navbar">
-      <div class="nav-container">
-        <h2 class="logo">管理後台</h2>
-        <div class="nav-right">
-          <span class="admin-name">{{ userStore.userName || '管理員' }}</span>
-          <button @click="handleLogout" class="btn-logout">登出</button>
-        </div>
-      </div>
-    </nav>
 
     <!-- 主要內容 -->
     <main class="main-content">
@@ -35,7 +25,7 @@
             <span v-if="pendingCount > 0" class="badge">{{ pendingCount }}</span>
           </div>
 
-          <!-- 其他開發人員負責的功能（預留） -->
+         
           <div class="feature-card active" @click="navigateTo('/admin/activity-management-container')">
             <div class="card-icon">📅</div>
             <h3>活動上架</h3>
@@ -120,57 +110,19 @@ onMounted(() => {
 }
 
 /* 導航列 */
-.admin-navbar {
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
-  padding: 1rem 0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
 
-.nav-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
 
-.logo {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin: 0;
-}
 
-.nav-right {
-  display: flex;
-  gap: 1.5rem;
-  align-items: center;
-}
 
-.admin-name {
-  color: #666;
-  font-weight: 500;
-}
 
-.btn-logout {
-  padding: 0.5rem 1.25rem;
-  background: white;
-  color: #1a1a1a;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
 
-.btn-logout:hover {
-  background: #f5f5f5;
-  border-color: #ccc;
-}
+
+
+
+
+
+
+
 
 /* 主要內容 */
 .main-content {
@@ -279,16 +231,12 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .nav-container {
-    padding: 0 1rem;
-  }
+  
 
   .container {
     padding: 0 1rem;
   }
 
-  .admin-name {
-    display: none;
-  }
+  
 }
 </style>

@@ -57,6 +57,11 @@ public class SecurityConfig {
                 // Public endpoints - ECPay callbacks (綠界回調不需要認證)
                 .requestMatchers("/api/payments/ecpay/notify", "/api/payments/ecpay/return").permitAll()
 
+                // Public endpoints - Feedback（查看表單、匿名提交可不登入）
+                .requestMatchers(HttpMethod.GET, "/api/feedback/forms/activity/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/feedback/forms/*").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/feedback/forms/*/submit").permitAll()
+
                 // Admin endpoints - require ADMIN role (需求：2.3, 2.4, 2.5, 2.6, 2.7, 2.8)
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
 

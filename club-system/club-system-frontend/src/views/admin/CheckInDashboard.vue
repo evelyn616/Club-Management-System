@@ -1,14 +1,6 @@
 <template>
   <div class="ci-wrap">
 
-    <!-- ── Navbar ── -->
-    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
-      <div class="nav-inner">
-        <button class="back-btn" @click="$router.back()">← 返回</button>
-        <span class="nav-logo">CLUB SYSTEM</span>
-        <span class="nav-crumb">ADMIN / <span class="nav-accent">簽到管理</span></span>
-      </div>
-    </nav>
 
     <!-- ── Page Header ── -->
     <div class="page-header">
@@ -30,7 +22,7 @@
           <label class="selector-label">SELECT ACTIVITY</label>
           <select v-model="selectedActivityId" @change="onActivityChange" class="activity-select">
             <option value="">-- 選擇活動 --</option>
-            <option v-for="act in activities" :key="act.id" :value="act.id">
+            <option v-for="act in activeActivities" :key="act.id" :value="act.id">
               {{ act.title }} ({{ formatDate(act.startTime) }})
             </option>
           </select>
@@ -39,6 +31,10 @@
         <button class="qr-btn" @click="showQrModal = true" :disabled="!selectedActivityId">
           <span class="qr-icon">▣</span>
           QR Code
+        </button>
+        <!-- History Button -->
+        <button class="history-btn" @click="router.push({ name: 'checkin-history' })">
+          歷史紀錄 →
         </button>
       </div>
     </div>
@@ -193,14 +189,23 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { activityApi } from '@/api/activity'
 import { registrationApi } from '@/api/registration'
 
 const route = useRoute()
+const router = useRouter()
 
 const activities = ref([])
 const selectedActivityId = ref(route.query.activityId || '')
+
+// 過濾掉已完成/已取消，並依開始時間由近到遠排序
+const activeActivities = computed(() =>
+  [...activities.value]
+    .filter(a => a.status !== 'COMPLETED' && a.status !== 'CANCELLED')
+    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+)
+
 const currentActivity = computed(() => activities.value.find(a => a.id == selectedActivityId.value))
 const registrations = ref([])
 const loading = ref(false)
@@ -335,14 +340,7 @@ function showToast(msg, type = 'success') {
 .mono { font-family: 'Space Mono', monospace; }
 
 /* ── Navbar ── */
-.navbar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0,0,0,0.08);
-  transform: translateY(0);
-  transition: transform 0.3s ease;
-}
+
 .navbar-hidden { transform: translateY(-100%); }
 .nav-inner {
   max-width: 1300px; margin: 0 auto;
@@ -424,6 +422,17 @@ function showToast(msg, type = 'success') {
 .qr-btn:hover:not(:disabled) { background: #ff2d6b; }
 .qr-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .qr-icon { font-size: 0.9rem; }
+.history-btn {
+  display: flex; align-items: center;
+  padding: 0.7rem 1.5rem;
+  background: transparent; color: #555; border: 1.5px solid #e0e0e0;
+  border-radius: 24px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+  cursor: pointer; transition: all 0.2s;
+  white-space: nowrap;
+}
+.history-btn:hover { border-color: #0a0a0a; color: #0a0a0a; }
 
 /* ── Stats Row ── */
 .stats-row {

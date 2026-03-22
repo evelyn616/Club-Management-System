@@ -1,18 +1,6 @@
 <template>
   <div class="my-registrations">
 
-    <!-- Navbar -->
-    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
-      <div class="nav-container">
-        <router-link to="/dashboard" class="nav-logo">CLUB SYSTEM</router-link>
-        <div class="nav-right">
-          <span class="nav-username">{{ userStore.userName }}</span>
-          <router-link to="/profile" class="nav-link">個人資料</router-link>
-          <button @click="handleLogout" class="nav-logout">登出</button>
-        </div>
-      </div>
-    </nav>
-
     <!-- Header -->
     <div class="page-header">
       <div class="header-left">
@@ -91,118 +79,141 @@
       </div>
     </div>
 
-    <!-- Cards -->
-    <div v-else class="registration-grid">
-      <div class="cards-container" :class="{ 'cards-fade': !cardsVisible }">
-        <div
-          v-for="(reg, index) in filteredRegistrations"
-          :key="reg.id"
-          class="registration-card"
-          :class="getStatusClass(reg.status)"
-        >
-          <!-- Card Number -->
-          <div class="card-index">{{ String(index + 1).padStart(2, '0') }}</div>
+    <!-- Tickets -->
+    <div v-else class="tickets-list" :class="{ 'cards-fade': !cardsVisible }">
 
-          <!-- Card Header -->
-          <div class="card-header">
-            <div class="status-badge" :class="getStatusClass(reg.status)">
-              <span class="status-dot"></span>
-              {{ getStatusLabel(reg.status) }}
-            </div>
-            <div class="activity-type-badge" v-if="reg.activityType">
-              {{ getActivityTypeLabel(reg.activityType) }}
-            </div>
-          </div>
+      <div
+        v-for="(reg, index) in filteredRegistrations"
+        :key="reg.id"
+        class="ticket"
+        :class="getStatusClass(reg.status)"
+      >
+        <!-- Top color band -->
+        <div class="ticket-band">
+          <span class="band-left">
+            <span class="band-star">★</span>
+            {{ getActivityTypeLabel(reg.activityType) || 'ACTIVITY' }}
+            <span class="band-star">★</span>
+          </span>
+          <span class="band-right">
+            NO. {{ String(reg.id).padStart(6, '0') }}
+          </span>
+        </div>
 
-          <!-- Title -->
-          <div class="card-title-section">
-            <h3 class="activity-title">{{ reg.activityTitle || '（活動資訊不可用）' }}</h3>
-          </div>
+        <!-- Ticket body -->
+        <div class="ticket-body">
 
-          <!-- Info -->
-          <div class="card-body">
-            <div class="info-row-horizontal">
-              <div class="info-item" v-if="reg.activityLocation">
-                <span class="info-label">LOCATION</span>
-                <span class="info-value">{{ reg.activityLocation }}</span>
+          <!-- Main section -->
+          <div class="ticket-main">
+
+            <div class="ticket-top-row">
+              <div class="ticket-status-badge" :class="getStatusClass(reg.status)">
+                <span class="status-dot"></span>
+                {{ getStatusLabel(reg.status) }}
               </div>
-              <div class="info-item" v-if="reg.activityStartTime">
-                <span class="info-label">DATE</span>
-                <span class="info-value">
+              <span class="ticket-index">{{ String(index + 1).padStart(2, '0') }}</span>
+            </div>
+
+            <h3 class="ticket-title">{{ reg.activityTitle || '（活動資訊不可用）' }}</h3>
+
+            <div class="ticket-info-grid">
+              <div class="ticket-info-item" v-if="reg.activityStartTime">
+                <span class="tkt-label">DATE &amp; TIME</span>
+                <span class="tkt-value">
                   {{ formatDate(reg.activityStartTime) }}
                   <span class="time-sep">—</span>
                   {{ formatTimeOnly(reg.activityEndTime) }}
                 </span>
               </div>
+              <div class="ticket-info-item" v-if="reg.activityLocation">
+                <span class="tkt-label">VENUE</span>
+                <span class="tkt-value">{{ reg.activityLocation }}</span>
+              </div>
             </div>
 
-            <div class="card-divider"></div>
-
-            <!-- REGISTERED：繳費狀態 -->
-            <div class="payment-row" v-if="reg.status === 'REGISTERED'">
-              <div class="info-item">
-                <span class="info-label">PAYMENT</span>
+            <!-- Payment info: REGISTERED -->
+            <div class="ticket-payment-row" v-if="reg.status === 'REGISTERED'">
+              <div class="ticket-info-item">
+                <span class="tkt-label">PAYMENT</span>
                 <span class="payment-badge" :class="getPaymentClass(reg.paymentStatus)">
                   {{ getPaymentLabel(reg.paymentStatus) }}
                 </span>
               </div>
-              <div class="info-item" v-if="reg.paymentAmount > 0">
-                <span class="info-label">AMOUNT</span>
-                <span class="info-value amount">NT$ {{ reg.paymentAmount }}</span>
+              <div class="ticket-info-item" v-if="reg.paymentAmount > 0">
+                <span class="tkt-label">AMOUNT</span>
+                <span class="tkt-value tkt-amount">NT$ {{ reg.paymentAmount }}</span>
               </div>
             </div>
 
-            <!-- ATTENDED：簽到時間 -->
-            <div class="payment-row" v-if="reg.status === 'ATTENDED'">
-              <div class="info-item">
-                <span class="info-label">CHECK-IN</span>
-                <span class="info-value">
+            <!-- Payment info: ATTENDED -->
+            <div class="ticket-payment-row" v-if="reg.status === 'ATTENDED'">
+              <div class="ticket-info-item">
+                <span class="tkt-label">CHECK-IN</span>
+                <span class="tkt-value">
                   {{ formatDate(reg.checkedInTime) }}
                   <span v-if="reg.late" class="late-tag">LATE</span>
                 </span>
               </div>
-              <div class="info-item" v-if="reg.paymentAmount > 0">
-                <span class="info-label">AMOUNT</span>
-                <span class="info-value amount">NT$ {{ reg.paymentAmount }}</span>
+              <div class="ticket-info-item" v-if="reg.paymentAmount > 0">
+                <span class="tkt-label">AMOUNT</span>
+                <span class="tkt-value tkt-amount">NT$ {{ reg.paymentAmount }}</span>
               </div>
             </div>
 
-            <!-- CANCELLED：付過錢或已取消繳費才顯示 -->
-            <div class="payment-row" v-if="reg.status === 'CANCELLED' && ['PAID', 'REFUNDED', 'CANCELLED'].includes(reg.paymentStatus)">
-              <div class="info-item">
-                <span class="info-label">PAYMENT</span>
+            <!-- Payment info: CANCELLED -->
+            <div class="ticket-payment-row" v-if="reg.status === 'CANCELLED' && ['PAID', 'REFUNDED', 'CANCELLED'].includes(reg.paymentStatus)">
+              <div class="ticket-info-item">
+                <span class="tkt-label">PAYMENT</span>
                 <span class="payment-badge" :class="getPaymentClass(reg.paymentStatus)">
                   {{ getPaymentLabel(reg.paymentStatus) }}
                 </span>
               </div>
-              <div class="info-item" v-if="reg.paymentAmount > 0">
-                <span class="info-label">AMOUNT</span>
-                <span class="info-value amount">NT$ {{ reg.paymentAmount }}</span>
+              <div class="ticket-info-item" v-if="reg.paymentAmount > 0">
+                <span class="tkt-label">AMOUNT</span>
+                <span class="tkt-value tkt-amount">NT$ {{ reg.paymentAmount }}</span>
               </div>
             </div>
 
-            <!-- 備註 -->
-            <div class="note-row" v-if="reg.note">
-              <span class="info-label">NOTE</span>
+            <!-- Note -->
+            <div class="ticket-note" v-if="reg.note">
+              <span class="tkt-label">NOTE</span>
               <span class="note-text">{{ reg.note }}</span>
+            </div>
+
+          </div>
+
+          <!-- Perforation -->
+          <div class="ticket-perf">
+            <div class="perf-notch perf-top"></div>
+            <div class="perf-line"></div>
+            <div class="perf-notch perf-bottom"></div>
+          </div>
+
+          <!-- Stub -->
+          <div class="ticket-stub">
+            <div class="stub-admit">DANCE</div>
+            <div class="stub-one">CLUB</div>
+            <div class="stub-ornament">✦ ✦ ✦</div>
+            <div class="stub-date-block">
+              <span class="stub-date-label">DATE</span>
+              <span class="stub-date-val">{{ formatDateShort(reg.activityStartTime) }}</span>
+            </div>
+            <div class="stub-actions">
+              <span class="stub-reg-date">報名 {{ formatDateShort(reg.registrationTime) }}</span>
+              <button
+                v-if="canCancel(reg)"
+                class="stub-cancel-btn"
+                @click="handleCancel(reg.id)"
+                :disabled="cancellingId === reg.id"
+              >
+                {{ cancellingId === reg.id ? '...' : 'CANCEL ×' }}
+              </button>
+              <span v-else-if="reg.status === 'CANCELLED'" class="stub-cancelled-label">
+                VOID
+              </span>
             </div>
           </div>
 
-          <!-- Footer -->
-          <div class="card-footer">
-            <span class="reg-date-hint">{{ formatDate(reg.registrationTime) }}</span>
-            <button
-              v-if="canCancel(reg)"
-              class="cancel-btn"
-              @click="handleCancel(reg.id)"
-              :disabled="cancellingId === reg.id"
-            >
-              {{ cancellingId === reg.id ? '取消中...' : '取消報名 ×' }}
-            </button>
-            <span v-else-if="reg.status === 'CANCELLED'" class="cancelled-label">
-              CANCELLED
-            </span>
-          </div>
         </div>
       </div>
 
@@ -306,6 +317,12 @@ const formatDate = (dateTime) => {
     + ' ' + d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
 };
 
+const formatDateShort = (dateTime) => {
+  if (!dateTime) return '-';
+  const d = new Date(dateTime);
+  return d.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
+};
+
 const formatTimeOnly = (dateTime) => {
   if (!dateTime) return '';
   return new Date(dateTime).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
@@ -360,71 +377,6 @@ onMounted(() => {
   padding: 6rem 2rem 5rem;
 }
 
-/* ===== Navbar ===== */
-.navbar {
-  position: fixed;
-  padding: 1rem 0;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.06);
-  transform: translateY(0);
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.navbar-hidden { transform: translateY(-100%); }
-.nav-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.nav-logo {
-  font-family: 'Space Mono', monospace;
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: #0a0a0a;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-.nav-logo:hover { color: #ff2d6b; }
-.nav-right { display: flex; align-items: center; gap: 1.5rem; }
-.nav-username {
-  font-family: 'Space Mono', monospace;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: #aaa;
-}
-.nav-link {
-  font-family: 'Space Mono', monospace;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: #555;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-.nav-link:hover { color: #0a0a0a; }
-.nav-logout {
-  background: transparent;
-  border: 1px solid #e0e0e0;
-  color: #555;
-  padding: 0.5rem 1.25rem;
-  font-family: 'Space Mono', monospace;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-radius: 6px;
-  font-weight: 500;
-}
-.nav-logout:hover { border-color: #ff2d6b; color: #ff2d6b; background: rgba(255, 45, 107, 0.04); }
-
 /* ===== Header ===== */
 .page-header {
   display: flex;
@@ -438,7 +390,6 @@ onMounted(() => {
 }
 .header-left { display: flex; flex-direction: column; gap: 0.4rem; }
 
-/* Header 進場動畫 */
 @keyframes slideUpFade {
   from { opacity: 0; transform: translateY(24px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -446,10 +397,6 @@ onMounted(() => {
 @keyframes expandLine {
   from { width: 0; }
   to   { width: 2rem; }
-}
-@keyframes revealText {
-  from { clip-path: inset(0 100% 0 0); }
-  to   { clip-path: inset(0 0% 0 0); }
 }
 
 .header-label {
@@ -460,82 +407,39 @@ onMounted(() => {
   animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 .label-line {
-  display: inline-block;
-  height: 1px;
-  width: 2rem;
+  display: inline-block; height: 1px; width: 2rem;
   background: #ff2d6b;
   animation: expandLine 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
-.label-text {
-  font-family: 'Space Mono', monospace;
-  font-size: 0.65rem;
-  letter-spacing: 0.2em;
-  color: #ff2d6b;
-}
-.label-num {
-  font-family: 'Space Mono', monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.1em;
-  color: #ccc;
-  margin-left: auto;
-}
+.label-text { font-family: 'Space Mono', monospace; font-size: 0.65rem; letter-spacing: 0.2em; color: #ff2d6b; }
+.label-num  { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; color: #ccc; margin-left: auto; }
 
 .page-title {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 5rem;
-  line-height: 0.92;
-  margin: 0;
-  color: #0a0a0a;
-  letter-spacing: 0.02em;
-  display: flex;
-  flex-direction: column;
+  font-size: 5rem; line-height: 0.92; margin: 0;
+  color: #0a0a0a; letter-spacing: 0.02em;
+  display: flex; flex-direction: column;
 }
-.title-line {
-  display: block;
-  overflow: visible;
-  padding-bottom: 0.1em;
-  font-weight:500;
-}
-.title-line-1 {
-  animation: slideUpFade 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
-}
-.title-line-2 {
-  animation: slideUpFade 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.38s both;
-}
-.title-accent { color: #ff2d6b; font-weight:500;}
+.title-line { display: block; overflow: visible; padding-bottom: 0.1em; font-weight: 500; }
+.title-line-1 { animation: slideUpFade 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both; }
+.title-line-2 { animation: slideUpFade 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.38s both; }
+.title-accent { color: #ff2d6b; font-weight: 500; }
 
-.page-subtitle {
-  font-size: 0.78rem;
-  color: #999;
-  margin: 0.75rem 0 0;
-  letter-spacing: 0.04em;
-  overflow: hidden;
-}
-.subtitle-inner {
-  display: inline-block;
-  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.52s both;
-}
+.page-subtitle { font-size: 0.78rem; color: #999; margin: 0.75rem 0 0; letter-spacing: 0.04em; overflow: hidden; }
+.subtitle-inner { display: inline-block; animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.52s both; }
+
 .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 1.25rem; }
 .history-link {
-  font-family: 'Space Mono', monospace;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  color: #0a0a0a;
-  text-decoration: none;
-  border-bottom: 1px solid #0a0a0a;
-  padding-bottom: 2px;
-  transition: color 0.2s, border-color 0.2s;
+  font-family: 'Space Mono', monospace; font-size: 0.72rem; letter-spacing: 0.12em;
+  color: #0a0a0a; text-decoration: none; border-bottom: 1px solid #0a0a0a;
+  padding-bottom: 2px; transition: color 0.2s, border-color 0.2s;
 }
 .history-link:hover { color: #ff2d6b; border-color: #ff2d6b; }
 .link-arrow { margin-left: 0.4rem; }
 .header-stats {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  padding: 0.75rem 1.25rem;
+  display: flex; align-items: center; gap: 1.25rem;
+  background: #f5f5f5; border: 1px solid #e0e0e0;
+  border-radius: 4px; padding: 0.75rem 1.25rem;
 }
 .stat-block { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
 .stat-number { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; line-height: 1; color: #0a0a0a; }
@@ -545,26 +449,15 @@ onMounted(() => {
 
 /* ===== Filter Tabs ===== */
 .filter-tabs {
-  display: flex;
-  margin-bottom: 2rem;
-  border: 1px solid #0a0a0a;
-  overflow: hidden;
-  width: fit-content;
+  display: flex; margin-bottom: 2.5rem;
+  border: 1px solid #0a0a0a; overflow: hidden; width: fit-content;
 }
 .tab-btn {
-  background: transparent;
-  border: none;
-  border-right: 1px solid #0a0a0a;
-  padding: 0.55rem 1.25rem;
-  color: #aaa;
-  font-size: 0.78rem;
-  font-family: 'Space Mono', monospace;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  background: transparent; border: none; border-right: 1px solid #0a0a0a;
+  padding: 0.55rem 1.25rem; color: #aaa; font-size: 0.78rem;
+  font-family: 'Space Mono', monospace; letter-spacing: 0.06em;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; gap: 0.5rem;
 }
 .tab-btn:last-child { border-right: none; }
 .tab-btn:hover { background: #f5f5f5; color: #0a0a0a; }
@@ -612,119 +505,323 @@ onMounted(() => {
 }
 .cta-btn:hover { background: #0a0a0a; color: #fff; }
 
-/* ===== Cards Grid ===== */
-.cards-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 1px;
-  background: #e0e0e0;
-  border: 1px solid #e0e0e0;
-  /* fade transition */
+/* ===== Tickets List ===== */
+.tickets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
   opacity: 1;
   transition: opacity 0.15s ease;
 }
 .cards-fade { opacity: 0; }
 
-.registration-card {
-  background: #ffffff;
-  padding: 1.5rem;
-  position: relative;
-  transition: background 0.2s;
+/* ===== Ticket ===== */
+.ticket {
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+  transition: transform 0.2s, box-shadow 0.2s;
+  background: #FDF6EC;
+  border: 1.5px solid #e8dcc8;
 }
-.registration-card:hover { background: #fafafa; }
-
-/* Left accent bar */
-.registration-card::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 3px;
+.ticket:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08);
 }
-.registration-card.status-registered::before { background: #ff2d6b; }
-.registration-card.status-attended::before   { background: #0a0a0a; }
-.registration-card.status-cancelled::before  { background: #e0e0e0; }
 
-/* Card Number */
-.card-index { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: #ccc; letter-spacing: 0.1em; margin-bottom: 1rem; }
+/* ---- Band (top color strip) ---- */
+.ticket-band {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 1.25rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+}
+.band-star { margin: 0 0.35rem; }
+.band-left { display: flex; align-items: center; }
 
-/* Card Header */
-.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
-.status-badge {
-  display: flex; align-items: center; gap: 0.35rem;
-  font-family: 'Space Mono', monospace; font-size: 0.62rem;
-  letter-spacing: 0.08em; padding: 0.2rem 0.6rem; border-radius: 2px;
+/* Status-based band colors */
+.ticket.status-registered .ticket-band { background: #8B1A2A; color: #F5D7A0; }
+.ticket.status-attended   .ticket-band { background: #1A3D2B; color: #A8D8B0; }
+.ticket.status-cancelled  .ticket-band { background: #555555; color: #cccccc; }
+
+/* ---- Body ---- */
+.ticket-body {
+  display: flex;
+  min-height: 160px;
+}
+
+/* ---- Main ---- */
+.ticket-main {
+  flex: 1 1 auto;
+  padding: 1.1rem 1.3rem 1.1rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: #FDF6EC;
+  /* subtle horizontal line texture */
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 23px,
+    rgba(180,155,110,0.08) 23px,
+    rgba(180,155,110,0.08) 24px
+  );
+}
+
+.ticket-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ticket-index {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  color: #c8b89a;
+  letter-spacing: 0.1em;
+}
+
+.ticket-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 2px;
+  font-weight: 700;
 }
 .status-dot { width: 5px; height: 5px; border-radius: 50%; display: block; }
-.status-badge.status-registered { background: rgba(255,45,107,0.08); color: #ff2d6b; border: 1px solid rgba(255,45,107,0.2); }
-.status-badge.status-registered .status-dot { background: #ff2d6b; }
-.status-badge.status-attended { background: #0a0a0a; color: #fff; }
-.status-badge.status-attended .status-dot { background: #fff; }
-.status-badge.status-cancelled { background: #f5f5f5; color: #aaa; border: 1px solid #e0e0e0; }
-.status-badge.status-cancelled .status-dot { background: #ccc; }
-.activity-type-badge {
-  font-family: 'Space Mono', monospace; font-size: 0.58rem;
-  letter-spacing: 0.1em; color: #bbb; border: 1px solid #e0e0e0;
-  padding: 0.15rem 0.5rem; border-radius: 2px;
+.ticket-status-badge.status-registered { background: rgba(139,26,42,0.10); color: #8B1A2A; border: 1px solid rgba(139,26,42,0.25); }
+.ticket-status-badge.status-registered .status-dot { background: #8B1A2A; }
+.ticket-status-badge.status-attended   { background: rgba(26,61,43,0.10); color: #1A3D2B; border: 1px solid rgba(26,61,43,0.25); }
+.ticket-status-badge.status-attended   .status-dot { background: #1A3D2B; }
+.ticket-status-badge.status-cancelled  { background: rgba(0,0,0,0.05); color: #888; border: 1px solid #ddd; }
+.ticket-status-badge.status-cancelled  .status-dot { background: #bbb; }
+
+.ticket-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.65rem;
+  line-height: 1.1;
+  margin: 0;
+  color: #2C1A0E;
+  letter-spacing: 0.04em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* Title */
-.card-title-section { margin-bottom: 1.25rem; }
-.activity-title {
-  font-family: 'Noto Sans TC', sans-serif; font-size: 1.05rem;
-  font-weight: 700; color: #0a0a0a; margin: 0; line-height: 1.4;
-  display: -webkit-box; -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical; overflow: hidden;
+.ticket-info-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+}
+.ticket-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.tkt-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.18em;
+  color: #b09878;
+  text-transform: uppercase;
+}
+.tkt-value {
+  font-size: 0.8rem;
+  color: #4A3020;
+  font-weight: 500;
+}
+.tkt-value.tkt-amount {
+  font-family: 'Space Mono', monospace;
+  color: #8B1A2A;
+  font-weight: 700;
+}
+.time-sep { color: #c8b89a; margin: 0 0.2rem; }
+
+.ticket-payment-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #e0cdb0;
+  margin-top: 0.2rem;
 }
 
-/* Card Body */
-.card-body { display: flex; flex-direction: column; gap: 0.75rem; }
-.info-row-horizontal { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.info-item { display: flex; flex-direction: column; gap: 0.25rem; }
-.info-label { font-family: 'Space Mono', monospace; font-size: 0.55rem; letter-spacing: 0.15em; color: #bbb; text-transform: uppercase; }
-.info-value { font-size: 0.82rem; color: #333; font-weight: 500; }
-.info-value.amount { font-family: 'Space Mono', monospace; color: #ff2d6b; font-size: 0.82rem; font-weight: 700; }
-.time-sep { color: #ccc; margin: 0 0.2rem; }
-.card-divider { height: 1px; background: #f0f0f0; margin: 0.25rem 0; }
-
-.payment-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .payment-badge {
-  font-family: 'Space Mono', monospace; font-size: 0.65rem;
+  font-family: 'Space Mono', monospace; font-size: 0.62rem;
   padding: 0.2rem 0.5rem; border-radius: 2px;
   letter-spacing: 0.06em; display: inline-block; width: fit-content;
 }
-.pay-pending        { background: #fff8ec; color: #e08000; border: 1px solid #f5d9a0; }
-.pay-pending-review { background: #fff8ec; color: #e08000; border: 1px solid #f5d9a0; }
-.pay-paid           { background: #f0faf4; color: #1a7a3c; border: 1px solid #b0dfc0; }
-.pay-free           { background: #f5f5f5; color: #888; border: 1px solid #e0e0e0; }
-.pay-refunded       { background: #f5f5f5; color: #999; border: 1px solid #e0e0e0; }
-.pay-cancelled      { background: #f5f5f5; color: #aaa; border: 1px solid #e0e0e0; }
-.pay-partial-refunded { background: #eef3ff; color: #4a6fa5; border: 1px solid #c0d0ee; }
+.pay-pending        { background: #fff8ec; color: #a05800; border: 1px solid #e8c87a; }
+.pay-pending-review { background: #fff8ec; color: #a05800; border: 1px solid #e8c87a; }
+.pay-paid           { background: #edf7f1; color: #1a6b38; border: 1px solid #9fd8b5; }
+.pay-free           { background: #f5f0e8; color: #888; border: 1px solid #ddd0bc; }
+.pay-refunded       { background: #f5f0e8; color: #999; border: 1px solid #ddd0bc; }
+.pay-cancelled      { background: #f5f0e8; color: #aaa; border: 1px solid #ddd0bc; }
+.pay-partial-refunded { background: #eef0f8; color: #4a5fa5; border: 1px solid #b8c5e5; }
 
 .late-tag {
-  font-family: 'Space Mono', monospace; font-size: 0.58rem;
-  background: rgba(255,45,107,0.08); color: #ff2d6b;
+  font-family: 'Space Mono', monospace; font-size: 0.55rem;
+  background: rgba(139,26,42,0.08); color: #8B1A2A;
   padding: 0.1rem 0.4rem; border-radius: 2px; margin-left: 0.4rem;
-  letter-spacing: 0.06em; border: 1px solid rgba(255,45,107,0.2);
+  letter-spacing: 0.06em; border: 1px solid rgba(139,26,42,0.2);
 }
 
-.note-row { display: flex; flex-direction: column; gap: 0.3rem; background: #fafafa; border-left: 2px solid #e0e0e0; padding: 0.5rem 0.75rem; }
-.note-text { font-size: 0.78rem; color: #888; line-height: 1.5; }
+.ticket-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: rgba(0,0,0,0.025);
+  border-left: 2px solid #d4b896;
+  padding: 0.4rem 0.7rem;
+  border-radius: 0 2px 2px 0;
+}
+.note-text { font-size: 0.76rem; color: #7a5c40; line-height: 1.5; }
 
-/* Card Footer */
-.card-footer {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #f0f0f0;
+/* ---- Perforation ---- */
+.ticket-perf {
+  width: 28px;
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #FDF6EC;
 }
-.reg-date-hint { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: #ccc; letter-spacing: 0.06em; }
-.cancel-btn {
-  background: transparent; border: 1px solid #e0e0e0; color: #aaa;
-  padding: 0.3rem 0.8rem; font-family: 'Space Mono', monospace;
-  font-size: 0.62rem; letter-spacing: 0.06em; cursor: pointer;
-  transition: all 0.2s; border-radius: 2px;
+.perf-notch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #ffffff;
+  border: 1.5px solid #e8dcc8;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
 }
-.cancel-btn:hover:not(:disabled) { border-color: #ff2d6b; color: #ff2d6b; background: rgba(255,45,107,0.04); }
-.cancel-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-.cancelled-label { font-family: 'Space Mono', monospace; font-size: 0.6rem; letter-spacing: 0.15em; color: #ccc; }
+.perf-top    { top: -9px; }
+.perf-bottom { bottom: -9px; }
+.perf-line {
+  flex: 1;
+  width: 2px;
+  border-left: 2px dashed #d4b896;
+  margin: 10px 0;
+}
+
+/* ---- Stub ---- */
+.ticket-stub {
+  width: 130px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 1rem 0.8rem;
+  text-align: center;
+  position: relative;
+}
+.ticket.status-registered .ticket-stub { background: #8B1A2A; }
+.ticket.status-attended   .ticket-stub { background: #1A3D2B; }
+.ticket.status-cancelled  .ticket-stub { background: #4A4A4A; }
+
+.stub-admit {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.25em;
+  line-height: 1;
+  color: rgba(255,255,255,0.5);
+}
+.stub-one {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+  letter-spacing: 0.12em;
+  line-height: 0.95;
+  color: #F5D7A0;
+}
+.ticket.status-attended   .stub-one { color: #A8D8B0; }
+.ticket.status-cancelled  .stub-one { color: #bbbbbb; }
+
+.stub-ornament {
+  font-size: 0.5rem;
+  color: rgba(245,215,160,0.5);
+  letter-spacing: 0.2em;
+  margin: 0.15rem 0;
+}
+.ticket.status-attended  .stub-ornament { color: rgba(168,216,176,0.5); }
+.ticket.status-cancelled .stub-ornament { color: rgba(200,200,200,0.35); }
+
+.stub-date-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0.2rem 0;
+}
+.stub-date-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.48rem;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.45);
+  text-transform: uppercase;
+}
+.stub-date-val {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.85);
+  letter-spacing: 0.08em;
+}
+
+.stub-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: auto;
+  width: 100%;
+}
+.stub-reg-date {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.47rem;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.05em;
+}
+.stub-cancel-btn {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.8);
+  padding: 0.28rem 0.6rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.2s;
+  width: 100%;
+}
+.stub-cancel-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.22);
+  border-color: rgba(255,255,255,0.55);
+  color: #fff;
+}
+.stub-cancel-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.stub-cancelled-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.35);
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 0.2rem 0.5rem;
+  border-radius: 2px;
+}
 
 .no-filter-result {
   text-align: center; color: #ccc;
@@ -736,9 +833,10 @@ onMounted(() => {
 @media (max-width: 640px) {
   .my-registrations { padding: 5rem 1rem 4rem; }
   .page-title { font-size: 3.5rem; }
-  .cards-container { grid-template-columns: 1fr; }
   .page-header { flex-direction: column; align-items: flex-start; }
   .header-right { align-items: flex-start; }
-  .info-row-horizontal, .payment-row { grid-template-columns: 1fr; }
+  .ticket-stub { width: 100px; }
+  .stub-one { font-size: 1.5rem; }
+  .ticket-title { font-size: 1.35rem; }
 }
 </style>

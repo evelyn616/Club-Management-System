@@ -58,3 +58,21 @@ export const changePassword = async (userId, passwordData) => {
   const response = await apiClient.put(`/users/${userId}/password`, passwordData)
   return response.data
 }
+
+/**
+ * 發送 MFA 驗證碼（管理員二次驗證）
+ * POST /api/auth/admin/mfa/send
+ */
+export const sendAdminMfa = async (type) => {
+  const response = await apiClient.post('/auth/admin/mfa/send', { type })
+  return response.data
+}
+
+/**
+ * 驗證 MFA 驗證碼
+ * POST /api/auth/admin/mfa/verify
+ */
+export const verifyAdminMfa = async (code) => {
+  const response = await apiClient.post('/auth/admin/mfa/verify', { code })
+  return response.data
+}

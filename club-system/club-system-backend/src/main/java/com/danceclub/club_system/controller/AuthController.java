@@ -5,12 +5,15 @@ import com.danceclub.club_system.dto.LoginRequest;
 import com.danceclub.club_system.dto.RegisterRequest;
 import com.danceclub.club_system.dto.UserResponse;
 import com.danceclub.club_system.service.AuthService;
+import com.danceclub.club_system.service.MfaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 /**
  * Controller for authentication operations
@@ -22,9 +25,11 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
     
     private final AuthService authService;
-    
-    public AuthController(AuthService authService) {
+    private final MfaService mfaService;
+
+    public AuthController(AuthService authService, MfaService mfaService) {
         this.authService = authService;
+        this.mfaService = mfaService;
     }
     
     /**
@@ -84,6 +89,74 @@ public class AuthController {
         }
     }
     
+    /**
+     * 發送 MFA 驗證碼（需已登入）
+     * POST /api/auth/admin/mfa/send
+     * Body: { "type": "EMAIL" | "PHONE" }
+     */
+    @PostMapping("/admin/mfa/send")
+    public ResponseEntity<?> sendMfaCode(
+            @RequestBody Map<String, String> body,
+            Authentication authentication
+    ) {
+        try {
+            String userId = authentication.getName(); // JWT subject = userId
+            String type = body.getOrDefault("type", "EMAIL");
+            mfaService.sendCode(userId, type);
+
+            String masked = "EMAIL".equalsIgnoreCase(type)
+                    ? mfaService.getMaskedEmail(userId)
+                    : mfaService.getMaskedPhone(userId);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "驗證碼已發送",
+                    "maskedTarget", masked
+            ));
+        } catch (UnsupportedOperationException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new ErrorResponse("SMS_NOT_CONFIGURED", "SMS 服務尚未設定，請選擇信箱驗證"));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("MFA_SEND_FAILED", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("INTERNAL_ERROR", "發送驗證碼失敗：" + e.getMessage()));
+        }
+    }
+
+    /**
+     * 驗證 MFA 驗證碼（需已登入）
+     * POST /api/auth/admin/mfa/verify
+     * Body: { "code": "123456" }
+     */
+    @PostMapping("/admin/mfa/verify")
+    public ResponseEntity<?> verifyMfaCode(
+            @RequestBody Map<String, String> body,
+            Authentication authentication
+    ) {
+        try {
+            String userId = authentication.getName();
+            String code = body.get("code");
+            if (code == null || code.isBlank()) {
+                return ResponseEntity.badRequest()
+                        .body(new ErrorResponse("INVALID_CODE", "請輸入驗證碼"));
+            }
+            boolean valid = mfaService.verifyCode(userId, code);
+            if (valid) {
+                return ResponseEntity.ok(Map.of("success", true, "message", "驗證成功"));
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(new ErrorResponse("WRONG_CODE", "驗證碼錯誤或已過期"));
+            }
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("MFA_BLOCKED", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("INTERNAL_ERROR", "驗證失敗：" + e.getMessage()));
+        }
+    }
+
     /**
      * Get current user information
      * GET /api/auth/me
