@@ -195,7 +195,7 @@ const nameChars = computed(() => "輕鬆管理你的社團".split(''))
 
 .hero-bg {
   position: absolute; inset: 0;
-  background-image: url('https://scontent.ftpe3-1.fna.fbcdn.net/v/t39.30808-6/486824286_1066644962160551_318350841127563953_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=dd6889&_nc_ohc=7R9doMjhnm0Q7kNvwEtyY-a&_nc_oc=AdnDRQ_LhDz3lmcUncrkZ5EcWJAFdzVPqUc_ZYCM2IRYn_0x9HdbhKCHGZCtTaujepY&_nc_zt=23&_nc_ht=scontent.ftpe3-1.fna&_nc_gid=RTDgD4aZgC_v39vGFdK-mA&_nc_ss=8&oh=00_AfzUvfnvjx6m3TSqSK8i779rqgCm2jx-14TndyHM8RG88A&oe=69B9EC95');
+  background-image: url('https://img.redbull.com/images/c_crop,x_0,y_0,h_2000,w_3000/c_fill,w_1100,h_733/q_auto,f_auto/redbullcom/2021/5/28/fr5yu1zz9edpqtaghhhq/locking-dance');
   background-size: cover;
   background-position: center 20%;
   transition: transform 7s ease;
