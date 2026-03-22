@@ -1,52 +1,102 @@
 <template>
-  <div class="container">
-    <div class="header">
-      <h1 class="black-text">請假申請</h1>
-      <div v-if="targetActivityTitle" class="activity-context">
-        正在申請：<strong>{{ targetActivityTitle }}</strong> (ID: {{ form.activityId }})
+  <div class="my-registrations">
+    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
+      <div class="nav-container">
+        <router-link to="/dashboard" class="nav-logo">CLUB SYSTEM</router-link>
+        <div class="nav-right">
+          <span class="nav-username">{{ userStore.userName }}</span>
+          <router-link to="/profile" class="nav-link">個人資料</router-link>
+          <button @click="handleLogout" class="nav-logout">登出</button>
+        </div>
       </div>
-      <!-- ✅ 新增：顯示除錯資訊 -->
-      <div style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-size: 12px;">
-        <strong>除錯資訊：</strong><br>
-        接收到的 activityId: {{ route.query.activityId }}<br>
-        接收到的 userId: {{ route.query.userId }}<br>
-        表單中的 activityId: {{ form.activityId }}<br>
-        表單中的 userId: {{ form.userId }}
+    </nav>
+
+    <div class="page-header">
+      <div class="header-left">
+        <div class="header-label">
+          <span class="label-line"></span>
+          <span class="label-text">LEAVE APPLICATION</span>
+        </div>
+        <h1 class="page-title">
+          <span class="title-line title-line-1">提交</span>
+          <span class="title-line title-line-2"><span class="title-accent">請假申請單</span></span>
+        </h1>
+        <p class="page-subtitle">
+          <span class="subtitle-inner">請確認申請資訊，提交後將進入審核流程</span>
+        </p>
       </div>
-      <p class="black-text">目前狀態：<span class="offline-tag">填寫模式</span></p>
+      
+      <div class="header-right">
+        <div class="status-badge status-registered">
+          <span class="status-dot"></span>
+          填寫模式 ONLINE
+        </div>
+      </div>
     </div>
-    
-    <section class="form-section">
-      <div class="card">
-        <h3 class="black-text"><i class="fas fa-plus"></i> 填寫申請單</h3>
+
+    <section class="form-container-custom">
+      <div class="registration-card form-card-padding">
+        <div class="card-index">REQUEST_INFO</div>
+        
         <div class="form-grid">
           <div class="input-group">
-            <label class="black-text">會員 ID (userId)</label>
-            <!-- ✅ 改成唯讀，顯示傳過來的值 -->
-            <input v-model="form.userId" type="text" readonly class="black-text readonly-input">
+            <label class="info-label">MEMBER NAME</label>
+            <div class="input-wrapper">
+              <input 
+                :value="userStore.userName || '訪客'" 
+                type="text" 
+                readonly 
+                class="custom-input readonly-style name-accent"
+              >
+              <input v-model="form.userId" type="hidden">
+            </div>
           </div>
-          
+
           <div class="input-group">
-            <label class="black-text">請假類型</label>
-            <select v-model="form.leaveType" class="black-text">
-              <option value="事假">事假</option>
-              <option value="病假">病假</option>
-              <option value="公假">公假</option>
-            </select>
+            <label class="info-label">LEAVE TYPE</label>
+            <div class="input-wrapper">
+              <select v-model="form.leaveType" class="custom-input select-style">
+                <option value="事假">事假 PERSONAL</option>
+                <option value="病假">病假 MEDICAL</option>
+                <option value="公假">公假 OFFICIAL</option>
+              </select>
+            </div>
           </div>
-          
+
           <div class="input-group full-width">
-            <label class="black-text">對應活動 ID</label>
-            <input v-model="form.activityId" type="number" readonly class="black-text readonly-input">
+            <label class="info-label">TARGET ACTIVITY</label>
+            <div class="input-wrapper">
+              <input 
+                :value="targetActivityTitle || '未取得活動名稱'" 
+                type="text" 
+                readonly 
+                class="custom-input readonly-style activity-highlight"
+              >
+              <input v-model="form.activityId" type="hidden">
+            </div>
           </div>
-          
+
           <div class="input-group full-width">
-            <label class="black-text">請假原因</label>
-            <textarea v-model="form.reason" rows="4" class="black-text" placeholder="請輸入詳細原因"></textarea>
+            <label class="info-label">REASON FOR LEAVE</label>
+            <div class="input-wrapper">
+              <textarea 
+                v-model="form.reason" 
+                rows="5" 
+                class="custom-input textarea-style" 
+                placeholder="請輸入詳細請假原因..."
+              ></textarea>
+            </div>
           </div>
         </div>
-        
-        <button @click="handleSubmit" class="btn-primary">提交申請</button>
+
+        <div class="form-footer">
+          <button @click="handleSubmit" class="submit-btn-cyber">
+            SUBMIT APPLICATION <span class="btn-arrow">→</span>
+          </button>
+          <button @click="router.back()" class="cancel-btn-minimal">
+            CANCEL
+          </button>
+        </div>
       </div>
     </section>
   </div>
@@ -158,84 +208,229 @@ try {
 </script>
 
 <style scoped>
-/* 全域設定文字為黑色 */
-.black-text {
-  color: #000000 !important;
+/* 載入與之前頁面相同的字體 */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+TC:wght@400;700&family=Space+Mono:wght@400;700&display=swap');
+
+/* 1. 修改最外層容器：移除 max-width，背景填滿 */
+.my-registrations {
+  min-height: 100vh;
+  background: #ffffff; /* 確保純白 */
+  font-family: 'Noto Sans TC', sans-serif;
+  color: #0a0a0a;
+  width: 100%;       /* 強制寬度 100% */
+  margin: 0;         /* 移除置中的 auto */
+  padding: 6rem 5% 5rem; /* 使用百分比 padding，讓左右留白隨螢幕縮放 */
+  box-sizing: border-box;
 }
 
-.container { 
-  padding: 40px; 
-  background-color: #f4f7f6; 
-  min-height: 100vh; 
+/* ===== Navbar ===== */
+.navbar {
+  position: fixed;
+  padding: 1rem 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.06);
+  transform: translateY(0);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.navbar-hidden { transform: translateY(-100%); }
+.nav-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.nav-logo {
+  font-family: 'Space Mono', monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #0a0a0a;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.nav-logo:hover { color: #ff2d6b; }
+.nav-right { display: flex; align-items: center; gap: 1.5rem; }
+.nav-username {
+  font-family: 'Space Mono', monospace;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #aaa;
+}
+.nav-link {
+  font-family: 'Space Mono', monospace;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #555;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.nav-link:hover { color: #0a0a0a; }
+.nav-logout {
+  background: transparent;
+  border: 1px solid #e0e0e0;
+  color: #555;
+  padding: 0.5rem 1.25rem;
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 6px;
+  font-weight: 500;
+}
+.nav-logout:hover { border-color: #ff2d6b; color: #ff2d6b; background: rgba(255, 45, 107, 0.04); }
+
+/* --- Header Style (與列表頁同步) --- */
+.page-header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 3rem; padding-bottom: 2rem;
+  border-bottom: 2px solid #0a0a0a; flex-wrap: wrap; gap: 2rem;
 }
 
-.header { 
-  margin-bottom: 30px; 
-}
+.header-label { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+.label-line { width: 2rem; height: 1px; background: #ff2d6b; }
+.label-text { font-family: 'Space Mono', monospace; font-size: 0.65rem; color: #ff2d6b; letter-spacing: 0.2em; }
+.label-num { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: #ccc; margin-left: auto; }
 
-.offline-tag { 
-  background: #eee; 
-  padding: 4px 8px; 
-  border-radius: 4px; 
-  font-size: 0.8em; 
-  color: #000; 
-  border: 1px solid #ccc;
+.page-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 5rem;
+  line-height: 0.92; margin: 0; letter-spacing: 0.02em;
 }
+.title-accent { color: #ff2d6b; }
+.page-subtitle { font-size: 0.8rem; color: #999; margin-top: 1rem; letter-spacing: 0.05em; }
 
-.card { 
-  background: white; 
-  padding: 35px; 
-  border-radius: 12px; 
-  box-shadow: 0 8px 16px rgba(0,0,0,0.1); 
+/* --- Form Card Style --- */
+.form-container-custom {
   max-width: 800px;
   margin: 0 auto;
 }
 
-.form-grid { 
-  display: grid; 
-  grid-template-columns: 1fr 1fr; 
-  gap: 25px; 
-  margin-bottom: 30px; 
+.registration-card {
+  background: #ffffff;
+  border: 1px solid #eeeeee;
+  position: relative;
+  padding: 3rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.02);
 }
 
-.full-width { 
-  grid-column: span 2; 
+.registration-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #0a0a0a;
 }
 
-.input-group label { 
-  display: block; 
-  margin-bottom: 10px; 
-  font-weight: bold; 
+.card-index { font-family: 'Space Mono', monospace; font-size: 0.65rem; color: #444; margin-bottom: 2rem; letter-spacing: 0.1em; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
+.full-width { grid-column: span 2; }
+
+/* --- Input Style --- */
+.info-label {
+  display: block;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  color: #444;
+  letter-spacing: 0.15em;
+  margin-bottom: 0.8rem;
+  text-transform: uppercase;
 }
 
-input, select, textarea { 
-  width: 100%; 
-  border: 2px solid #ddd; 
-  padding: 12px; 
-  border-radius: 8px; 
-  font-size: 1rem;
-  outline: none;
-  transition: border-color 0.3s;
-}
-
-input:focus, select:focus, textarea:focus {
-  border-color: #42b983;
-}
-
-.btn-primary { 
-  background: #42b983; 
-  color: white; 
-  border: none; 
-  padding: 15px 30px; 
-  border-radius: 8px; 
-  cursor: pointer; 
-  font-weight: bold; 
-  font-size: 1.1rem;
+.custom-input {
   width: 100%;
-  transition: background 0.3s;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  padding: 1rem;
+  font-size: 0.95rem;
+  font-family: 'Noto Sans TC', sans-serif;
+  transition: all 0.2s;
+  outline: none;
 }
 
-.btn-primary:hover {
-  background: #369a6d;
+.custom-input:focus {
+  border-color: #ff2d6b;
+  box-shadow: 0 0 0 4px rgba(255, 45, 107, 0.05);
+}
+
+.readonly-style {
+  background: #fafafa;
+  border-color: #f0f0f0;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.name-accent { border-left: 3px solid #ff2d6b; font-weight: 700; color: #0a0a0a; }
+.activity-highlight { font-weight: 700; color: #0a0a0a; }
+
+.select-style { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,..."); }
+.textarea-style { resize: vertical; min-height: 120px; }
+
+/* --- Footer Buttons --- */
+.form-footer {
+  margin-top: 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.submit-btn-cyber {
+  background: #0a0a0a;
+  color: #fff;
+  border: none;
+  padding: 1.2rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+}
+
+.submit-btn-cyber:hover {
+  background: #ff2d6b;
+  transform: translateY(-2px);
+}
+
+.cancel-btn-minimal {
+  background: transparent;
+  border: none;
+  color: #aaa;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  padding: 0.5rem;
+}
+
+.cancel-btn-minimal:hover { color: #ff2d6b; }
+
+/* Status Badge */
+.status-badge {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-family: 'Space Mono', monospace; font-size: 0.65rem;
+  padding: 0.4rem 1rem; border-radius: 20px;
+}
+.status-registered { background: #f5f5f5; color: #0a0a0a; border: 1px solid #e0e0e0; }
+.status-dot { width: 6px; height: 6px; background: #ff2d6b; border-radius: 50%; animation: pulse 1.5s infinite; }
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@media (max-width: 640px) {
+  .page-title { font-size: 3rem; }
+  .form-grid { grid-template-columns: 1fr; }
+  .registration-card { padding: 1.5rem; }
 }
 </style>
