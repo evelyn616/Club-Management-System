@@ -1,48 +1,130 @@
 <template>
-  <div class="outer-wrapper">
-    <div class="container">
-      <div class="top-navigation">
-        <button @click="router.back()" class="btn-back-minimal">
-          <i class="fas fa-arrow-left"></i> 返回
-        </button>
+  <div class="my-registrations">
+    <nav class="navbar" :class="{ 'navbar-hidden': navHidden }">
+      <div class="nav-container">
+        <router-link to="/dashboard" class="nav-logo">CLUB SYSTEM</router-link>
+        <div class="nav-right">
+          <span class="nav-username">{{ userStore.userName }}</span>
+          <router-link to="/profile" class="nav-link">個人資料</router-link>
+          <button @click="handleLogout" class="nav-logout">登出</button>
+        </div>
       </div>
+    </nav>
 
-      <h1>我的報名列表</h1>
-      
-      <div class="table-responsive">
-        <table>
-          <thead>
-            <tr>
-              <th>課程名稱 / 活動</th>
-              <th>報名日期</th>
-              <th>狀態</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="reg in registeredList" :key="reg.id">
-              <td>
-                <div class="activity-cell">
-                  <span class="activity-name">{{ reg.activityTitle || '活動 #' + reg.activityId }}</span>
-                  
-                </div>
-              </td>
-              <td class="date-cell">{{ formatDate(reg.createdAt) }}</td>
-              <td>
-                <span class="status-text">已報名</span>
-              </td>
-              <td>
-                <button @click="goToLeave(reg)" class="btn-leave-minimal">
-                  我要請假
-                </button>
-              </td>
-            </tr>
-            
-            <tr v-if="registeredList.length === 0">
-              <td colspan="4" class="no-data-minimal">目前沒有已報名的活動</td>
-            </tr>
-          </tbody>
-        </table>
+    <div class="page-header">
+      <div class="header-left">
+        <div class="header-label">
+          <span class="label-line"></span>
+          <span class="label-text">LEAVE MANAGEMENT</span>
+          <span class="label-num">2026</span>
+        </div>
+        <h1 class="page-title">
+          <span class="title-line title-line-1">我的</span>
+          <span class="title-line title-line-2"><span class="title-accent">可請假列表</span></span>
+        </h1>
+        <p class="page-subtitle">
+          <span class="subtitle-inner">僅列出尚未開始或進行中、符合請假資格的報名</span>
+        </p>
+      </div>
+      <div class="header-right">
+        <router-link to="/leave-history" class="history-link">
+          LEAVE LOG <span class="link-arrow">→</span>
+        </router-link>
+        <div class="header-stats" v-if="!loading && registeredList.length > 0">
+          <div class="stat-block">
+            <span class="stat-number">{{ registeredList.length }}</span>
+            <span class="stat-label">AVAILABLE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-tabs" v-if="!loading && registeredList.length > 0">
+      <button 
+        class="tab-btn active"
+      >
+        ALL ACTIVE
+        <span class="tab-count">{{ registeredList.length }}</span>
+      </button>
+    </div>
+
+    <div v-if="loading" class="state-container">
+      <div class="loading-wrapper">
+        <div class="loading-bars">
+          <span v-for="i in 5" :key="i" :style="{ animationDelay: (i * 0.1) + 's' }"></span>
+        </div>
+        <p class="loading-text">SCANNING ACTIVITIES...</p>
+      </div>
+    </div>
+
+    <div v-else-if="registeredList.length === 0" class="state-container">
+      <div class="empty-card">
+        <div class="empty-big-text">EMPTY</div>
+        <p class="empty-desc">目前沒有符合請假條件的活動</p>
+        <router-link to="/dashboard" class="cta-btn">
+          回到儀表板 <span>→</span>
+        </router-link>
+      </div>
+    </div>
+
+    <div v-else class="registration-grid">
+      <div class="cards-container">
+        <div
+          v-for="(reg, index) in registeredList"
+          :key="reg.id"
+          class="registration-card status-registered"
+        >
+          <div class="card-index">{{ String(index + 1).padStart(2, '0') }}</div>
+
+          <div class="card-header">
+            <div class="status-badge status-registered">
+              <span class="status-dot"></span>
+              可請假 (已報名)
+            </div>
+            <div class="activity-type-badge">
+              {{ reg.activityType || '一般活動' }}
+            </div>
+          </div>
+
+          <div class="card-title-section">
+            <h3 class="activity-title">{{ reg.activityTitle || '活動 #' + reg.activityId }}</h3>
+          </div>
+
+          <div class="card-body">
+            <div class="info-row-horizontal">
+              <div class="info-item" v-if="reg.activityLocation">
+                <span class="info-label">LOCATION</span>
+                <span class="info-value">{{ reg.activityLocation }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">ACTIVITY DATE</span>
+                <span class="info-value">
+                  {{ formatDate(reg.activityStartTime) }}
+                </span>
+              </div>
+            </div>
+
+            <div class="card-divider"></div>
+
+            <div class="payment-row">
+              <div class="info-item">
+                <span class="info-label">REG ID</span>
+                <span class="info-value">#{{ reg.id }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">REG DATE</span>
+                <span class="info-value">{{ formatDate(reg.createdAt) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <span class="reg-date-hint">VALID UNTIL START</span>
+            <button @click="goToLeave(reg)" class="cancel-btn">
+              我要請假 <span class="btn-arrow">→</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -59,35 +141,6 @@ const registeredList = ref([]);
 const userStore = useUserStore();
 const loading = ref(false);
 
-// const fetchRegistrations = async () => {
-//   if (!userStore.userId) {
-//     console.error("未找到使用者 ID");
-//     return;
-//   }
-
-//   const token = userStore.token; 
-
-//   loading.value = true;
-//   try {
-//     const response = await axios.get(`http://localhost:8080/api/registrations/my?userId=${userStore.userId}`, {
-//       headers: {
-//         'Authorization': `Bearer ${token}` 
-//       }
-//     });
-//     registeredList.value = response.data; 
-//   } catch (error) {
-//     console.error("讀取報名資料失敗:", error);
-    
-//     if (error.response && error.response.status === 401) {
-//       alert("登入驗證已過期，請重新登入");
-//       // router.push('/login');
-//     } else {
-//       alert("無法取得報名紀錄，請檢查後端連線");
-//     }
-//   } finally {
-//     loading.value = false;
-//   }
-// };
 
 const fetchRegistrations = async () => {
   if (!userStore.userId) return;
@@ -165,146 +218,189 @@ onMounted(fetchRegistrations);
 </script>
 
 <style scoped>
-/* 載入 Inter 字體 */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+/* 載入字體 */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
 
-.outer-wrapper {
-  font-family: 'Inter', "Microsoft JhengHei", sans-serif;
-  background-color: #ffffff;
+.my-registrations {
   min-height: 100vh;
+  background: #ffffff;
+  font-family: 'Noto Sans TC', sans-serif;
+  color: #0a0a0a;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 6rem 2rem 5rem;
+}
+
+/* ===== 1. Navbar (磨砂玻璃特效) ===== */
+.navbar {
+  position: fixed;
+  padding: 1rem 0;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.navbar-hidden { transform: translateY(-100%); }
+.nav-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
   display: flex;
-  justify-content: center;
-  padding: 40px 20px;
-  color: #1a1a1a;
-}
-
-.container {
-  width: 100%;
-  max-width: 900px;
-}
-
-.top-navigation {
-  margin-bottom: 24px;
-}
-
-.btn-back-minimal {
-  background: none;
-  border: none;
-  color: #666;
-  font-size: 14px;
-  cursor: pointer;
-  padding: 0;
-  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  transition: color 0.2s;
+}
+.nav-logo {
+  font-family: 'Space Mono', monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #0a0a0a;
+  text-decoration: none;
+}
+.nav-logo:hover { color: #ff2d6b; }
+.nav-right { display: flex; align-items: center; gap: 1.5rem; font-family: 'Space Mono', monospace; font-size: 0.85rem; }
+.nav-username { color: #aaa; }
+.nav-logout {
+  background: transparent; border: 1px solid #e0e0e0; padding: 0.5rem 1.25rem;
+  cursor: pointer; transition: all 0.2s; border-radius: 6px;
+}
+.nav-logout:hover { border-color: #ff2d6b; color: #ff2d6b; }
+
+/* ===== 2. Page Header & Animations ===== */
+.page-header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 2.5rem; padding-bottom: 2rem;
+  border-bottom: 2px solid #0a0a0a; flex-wrap: wrap; gap: 2rem;
 }
 
-.btn-back-minimal:hover {
-  color: #1a1a1a;
+/* --- 1. 定義動畫 Keyframes (放在 style 最後面即可) --- */
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-h1 {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 32px;
-  letter-spacing: -0.5px;
+@keyframes expandLine {
+  from { width: 0; }
+  to   { width: 2rem; }
 }
 
-.table-responsive {
-  width: 100%;
-  overflow-x: auto;
+@keyframes revealText {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0% 0 0); }
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
+.header-label { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+.label-line { width: 2rem; height: 1px; background: #ff2d6b; }
+.label-text { font-family: 'Space Mono', monospace; font-size: 0.65rem; color: #ff2d6b; letter-spacing: 0.2em; }
+
+.page-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 5rem;
+  line-height: 0.92; margin: 0; letter-spacing: 0.02em;
+  display: flex; flex-direction: column;
+}
+.title-accent { color: #ff2d6b; }
+.page-subtitle { font-size: 0.85rem; color: #999; margin-top: 1rem; }
+
+.header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 1rem; }
+.history-link {
+  font-family: 'Space Mono', monospace; font-size: 0.75rem; color: #0a0a0a;
+  text-decoration: none; border-bottom: 1px solid #0a0a0a; padding-bottom: 2px;
+}
+.header-stats {
+  display: flex; align-items: center; gap: 1.25rem;
+  background: #f5f5f5; padding: 0.75rem 1.25rem; border-radius: 4px;
+}
+.stat-block { display: flex; flex-direction: column; align-items: center; }
+.stat-number { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: #0a0a0a; line-height: 1; }
+.stat-label { font-family: 'Space Mono', monospace; font-size: 0.55rem; color: #aaa; letter-spacing: 0.1em; }
+
+/* ===== 3. Filter Tabs ===== */
+.filter-tabs { display: flex; margin-bottom: 2rem; border: 1px solid #0a0a0a; width: fit-content; }
+.tab-btn {
+  background: transparent; border: none; border-right: 1px solid #0a0a0a;
+  padding: 0.6rem 1.5rem; font-family: 'Space Mono', monospace; font-size: 0.8rem;
+  cursor: pointer; transition: all 0.2s; color: #aaa;
+}
+.tab-btn:last-child { border-right: none; }
+.tab-btn.active { background: #ff2d6b; color: #fff; border-color: #ff2d6b; }
+.tab-count { font-size: 0.65rem; margin-left: 0.5rem; opacity: 0.7; }
+
+/* ===== 4. Card Grid System ===== */
+.registration-grid { margin-top: 2rem; }
+.cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1px; background: #eeeeee; /* 格線效果 */
+  border: 1px solid #eeeeee;
 }
 
-thead th {
-  font-weight: 600;
-  font-size: 14px;
-  color: #666666;
-  text-transform: uppercase;
-  padding: 12px 16px;
-  border-bottom: 2px solid #1a1a1a;
+.registration-card {
+  background: #ffffff; padding: 1.8rem;
+  position: relative; transition: all 0.25s ease;
+}
+.registration-card:hover { background: #fafafa; transform: scale(1.005); z-index: 1; }
+
+/* 左側色條裝飾 */
+.registration-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #ff2d6b;
 }
 
-tbody tr {
-  border-bottom: 1px solid #eeeeee;
-  transition: background-color 0.2s ease;
+.card-index { font-family: 'Space Mono', monospace; font-size: 0.65rem; color: #ddd; margin-bottom: 1rem; }
+
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.status-badge {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-family: 'Space Mono', monospace; font-size: 0.65rem;
+  padding: 0.25rem 0.75rem; background: rgba(255, 45, 107, 0.08);
+  color: #ff2d6b; border-radius: 2px;
+}
+.status-dot { width: 5px; height: 5px; background: #ff2d6b; border-radius: 50%; }
+
+.activity-title {
+  font-family: 'Noto Sans TC', sans-serif; font-size: 1.2rem;
+  font-weight: 700; color: #0a0a0a; margin-bottom: 1.5rem; line-height: 1.4;
 }
 
-tbody tr:hover {
-  background-color: #fafafa;
+.card-body { display: flex; flex-direction: column; gap: 1rem; }
+.info-row-horizontal { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.info-item { display: flex; flex-direction: column; gap: 0.3rem; }
+.info-label { font-family: 'Space Mono', monospace; font-size: 0.55rem; color: #bbb; letter-spacing: 0.1em; }
+.info-value { font-size: 0.85rem; font-weight: 500; color: #333; }
+
+.card-divider { height: 1px; background: #f0f0f0; margin: 0.5rem 0; }
+
+/* ===== 5. Footer & Buttons ===== */
+.card-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 1.5rem; padding-top: 1.2rem; border-top: 1px solid #f0f0f0;
+}
+.reg-date-hint { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: #ccc; }
+
+.cancel-btn {
+  background: transparent; border: 1px solid #e0e0e0;
+  color: #555; padding: 0.5rem 1.2rem;
+  font-family: 'Space Mono', monospace; font-size: 0.7rem;
+  cursor: pointer; transition: all 0.2s; border-radius: 2px;
+}
+.cancel-btn:hover {
+  border-color: #0a0a0a; color: #0a0a0a; background: #f5f5f5;
 }
 
-td {
-  padding: 20px 16px;
-  font-size: 15px;
-  vertical-align: middle;
+/* ===== 6. States (Loading/Empty) ===== */
+.state-container { display: flex; justify-content: center; align-items: center; min-height: 300px; }
+.empty-big-text {
+  font-family: 'Bebas Neue', sans-serif; font-size: 8rem; color: transparent;
+  -webkit-text-stroke: 1px #eee; line-height: 1; text-align: center;
 }
 
-/* 活動單號微調 */
-.activity-cell {
-  display: flex;
-  flex-direction: column;
+/* RWD */
+@media (max-width: 768px) {
+  .page-title { font-size: 3.5rem; }
+  .info-row-horizontal { grid-template-columns: 1fr; }
+  .my-registrations { padding: 5rem 1rem; }
 }
 
-.activity-name {
-  font-weight: 600;
-}
-
-.reg-id {
-  font-size: 12px;
-  color: #999;
-  margin-top: 4px;
-}
-
-.date-cell {
-  color: #666;
-}
-
-.status-text {
-  font-size: 14px;
-  color: #1a1a1a;
-}
-
-.btn-leave-minimal {
-  background-color: #1a1a1a;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  font-size: 13px;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.btn-leave-minimal:hover {
-  background-color: #404040;
-  transform: translateY(-1px);
-}
-
-.no-data-minimal {
-  text-align: center;
-  padding: 60px;
-  color: #999;
-}
-
-/* 響應式優化 */
-@media (max-width: 600px) {
-  td, th {
-    padding: 12px 8px;
-    font-size: 13px;
-  }
-  .btn-leave-minimal {
-    padding: 6px 10px;
-  }
-  h1 {
-    font-size: 20px;
-  }
-}
 </style>

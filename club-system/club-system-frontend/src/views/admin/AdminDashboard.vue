@@ -56,20 +56,13 @@
             <p>管理活動簽到記錄</p>
             
           </div>
-
-          <div class="feature-card placeholder">
+          
+          <div class="feature-card active" @click="navigateTo('/leave-request')">
             <div class="card-icon">🏖️</div>
             <h3>審核請假</h3>
             <p>審核社員請假申請</p>
-            <span class="coming-soon">開發中</span>
           </div>
-
-          <div class="feature-card placeholder">
-            <div class="card-icon">📋</div>
-            <h3>查看請假列表</h3>
-            <p>查看所有請假記錄</p>
-            <span class="coming-soon">開發中</span>
-          </div>
+          
         </div>
       </div>
     </main>
