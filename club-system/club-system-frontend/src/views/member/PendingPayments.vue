@@ -87,12 +87,20 @@
             </div>
 
             <div class="card-footer">
-              <button @click="showPaymentModal(payment)" class="btn-pay">
-                前往繳費
-              </button>
-              <button @click="cancelPaymentConfirm(payment)" class="btn-cancel">
-                取消繳費
-              </button>
+              <template v-if="payment.status === 'PENDING'">
+                <button @click="showPaymentModal(payment)" class="btn-pay">
+                  前往繳費
+                </button>
+                <button @click="cancelPaymentConfirm(payment)" class="btn-cancel">
+                  取消繳費
+                </button>
+              </template>
+              <template v-else-if="payment.status === 'PROCESSING'">
+                <span class="processing-hint">已進入付款流程，等待付款完成</span>
+              </template>
+              <template v-else-if="payment.status === 'PENDING_REVIEW'">
+                <span class="review-hint">已選擇現金付款，等待管理員審核</span>
+              </template>
             </div>
           </div>
         </div>
@@ -306,6 +314,7 @@ const getPaymentTypeText = (type) => {
 const getStatusText = (status) => {
   const statuses = {
     PENDING: '待付款',
+    PROCESSING: '付款中',
     PENDING_REVIEW: '審核中',
     PAID: '已付款',
     CANCELLED: '已取消',
@@ -518,6 +527,11 @@ onMounted(() => {
   color: #0c5460;
 }
 
+.status-badge.processing {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
 .status-badge.paid {
   background: #d4edda;
   color: #155724;
@@ -608,6 +622,15 @@ onMounted(() => {
 .btn-cancel:hover {
   background: #f5f5f5;
   border-color: #ccc;
+}
+
+.processing-hint,
+.review-hint {
+  width: 100%;
+  text-align: center;
+  color: #666;
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
 }
 
 /* Modal */

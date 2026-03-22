@@ -65,10 +65,11 @@ public class PaymentService {
     }
 
     /**
-     * 取得用戶的待繳費記錄
+     * 取得用戶的待繳費記錄（包含 PENDING、PROCESSING、PENDING_REVIEW）
      */
     public List<Payment> getUserPendingPayments(String userId) {
-        return paymentRepository.findByUserIdAndStatus(userId, PaymentStatus.PENDING);
+        return paymentRepository.findByUserIdAndStatuses(userId, 
+            List.of(PaymentStatus.PENDING, PaymentStatus.PROCESSING, PaymentStatus.PENDING_REVIEW));
     }
 
     /**
@@ -317,5 +318,33 @@ public class PaymentService {
             PaymentStatus.PENDING_REVIEW,
             com.danceclub.club_system.model.enums.PaymentMethod.CASH
         );
+    }
+
+    /**
+     * 取得所有付款記錄
+     */
+    public List<Payment> getAllPayments() {
+        return paymentRepository.findAll();
+    }
+
+    /**
+     * 依狀態取得付款記錄
+     */
+    public List<Payment> getPaymentsByStatus(PaymentStatus status) {
+        return paymentRepository.findByStatus(status);
+    }
+
+    /**
+     * 依付款方式取得付款記錄
+     */
+    public List<Payment> getPaymentsByMethod(PaymentMethod method) {
+        return paymentRepository.findByMethod(method);
+    }
+
+    /**
+     * 依狀態和付款方式取得付款記錄
+     */
+    public List<Payment> getPaymentsByStatusAndMethod(PaymentStatus status, PaymentMethod method) {
+        return paymentRepository.findByStatusAndMethod(status, method);
     }
 }

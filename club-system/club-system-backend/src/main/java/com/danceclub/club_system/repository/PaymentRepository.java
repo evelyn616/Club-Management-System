@@ -104,6 +104,12 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
      */
     @Query("SELECT p FROM Payment p JOIN p.registration r WHERE r.userId = :userId AND p.status = :status")
     List<Payment> findByUserIdAndStatus(@Param("userId") String userId, @Param("status") PaymentStatus status);
+
+    /**
+     * Find payments by user and multiple statuses
+     */
+    @Query("SELECT p FROM Payment p JOIN p.registration r WHERE r.userId = :userId AND p.status IN :statuses")
+    List<Payment> findByUserIdAndStatuses(@Param("userId") String userId, @Param("statuses") List<PaymentStatus> statuses);
     
     /**
      * Find payments paid between two dates

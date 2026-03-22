@@ -753,6 +753,64 @@ public class PaymentController {
     }
 
     /**
+     * 查詢綠界訂單狀態（管理員）
+     * GET /api/payments/{id}/ecpay-status
+     */
+    @GetMapping("/{id}/ecpay-status")
+    public ResponseEntity<?> queryEcpayStatus(@PathVariable Long id) {
+        try {
+            Map<String, Object> result = ecpayService.queryAndSyncTradeStatus(id);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "QUERY_FAILED", "message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "INTERNAL_ERROR", "message", "查詢綠界訂單失敗: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 取得所有付款記錄（管理員）
+     * GET /api/payments/admin/all
+     */
+    @GetMapping("/admin/all")
+    public ResponseEntity<?> getAllPayments(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String method) {
+        try {
+            List<Payment> payments;
+
+            if (status != null && !status.isEmpty()) {
+                PaymentStatus ps = PaymentStatus.valueOf(status);
+                if (method != null && !method.isEmpty()) {
+                    payments = paymentService.getPaymentsByStatusAndMethod(ps, 
+                        com.danceclub.club_system.model.enums.PaymentMethod.valueOf(method));
+                } else {
+                    payments = paymentService.getPaymentsByStatus(ps);
+                }
+            } else if (method != null && !method.isEmpty()) {
+                payments = paymentService.getPaymentsByMethod(
+                    com.danceclub.club_system.model.enums.PaymentMethod.valueOf(method));
+            } else {
+                payments = paymentService.getAllPayments();
+            }
+
+            List<PaymentResponse> responses = payments.stream()
+                    .map(this::convertToResponse)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(responses);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "INVALID_PARAM", "message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "INTERNAL_ERROR", "message", "取得付款記錄時發生錯誤"));
+        }
+    }
+
+    /**
      * 取得待審核的現金付款列表（管理員）
      * GET /api/payments/admin/pending-review
      */
@@ -775,7 +833,7 @@ public class PaymentController {
      * 轉換 Payment 為 PaymentResponse
      */
     private PaymentResponse convertToResponse(Payment payment) {
-        return new PaymentResponse(
+        PaymentResponse response = new PaymentResponse(
             payment.getId(),
             payment.getRegistration() != null ? payment.getRegistration().getId() : null,
             payment.getPaymentType(),
@@ -802,5 +860,17 @@ public class PaymentController {
             payment.getCreatedAt(),
             payment.getUpdatedAt()
         );
+
+        // 帶入用戶資訊
+        if (payment.getRegistration() != null) {
+            String uid = payment.getRegistration().getUserId();
+            response.setUserId(uid);
+            userRepository.findById(uid).ifPresent(user -> {
+                response.setUserName(user.getName());
+                response.setUserEmail(user.getEmail());
+            });
+        }
+
+        return response;
     }
 }
