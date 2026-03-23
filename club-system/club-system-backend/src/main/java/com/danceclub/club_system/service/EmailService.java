@@ -50,4 +50,18 @@ public class EmailService {
             throw new RuntimeException("發送信件失敗"+ e.getMessage());
         }
     }
+
+    public void sendPasswordResetEmail(String toEmail, String code) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom("way911206@gmail.com");
+            message.setTo(toEmail);
+            message.setSubject("【密碼重設】驗證碼");
+            message.setText("您的密碼重設驗證碼為：\n\n    " + code +
+                    "\n\n此驗證碼將於 5 分鐘後失效，請勿洩漏給他人。\n\n若非本人操作，請忽略此信。\n\n── Club System 安全系統");
+            mailSender.send(message);
+        } catch (Exception e) {
+            throw new RuntimeException("發送密碼重設信件失敗：" + e.getMessage());
+        }
+    }
 }

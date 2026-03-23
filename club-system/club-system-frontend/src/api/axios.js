@@ -31,14 +31,11 @@ apiClient.interceptors.response.use(
             // Token 過期或無效 → 清除登入狀態
             localStorage.removeItem('token');
  
-            const path = window.location.pathname;
-            const isAdminPath = path.startsWith('/admin');
-            const isAlreadyOnLogin = path.includes('/login');
+            const isAlreadyOnLogin = window.location.pathname.includes('/login');
  
             // 避免在登入頁本身觸發無限跳轉
             if (!isAlreadyOnLogin) {
-                // admin 路徑導向管理員登入，其餘導向一般登入
-                window.location.href = isAdminPath ? '/admin/login' : '/login';
+                window.location.href = '/login';
             }
         }
         return Promise.reject(error);

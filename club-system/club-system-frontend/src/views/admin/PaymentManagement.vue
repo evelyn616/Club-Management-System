@@ -419,7 +419,7 @@ const confirmReject = async () => {
 const handleLogout = () => {
   if (confirm('確定要登出嗎？')) {
     userStore.logout()
-    router.push('/admin/login')
+    router.push('/')
   }
 }
 

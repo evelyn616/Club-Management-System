@@ -179,6 +179,12 @@ public class FeedbackController {
         }
     }
 
+    /** 全體活動綜合滿意度（管理員） */
+    @GetMapping("/satisfaction/overall")
+    public ResponseEntity<?> getOverallSatisfaction() {
+        return ResponseEntity.ok(feedbackService.getOverallSatisfaction());
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private String resolveUserId(Authentication authentication) {

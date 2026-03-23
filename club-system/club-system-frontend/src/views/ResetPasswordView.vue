@@ -1,57 +1,64 @@
 <template>
   <div class="auth-container">
 
-    <!-- ── 左側圖片 Gallery ── -->
+    <!-- 左側圖片 Gallery -->
     <div class="gallery-grid">
       <div class="img-block" v-for="n in 4" :key="n">
-        <div class="img-inner" :class="`img-${n}`"></div>
+        <div class="img-inner"></div>
         <div class="img-overlay"></div>
       </div>
     </div>
 
-    <!-- ── 右側表單 ── -->
+    <!-- 右側表單 -->
     <div class="auth-form-wrapper">
       <div class="auth-card">
-        <h1 class="auth-title">登入</h1>
-        <p class="auth-subtitle">歡迎回來</p>
+        <h1 class="auth-title">重設密碼</h1>
+        <p class="auth-subtitle">驗證碼已寄至 {{ email || '你的信箱' }}</p>
 
-        <form @submit.prevent="handleLogin" class="auth-form">
+        <form @submit.prevent="handleSubmit" class="auth-form">
           <div class="form-group">
-            <label for="email">電子郵件</label>
+            <label for="code">驗證碼</label>
             <input
-              id="email"
-              v-model="formData.email"
-              type="email"
-              placeholder="your@email.com"
+              id="code"
+              v-model="code"
+              type="text"
+              maxlength="6"
+              placeholder="6 位數驗證碼"
               required
             />
           </div>
 
           <div class="form-group">
-            <label for="password">密碼</label>
+            <label for="newPassword">新密碼</label>
             <input
-              id="password"
-              v-model="formData.password"
+              id="newPassword"
+              v-model="newPassword"
               type="password"
-              placeholder="••••••••"
+              placeholder="至少 8 個字元"
               required
             />
           </div>
 
-          <div class="forgot-row">
-            <router-link to="/forgot-password" class="forgot-link">忘記密碼？</router-link>
+          <div class="form-group">
+            <label for="confirmPassword">確認新密碼</label>
+            <input
+              id="confirmPassword"
+              v-model="confirmPassword"
+              type="password"
+              placeholder="再輸入一次新密碼"
+              required
+            />
           </div>
 
-          <div v-if="resetSuccess" class="success-message">密碼重設成功，請重新登入</div>
-          <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+          <div v-if="errorMsg" class="error-message">{{ errorMsg }}</div>
 
           <button type="submit" class="btn-primary" :disabled="loading">
-            {{ loading ? '登入中...' : '登入' }}
+            {{ loading ? '重設中...' : '確認重設密碼' }}
           </button>
         </form>
 
         <div class="auth-footer">
-          <p>還沒有帳號？ <router-link to="/register">立即註冊</router-link></p>
+          <p><router-link to="/forgot-password">← 重新發送驗證碼</router-link></p>
         </div>
       </div>
     </div>
@@ -61,28 +68,35 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { useUserStore } from '@/stores/user'
-import { login } from '@/api/auth'
+import { useRoute, useRouter } from 'vue-router'
+import { resetPassword } from '@/api/auth'
 
-const router = useRouter()
 const route = useRoute()
-const userStore = useUserStore()
+const router = useRouter()
 
-const formData = ref({ email: '', password: '' })
+const email = route.query.email || ''
+const code = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
 const loading = ref(false)
-const errorMessage = ref('')
-const resetSuccess = route.query.reset === 'success'
+const errorMsg = ref('')
 
-const handleLogin = async () => {
+const handleSubmit = async () => {
+  if (newPassword.value !== confirmPassword.value) {
+    errorMsg.value = '兩次密碼不一致'
+    return
+  }
+  if (newPassword.value.length < 8) {
+    errorMsg.value = '密碼至少需要 8 個字元'
+    return
+  }
   loading.value = true
-  errorMessage.value = ''
+  errorMsg.value = ''
   try {
-    const response = await login(formData.value)
-    userStore.login(response)
-    router.push('/dashboard')
-  } catch (error) {
-    errorMessage.value = error.response?.data?.message || '登入失敗，請檢查您的電子郵件和密碼'
+    await resetPassword(email, code.value, newPassword.value)
+    router.push({ path: '/login', query: { reset: 'success' } })
+  } catch (err) {
+    errorMsg.value = err.response?.data?.message || '驗證碼錯誤或已過期'
   } finally {
     loading.value = false
   }
@@ -90,7 +104,6 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
-
 .auth-container {
   position: relative;
   min-height: 100vh;
@@ -102,7 +115,6 @@ const handleLogin = async () => {
   padding: 2rem 24px 2rem 2rem;
 }
 
-/* ── 梯形白底（右側） ── */
 .auth-container::before {
   content: '';
   position: absolute;
@@ -114,7 +126,6 @@ const handleLogin = async () => {
   clip-path: polygon(75% 0%, 100% 0%, 100% 100%, 60% 100%);
 }
 
-/* ── 左側 Gallery ── */
 .gallery-grid {
   position: absolute;
   inset: 0;
@@ -131,31 +142,22 @@ const handleLogin = async () => {
   position: relative;
 }
 
-/* 圖片層：比方塊稍寬，預留右移空間 */
 .img-inner {
   position: absolute;
   top: 0; bottom: 0;
-  left: 0;
-  right: -8%;
+  left: 0; right: -8%;
   background-size: cover;
   background-position: center;
   filter: grayscale(100%);
   transition: filter 0.5s ease, transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   transform: translateX(0);
-  will-change: transform, filter;
+  background-image: url('https://i.pinimg.com/1200x/7a/13/a0/7a13a019c901112a7d69ef4f59713346.jpg');
 }
 
 .img-block:hover .img-inner {
   filter: none;
-  
 }
 
-/* 各方塊圖片來源（同一張圖，填入你的圖片路徑或 URL） */
-.img-inner {
-  background-image: url('https://i.pinimg.com/1200x/7a/13/a0/7a13a019c901112a7d69ef4f59713346.jpg');
-}
-
-/* 模糊邊界 overlay（獨立層，不干擾 img-inner 的 transition） */
 .img-overlay {
   position: absolute;
   inset: 0;
@@ -164,7 +166,6 @@ const handleLogin = async () => {
   z-index: 2;
 }
 
-/* ── 右側表單 ── */
 .auth-form-wrapper {
   position: relative;
   z-index: 10;
@@ -198,7 +199,8 @@ const handleLogin = async () => {
   color: #666;
   text-align: center;
   margin: 0 0 2rem 0;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  word-break: break-all;
 }
 
 .auth-form {
@@ -232,30 +234,6 @@ const handleLogin = async () => {
   border-color: #333;
 }
 
-.forgot-row {
-  text-align: right;
-}
-
-.forgot-link {
-  font-size: 0.85rem;
-  color: #666;
-  text-decoration: none;
-}
-
-.forgot-link:hover {
-  color: #1a1a1a;
-  text-decoration: underline;
-}
-
-.success-message {
-  padding: 0.75rem;
-  background: #e8f5e9;
-  border: 1px solid #a5d6a7;
-  border-radius: 6px;
-  color: #2e7d32;
-  font-size: 0.9rem;
-}
-
 .error-message {
   padding: 0.75rem;
   background: #fee;
@@ -277,14 +255,8 @@ const handleLogin = async () => {
   transition: background 0.2s;
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: #333;
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+.btn-primary:hover:not(:disabled) { background: #333; }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .auth-footer {
   margin-top: 2rem;
@@ -299,7 +271,5 @@ const handleLogin = async () => {
   font-weight: 500;
 }
 
-.auth-footer a:hover {
-  text-decoration: underline;
-}
+.auth-footer a:hover { text-decoration: underline; }
 </style>

@@ -51,6 +51,9 @@ public class SecurityConfig {
                 // Public endpoints - Authentication (需求：1.1, 1.2, 1.8, 1.9)
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/admin/login").permitAll()
 
+                // Public endpoints - Password reset (未登入使用者忘記密碼)
+                .requestMatchers("/api/auth/password/request-reset", "/api/auth/password/reset").permitAll()
+
                 // Public endpoints - Activities (viewable by all) (需求：3.12, 3.13)
                 .requestMatchers("/api/activities", "/api/activities/**").permitAll()
 

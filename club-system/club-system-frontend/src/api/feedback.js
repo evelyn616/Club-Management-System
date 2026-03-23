@@ -62,3 +62,10 @@ export const submitFeedback = (formId, data) =>
  */
 export const getFeedbackStats = (formId) =>
   apiClient.get(`/feedback/forms/${formId}/stats`).then(r => r.data)
+
+/**
+ * 取得全體活動綜合滿意度（管理員）
+ * Returns: { score: number, totalRatings: number }
+ */
+export const getOverallSatisfaction = () =>
+  apiClient.get('/feedback/satisfaction/overall').then(r => r.data)

@@ -25,6 +25,16 @@ const router = createRouter({
       component: () => import('../views/RegisterView.vue'),
     },
     {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: () => import('@/views/ForgotPasswordView.vue'),
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: () => import('@/views/ResetPasswordView.vue'),
+    },
+    {
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('../views/DashboardView.vue'),
@@ -170,12 +180,7 @@ const router = createRouter({
       name: 'member-checkin',
       component: () => import('@/views/member/MemberCheckIn.vue'),
     },
-    // 管理後台路由
-    {
-      path: '/admin/login',
-      name: 'admin-login',
-      component: () => import('@/views/admin/AdminLogin.vue'),
-    },
+   
     {
       path: '/admin/dashboard',
       name: 'admin-dashboard',
@@ -251,21 +256,8 @@ router.beforeEach((to) => {
     return { name: 'dashboard' }
   }
 
-  // 如果已登入且要去管理員登入頁，檢查是否為管理員
-  if (userStore.isLoggedIn && to.name === 'admin-login') {
-    if (userStore.userRole?.toUpperCase() === 'ADMIN') {
-      return { name: 'admin-dashboard' }
-    } else {
-      return { name: 'dashboard' }
-    }
-  }
-
   // 頁面需要登入，但沒有登入的情況
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
-    // 如果是管理後台頁面，導向管理員登入
-    if (to.meta.requiresAdmin) {
-      return { name: 'admin-login' }
-    }
     return { name: 'login' }
   }
 

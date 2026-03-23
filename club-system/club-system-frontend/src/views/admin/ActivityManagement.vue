@@ -37,7 +37,7 @@
 
       <!-- KPI 區：橫排四格 -->
       <div class="grid-kpi">
-        <div class="kpi-card" v-for="kpi in kpiList" :key="kpi.label">
+        <div class="kpi-card" v-for="kpi in kpiList" :key="kpi.label" :data-tooltip="kpi.tooltip">
           <span class="kpi-label">{{ kpi.label }}</span>
           <span class="kpi-value">{{ kpi.value }}</span>
           <span class="kpi-tag" :class="kpi.tagClass">{{ kpi.tag }}</span>
@@ -172,6 +172,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { activityApi } from '@/api/activity'
+import { getOverallSatisfaction } from '@/api/feedback'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
@@ -192,25 +193,29 @@ const kpiList = computed(() => [
     label: '本學期活動數',
     value: stats.value.semesterActivities,
     tag: `${stats.value.activityChange >= 0 ? '↑' : '↓'} ${Math.abs(stats.value.activityChange)} 場`,
-    tagClass: stats.value.activityChange >= 0 ? 'tag-pos' : 'tag-neg'
+    tagClass: stats.value.activityChange >= 0 ? 'tag-pos' : 'tag-neg',
+    tooltip: '本年度內建立的活動總場次'
   },
   {
     label: '活動執行率',
     value: stats.value.executionRate + '%',
     tag: getExecutionRateLabel(stats.value.executionRate),
-    tagClass: stats.value.executionRate >= 80 ? 'tag-pos' : 'tag-warn'
+    tagClass: stats.value.executionRate >= 80 ? 'tag-pos' : 'tag-warn',
+    tooltip: '已完成活動 ÷ (已完成 + 已取消)，反映活動實際舉辦的比例'
   },
   {
     label: '活動參與率',
     value: stats.value.participationRate + '%',
     tag: getParticipationLabel(stats.value.participationRate),
-    tagClass: getParticipationClass(stats.value.participationRate)
+    tagClass: getParticipationClass(stats.value.participationRate),
+    tooltip: '各活動平均座位填滿率，報名人數 ÷ 人數上限的平均值'
   },
   {
     label: '活動滿意度',
-    value: 'N/A',
-    tag: '待開發',
-    tagClass: 'tag-warn'
+    value: stats.value.satisfactionRate > 0 ? stats.value.satisfactionRate + ' 分' : 'N/A',
+    tag: stats.value.satisfactionRate > 0 ? getSatisfactionLabel(stats.value.satisfactionRate) : '尚無資料',
+    tagClass: stats.value.satisfactionRate > 0 ? getSatisfactionClass(stats.value.satisfactionRate) : 'tag-warn',
+    tooltip: '所有活動回饋表單中評分題的平均分（1–10 分）'
   }
 ])
 
@@ -293,8 +298,8 @@ const formatDateTime = (dt) => {
 const getExecutionRateLabel = (r) => r >= 80 ? '高' : r >= 50 ? '中' : '低'
 const getParticipationLabel = (r) => r >= 80 ? '良好' : r >= 50 ? '普通' : '需改善'
 const getParticipationClass = (r) => r >= 80 ? 'tag-pos' : r >= 50 ? 'tag-warn' : 'tag-neg'
-const getSatisfactionLabel = (r) => r >= 4 ? '高' : r >= 3 ? '中' : '低'
-const getSatisfactionClass = (r) => r >= 4 ? 'tag-pos' : r >= 3 ? 'tag-warn' : 'tag-neg'
+const getSatisfactionLabel = (r) => r >= 8 ? '高' : r >= 6 ? '中' : '低'
+const getSatisfactionClass = (r) => r >= 8 ? 'tag-pos' : r >= 6 ? 'tag-warn' : 'tag-neg'
 
 const goToDetail = (id) => router.push('/admin/update-activity-container/' + id)
 const goToList = (status) => router.push({ path: '/admin/activity-list-container', query: { status } })
@@ -359,15 +364,16 @@ const loadStatusStats = async () => {
   }
 }
 
-const handleLogout = () => {
-  if (confirm('確定要登出嗎？')) {
-    userStore.logout()
-    router.push('/admin/login')
-  }
-}
 
-onMounted(() => {
-  loadStatusStats()
+
+onMounted(async () => {
+  await loadStatusStats()
+  try {
+    const { score } = await getOverallSatisfaction()
+    stats.value = { ...stats.value, satisfactionRate: score }
+  } catch (e) {
+    // 無資料時保持 0
+  }
 })
 </script>
 
@@ -458,7 +464,37 @@ onMounted(() => {
   gap: 0.4rem;
   transition: box-shadow 0.2s;
 }
+.kpi-card { position: relative; }
 .kpi-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.kpi-card[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+.kpi-card[data-tooltip]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1a1a2e;
+  pointer-events: none;
+  z-index: 10;
+}
 .kpi-label { font-size: 0.75rem; color: #888; font-weight: 500; }
 .kpi-value { font-size: 2rem; font-weight: 800; color: #111; line-height: 1; }
 .kpi-tag {

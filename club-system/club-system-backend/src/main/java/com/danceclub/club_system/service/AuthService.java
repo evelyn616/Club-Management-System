@@ -33,6 +33,8 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
     private final DiscountService discountService;
+    private final PasswordResetService passwordResetService;
+    private final EmailService emailService;
 
     // Email validation pattern
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
@@ -45,7 +47,9 @@ public class AuthService {
                       JwtTokenProvider jwtTokenProvider,
                       AuthenticationManager authenticationManager,
                       UserDetailsService userDetailsService,
-                      DiscountService discountService) {
+                      DiscountService discountService,
+                      PasswordResetService passwordResetService,
+                      EmailService emailService) {
         this.userRepository = userRepository;
         this.idGeneratorService = idGeneratorService;
         this.passwordEncoder = passwordEncoder;
@@ -53,6 +57,8 @@ public class AuthService {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.discountService = discountService;
+        this.passwordResetService = passwordResetService;
+        this.emailService = emailService;
     }
     
     /**
@@ -200,6 +206,32 @@ public class AuthService {
         return userRepository.existsByEmail(email);
     }
     
+    /**
+     * 忘記密碼：發送驗證碼到信箱
+     * TODO: 正式環境改回 email 發送（取消 emailService 那行的註解，移除 return code）
+     */
+    public String requestPasswordReset(String email) {
+        return userRepository.findByEmail(email).map(user -> {
+            String code = passwordResetService.generateAndStore(email);
+            // emailService.sendPasswordResetEmail(email, code);  // TODO: 正式環境啟用
+            return code;
+        }).orElse(null);
+    }
+
+    /**
+     * 忘記密碼：驗碼後重設密碼
+     */
+    @Transactional
+    public void resetPassword(String email, String code, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("查無此帳號"));
+        if (!passwordResetService.verify(email, code)) {
+            throw new IllegalArgumentException("驗證碼錯誤或已過期");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
     /**
      * Convert User entity to UserResponse DTO
      */

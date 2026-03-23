@@ -393,9 +393,6 @@ onUnmounted(() => clearInterval(timer))
   z-index: 1;
 }
 
-/* ══════════════════════════════════
-   以下完全複製原始 CSS，一字不改
-   ══════════════════════════════════ */
 
 .dashboard {
   min-height: 100vh;

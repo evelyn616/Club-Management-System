@@ -335,6 +335,28 @@ public class FeedbackService {
         return dto;
     }
 
+    // ─── 全體活動綜合滿意度 ───────────────────────────────────────
+
+    public Map<String, Object> getOverallSatisfaction() {
+        List<FeedbackQuestion> ratingQuestions = questionRepo.findAll().stream()
+                .filter(q -> q.getQuestionType() == QuestionType.RATING)
+                .toList();
+
+        List<Integer> allRatings = ratingQuestions.stream()
+                .flatMap(q -> answerRepo.findByQuestionId(q.getId()).stream())
+                .map(FeedbackAnswer::getRatingAnswer)
+                .filter(Objects::nonNull)
+                .toList();
+
+        double avg = allRatings.stream().mapToInt(Integer::intValue).average().orElse(0.0);
+        double score = Math.round(avg * 10.0) / 10.0;
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("score", score);
+        result.put("totalRatings", allRatings.size());
+        return result;
+    }
+
     // ─── 私有轉換方法 ─────────────────────────────────────────────
 
     private FeedbackFormDto toDto(FeedbackForm form, String currentUserId) {

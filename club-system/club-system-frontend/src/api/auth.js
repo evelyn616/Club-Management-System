@@ -76,3 +76,17 @@ export const verifyAdminMfa = async (code) => {
   const response = await apiClient.post('/auth/admin/mfa/verify', { code })
   return response.data
 }
+
+/**
+ * 忘記密碼：發送驗證碼到信箱
+ * POST /api/auth/password/request-reset
+ */
+export const requestPasswordReset = (email) =>
+  apiClient.post('/auth/password/request-reset', { email }).then(r => r.data)
+
+/**
+ * 忘記密碼：驗碼並重設密碼
+ * POST /api/auth/password/reset
+ */
+export const resetPassword = (email, code, newPassword) =>
+  apiClient.post('/auth/password/reset', { email, code, newPassword }).then(r => r.data)

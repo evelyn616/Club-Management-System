@@ -158,6 +158,41 @@ public class AuthController {
     }
 
     /**
+     * 忘記密碼：發送驗證碼
+     * POST /api/auth/password/request-reset
+     */
+    @PostMapping("/password/request-reset")
+    public ResponseEntity<?> requestPasswordReset(@RequestBody Map<String, String> body) {
+        try {
+            String code = authService.requestPasswordReset(body.get("email"));
+            // TODO: 正式環境移除 code，只回 message
+            return ResponseEntity.ok(Map.of("message", "若此信箱已註冊，驗證碼已發送", "code", code != null ? code : ""));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("INTERNAL_ERROR", "發送驗證碼失敗：" + e.getMessage()));
+        }
+    }
+
+    /**
+     * 忘記密碼：驗碼並重設密碼
+     * POST /api/auth/password/reset
+     */
+    @PostMapping("/password/reset")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+        try {
+            authService.resetPassword(body.get("email"), body.get("code"), body.get("newPassword"));
+            return ResponseEntity.ok(Map.of("message", "密碼重設成功"));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("RESET_FAILED", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("INTERNAL_ERROR", "密碼重設失敗"));
+        }
+    }
+
+    /**
      * Get current user information
      * GET /api/auth/me
      * 需求：1.8
